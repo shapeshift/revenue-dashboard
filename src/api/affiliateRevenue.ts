@@ -11,8 +11,8 @@ export async function fetchAffiliateRevenue(dateRange: DateRange): Promise<Affil
   }
 
   const url = new URL('/api/v1/affiliate/revenue', API_BASE_URL)
-  url.searchParams.set('startTimestamp', dateRange.startTimestamp.toString())
-  url.searchParams.set('endTimestamp', dateRange.endTimestamp.toString())
+  url.searchParams.set('startDate', dateRange.startDate)
+  url.searchParams.set('endDate', dateRange.endDate)
 
   const response = await fetch(url.toString())
 
