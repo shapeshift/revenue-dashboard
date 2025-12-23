@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { subDays, startOfDay, endOfDay, format } from 'date-fns'
+import { useState } from 'react'
+import { subDays, format } from 'date-fns'
 import type { DateRange } from '../types'
 
 type PresetKey = '7d' | '30d' | '90d' | 'custom'
@@ -18,41 +18,30 @@ const presets: { key: PresetKey; label: string; days: number }[] = [
 export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const [activePreset, setActivePreset] = useState<PresetKey>('30d')
 
-  const startDate = useMemo(
-    () => format(new Date(value.startTimestamp * 1000), 'yyyy-MM-dd'),
-    [value.startTimestamp]
-  )
-  const endDate = useMemo(
-    () => format(new Date(value.endTimestamp * 1000), 'yyyy-MM-dd'),
-    [value.endTimestamp]
-  )
-
   const handlePresetClick = (preset: (typeof presets)[number]) => {
     setActivePreset(preset.key)
-    const now = new Date()
-    const start = startOfDay(subDays(now, preset.days))
-    const end = endOfDay(now)
+    // End at yesterday to avoid fetching today's incomplete/slow data
+    const yesterday = subDays(new Date(), 1)
+    const start = subDays(yesterday, preset.days - 1)
     onChange({
-      startTimestamp: Math.floor(start.getTime() / 1000),
-      endTimestamp: Math.floor(end.getTime() / 1000),
+      startDate: format(start, 'yyyy-MM-dd'),
+      endDate: format(yesterday, 'yyyy-MM-dd'),
     })
   }
 
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setActivePreset('custom')
-    const date = new Date(e.target.value)
     onChange({
       ...value,
-      startTimestamp: Math.floor(startOfDay(date).getTime() / 1000),
+      startDate: e.target.value,
     })
   }
 
   const handleEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setActivePreset('custom')
-    const date = new Date(e.target.value)
     onChange({
       ...value,
-      endTimestamp: Math.floor(endOfDay(date).getTime() / 1000),
+      endDate: e.target.value,
     })
   }
 
@@ -76,14 +65,14 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       <div className="flex items-center gap-2 text-zinc-400">
         <input
           type="date"
-          value={startDate}
+          value={value.startDate}
           onChange={handleStartChange}
           className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <span>to</span>
         <input
           type="date"
-          value={endDate}
+          value={value.endDate}
           onChange={handleEndChange}
           className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />

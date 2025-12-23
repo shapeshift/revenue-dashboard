@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { subDays, startOfDay, endOfDay } from 'date-fns'
+import { subDays, format } from 'date-fns'
 import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
 import { TotalRevenue } from './components/TotalRevenue'
 import { DateRangePicker } from './components/DateRangePicker'
 import { ServiceBreakdown } from './components/ServiceBreakdown'
+import { RevenueTimeSeries } from './components/RevenueTimeSeries'
 import type { DateRange } from './types'
 
 function getDefaultDateRange(): DateRange {
-  const now = new Date()
-  const start = startOfDay(subDays(now, 30))
-  const end = endOfDay(now)
+  // Default to 30 days ending yesterday (to avoid fetching today's incomplete/slow data)
+  const yesterday = subDays(new Date(), 1)
+  const start = subDays(yesterday, 29) // 30 total days including yesterday
   return {
-    startTimestamp: Math.floor(start.getTime() / 1000),
-    endTimestamp: Math.floor(end.getTime() / 1000),
+    startDate: format(start, 'yyyy-MM-dd'),
+    endDate: format(yesterday, 'yyyy-MM-dd'),
   }
 }
 
@@ -51,6 +52,7 @@ function App() {
 
         <div className="space-y-6">
           <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
+          <RevenueTimeSeries byDate={data?.byDate} isLoading={isLoading} />
           <ServiceBreakdown
             byService={data?.byService}
             totalUsd={data?.totalUsd}
