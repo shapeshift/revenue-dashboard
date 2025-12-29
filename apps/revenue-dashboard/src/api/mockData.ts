@@ -1,0 +1,65 @@
+import type { AffiliateRevenueResponse } from '../types'
+
+export const mockRevenueData: AffiliateRevenueResponse = {
+  totalUsd: 4667.55,
+  byService: {
+    thorchain: 1807.65,
+    zrx: 965.17,
+    bebop: 709.88,
+    mayachain: 447.86,
+    chainflip: 335.79,
+    portals: 213.44,
+    cowswap: 121.23,
+    relay: 62.31,
+    butterswap: 19.69,
+    nearintents: 5.53,
+  },
+  byDate: {
+    '2025-01-01': {
+      totalUsd: 1523.45,
+      byService: {
+        thorchain: 589.12,
+        zrx: 315.54,
+        bebop: 231.89,
+        mayachain: 146.23,
+        chainflip: 109.67,
+        portals: 69.78,
+        cowswap: 39.56,
+        relay: 20.32,
+        butterswap: 6.45,
+        nearintents: 1.89,
+      },
+    },
+    '2025-01-02': {
+      totalUsd: 1687.32,
+      byService: {
+        thorchain: 654.21,
+        zrx: 348.76,
+        bebop: 256.43,
+        mayachain: 161.87,
+        chainflip: 121.34,
+        portals: 77.12,
+        cowswap: 43.78,
+        relay: 22.54,
+        butterswap: 7.12,
+        nearintents: 2.15,
+      },
+    },
+    '2025-01-03': {
+      totalUsd: 1456.78,
+      byService: {
+        thorchain: 564.32,
+        zrx: 300.87,
+        bebop: 221.56,
+        mayachain: 139.76,
+        chainflip: 104.78,
+        portals: 66.54,
+        cowswap: 37.89,
+        relay: 19.45,
+        butterswap: 6.12,
+        nearintents: 1.49,
+      },
+    },
+  },
+  failedProviders: [],
+}

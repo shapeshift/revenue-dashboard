@@ -12,10 +12,14 @@ dist
 dist-ssr
 *.local
 
+# App-specific dist directories
+apps/*/dist
+apps/*/node_modules
+
 # Environment files
-.env
 .env.local
 .env.*.local
+# Note: .env.production is committed as a template
 
 # Editor directories and files
 .vscode/*
