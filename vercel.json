@@ -1,0 +1,12 @@
+{
+  "buildCommand": "bun build:dashboard",
+  "outputDirectory": "apps/revenue-dashboard/dist",
+  "installCommand": "bun install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

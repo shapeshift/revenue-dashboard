@@ -1,6 +1,19 @@
 import type { AffiliateRevenueResponse } from '../types'
 
 export const mockRevenueData: AffiliateRevenueResponse = {
+  totalUsd: 4667.55,
+  byService: {
+    thorchain: 1807.65,
+    zrx: 965.17,
+    bebop: 709.88,
+    mayachain: 447.86,
+    chainflip: 335.79,
+    portals: 213.44,
+    cowswap: 121.23,
+    relay: 62.31,
+    butterswap: 19.69,
+    nearintents: 5.53,
+  },
   byDate: {
     '2025-01-01': {
       totalUsd: 1523.45,

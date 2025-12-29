@@ -1,37 +1,30 @@
 {
-  "name": "vite-temp",
-  "private": true,
+  "name": "@shapeshiftoss/revenue-dashboard-monorepo",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
+  "engines": {
+    "bun": ">=1.3.2"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "clean": "rm -rf node_modules apps/*/dist apps/*/node_modules",
+    "build": "tsc --build && bun run --filter './apps/*' build",
+    "build:api": "tsc --build && bun --filter @shapeshiftoss/revenue-api build",
+    "build:dashboard": "tsc --build && bun --filter @shapeshiftoss/revenue-dashboard build",
+    "dev:api": "bun --filter @shapeshiftoss/revenue-api dev",
+    "dev:dashboard": "bun --filter @shapeshiftoss/revenue-dashboard dev",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --build"
   },
-  "dependencies": {
-    "@tanstack/react-query": "^5.90.12",
-    "date-fns": "^4.1.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "recharts": "^3.6.0"
-  },
+  "workspaces": [
+    "apps/*"
+  ],
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@tailwindcss/vite": "^4.1.18",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    "autoprefixer": "^10.4.23",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
-  }
+    "@types/bun": "^1.3.3",
+    "@types/node": "^24.0.1",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "bun@1.3.2"
 }
