@@ -39,8 +39,10 @@ console.log(`🚀 Server starting on port ${port}`)
 console.log(`   Health: /health`)
 console.log(`   API: /api/v1/affiliate/revenue`)
 
-export default {
+Bun.serve({
   fetch: app.fetch,
   port,
-  idleTimeout: 300, // 5 minutes for slow provider requests
-}
+  idleTimeout: 255, // Max allowed by Bun (4.25 minutes) for slow provider requests
+})
+
+console.log(`✅ Server listening on http://localhost:${port}`)
