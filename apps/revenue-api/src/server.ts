@@ -42,5 +42,5 @@ console.log(`   API: /api/v1/affiliate/revenue`)
 export default {
   fetch: app.fetch,
   port,
-  idleTimeout: 30,
+  idleTimeout: 300, // 5 minutes for slow provider requests
 }
