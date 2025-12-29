@@ -16,6 +16,7 @@ import {
   OPTIMISM_CHAIN_ID,
   POLYGON_CHAIN_ID,
 } from '../constants'
+
 import type { ChainConfig } from './types'
 
 export const AFFILIATE_FEE_BPS = 55

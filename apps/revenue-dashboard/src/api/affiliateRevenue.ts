@@ -1,12 +1,13 @@
 import type { AffiliateRevenueResponse, DateRange } from '../types'
+
 import { mockRevenueData } from './mockData'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.proxy.shapeshift.com'
+const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'https://api.proxy.shapeshift.com'
 const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 
 export async function fetchAffiliateRevenue(dateRange: DateRange): Promise<AffiliateRevenueResponse> {
   if (USE_MOCK_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 500))
     return mockRevenueData
   }
 
@@ -20,5 +21,5 @@ export async function fetchAffiliateRevenue(dateRange: DateRange): Promise<Affil
     throw new Error(`API request failed: ${response.status} ${response.statusText}`)
   }
 
-  return response.json()
+  return (await response.json()) as AffiliateRevenueResponse
 }

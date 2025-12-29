@@ -1,0 +1,4 @@
+# Environment files
+.env.local
+.env.*.local
+# Note: .env.production is committed as a template

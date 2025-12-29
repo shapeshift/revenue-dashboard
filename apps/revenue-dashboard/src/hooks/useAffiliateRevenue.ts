@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+
 import { fetchAffiliateRevenue } from '../api/affiliateRevenue'
 import type { DateRange } from '../types'
 

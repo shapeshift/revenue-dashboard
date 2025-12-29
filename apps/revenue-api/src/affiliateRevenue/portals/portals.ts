@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { padHex, zeroAddress } from 'viem'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getCachedTokenTransfer,
@@ -12,6 +13,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
 import type {
   BlockscoutLogsResponse,
@@ -56,7 +58,7 @@ const getPortalEventsBlockscout = async (
     for (const log of data.items) {
       if (!log.decoded?.parameters) continue
 
-      const partnerParam = log.decoded.parameters.find((p) => p.name === 'partner')
+      const partnerParam = log.decoded.parameters.find(p => p.name === 'partner')
       if (!partnerParam || partnerParam.value.toLowerCase() !== treasuryLower) continue
 
       let logTimestamp = txTimestampCache[log.transaction_hash]
@@ -71,10 +73,10 @@ const getPortalEventsBlockscout = async (
       }
       if (logTimestamp > endTimestamp) continue
 
-      const inputToken = log.decoded.parameters.find((p) => p.name === 'inputToken')?.value ?? ''
-      const inputAmount = log.decoded.parameters.find((p) => p.name === 'inputAmount')?.value ?? '0'
-      const outputToken = log.decoded.parameters.find((p) => p.name === 'outputToken')?.value ?? ''
-      const outputAmount = log.decoded.parameters.find((p) => p.name === 'outputAmount')?.value ?? '0'
+      const inputToken = log.decoded.parameters.find(p => p.name === 'inputToken')?.value ?? ''
+      const inputAmount = log.decoded.parameters.find(p => p.name === 'inputAmount')?.value ?? '0'
+      const outputToken = log.decoded.parameters.find(p => p.name === 'outputToken')?.value ?? ''
+      const outputAmount = log.decoded.parameters.find(p => p.name === 'outputAmount')?.value ?? '0'
 
       events.push({
         txHash: log.transaction_hash,
@@ -261,7 +263,11 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
   }
 }
 
-const fetchFeesForChain = async (config: ChainConfig, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+const fetchFeesForChain = async (
+  config: ChainConfig,
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<Fees[]> => {
   const events =
     config.explorerType === 'blockscout'
       ? await getPortalEventsBlockscout(config, startTimestamp, endTimestamp)
@@ -284,7 +290,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
   const results = await Promise.allSettled(
-    CHAIN_CONFIGS.map(async (config) => {
+    CHAIN_CONFIGS.map(async config => {
       const cachedFees: Fees[] = []
       const datesToFetch: string[] = []
 

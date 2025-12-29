@@ -1,10 +1,11 @@
-import { useState } from 'react'
 import { subDays, format } from 'date-fns'
-import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
-import { TotalRevenue } from './components/TotalRevenue'
+import { useState } from 'react'
+
 import { DateRangePicker } from './components/DateRangePicker'
-import { ServiceBreakdown } from './components/ServiceBreakdown'
 import { RevenueTimeSeries } from './components/RevenueTimeSeries'
+import { ServiceBreakdown } from './components/ServiceBreakdown'
+import { TotalRevenue } from './components/TotalRevenue'
+import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
 import type { DateRange } from './types'
 
 function getDefaultDateRange(): DateRange {
@@ -44,20 +45,14 @@ function App() {
         {data?.failedProviders && data.failedProviders.length > 0 && (
           <div className="mb-6 p-4 rounded-lg bg-amber-900/50 border border-amber-700 text-amber-200">
             <p className="font-medium">Some providers failed to respond</p>
-            <p className="text-sm text-amber-300">
-              {data.failedProviders.join(', ')}
-            </p>
+            <p className="text-sm text-amber-300">{data.failedProviders.join(', ')}</p>
           </div>
         )}
 
         <div className="space-y-6">
           <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
           <RevenueTimeSeries byDate={data?.byDate} isLoading={isLoading} />
-          <ServiceBreakdown
-            byService={data?.byService}
-            totalUsd={data?.totalUsd}
-            isLoading={isLoading}
-          />
+          <ServiceBreakdown byService={data?.byService} totalUsd={data?.totalUsd} isLoading={isLoading} />
         </div>
       </div>
     </div>

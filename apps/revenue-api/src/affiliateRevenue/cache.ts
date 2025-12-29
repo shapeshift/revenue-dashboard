@@ -1,11 +1,13 @@
 import { LRUCache } from 'lru-cache'
-import type { Fees } from './index'
+
 import type { TokenTransfer } from './portals/types'
+
+import type { Fees } from './index'
 
 export const feeCache = new LRUCache<string, Fees[]>({
   max: 5000,
   maxSize: 500_000_000,
-  sizeCalculation: (fees) => fees.length * 200 + 100,
+  sizeCalculation: fees => fees.length * 200 + 100,
   ttl: 1000 * 60 * 60 * 24 * 90,
   updateAgeOnGet: true,
   updateAgeOnHas: false,

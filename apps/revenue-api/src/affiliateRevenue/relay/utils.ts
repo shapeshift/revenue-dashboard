@@ -25,12 +25,7 @@ export const getChainConfig = (numericChainId: number): { chainId: string; slip4
   }
 }
 
-export const buildAssetId = (
-  chainId: string,
-  slip44: number,
-  tokenAddress: string,
-  isEvm: boolean
-): string => {
+export const buildAssetId = (chainId: string, slip44: number, tokenAddress: string, isEvm: boolean): string => {
   const normalizedAddress = tokenAddress.toLowerCase()
   const isNativeToken =
     normalizedAddress === '0x0000000000000000000000000000000000000000' ||

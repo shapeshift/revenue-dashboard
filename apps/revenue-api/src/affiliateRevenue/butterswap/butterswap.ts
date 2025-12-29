@@ -1,7 +1,10 @@
 import { createHash } from 'crypto'
+
 import { encodeAbiParameters, parseAbiParameters } from 'viem'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import { getDateRange, getDateStartTimestamp } from '../cache'
+
 import {
   API_SUCCESS_CODE,
   BUTTERSWAP_AFFILIATE_ID,
@@ -34,7 +37,7 @@ const fetchTokenList = async (): Promise<string[]> => {
     const data: TokenListResponse = await response.json()
 
     if (data.errno === API_SUCCESS_CODE && data.data?.items?.length > 0) {
-      cachedTokens = data.data.items.map((t) => t.address.toLowerCase())
+      cachedTokens = data.data.items.map(t => t.address.toLowerCase())
       tokensCachedAt = now
       return cachedTokens
     }
@@ -98,7 +101,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const feesPerDay = feesForPeriod / BigInt(numDays)
   const feesPerDayUsd = Number(feesPerDay) / 10 ** USDT_DECIMALS
 
-  return dates.map((date) => ({
+  return dates.map(date => ({
     service: 'butterswap',
     amount: feesPerDay.toString(),
     amountUsd: feesPerDayUsd.toString(),

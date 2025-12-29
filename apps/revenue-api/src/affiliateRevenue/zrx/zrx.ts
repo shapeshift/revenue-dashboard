@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44 } from '../constants'
+
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
 
@@ -35,7 +37,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
         const chainId = `eip155:${trade.chainId}`
         const assetId =
-          token.toLowerCase() === NATIVE_TOKEN_ADDRESS ? `${chainId}/slip44:${SLIP44.ETHEREUM}` : `${chainId}/erc20:${token}`
+          token.toLowerCase() === NATIVE_TOKEN_ADDRESS
+            ? `${chainId}/slip44:${SLIP44.ETHEREUM}`
+            : `${chainId}/erc20:${token}`
 
         fees.push({
           chainId,

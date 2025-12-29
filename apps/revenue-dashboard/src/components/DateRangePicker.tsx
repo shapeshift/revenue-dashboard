@@ -1,5 +1,6 @@
-import { useState } from 'react'
 import { subDays, format } from 'date-fns'
+import { useState } from 'react'
+
 import type { DateRange } from '../types'
 
 type PresetKey = '7d' | '30d' | '90d' | 'custom'
@@ -48,14 +49,12 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex gap-2">
-        {presets.map((preset) => (
+        {presets.map(preset => (
           <button
             key={preset.key}
             onClick={() => handlePresetClick(preset)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activePreset === preset.key
-                ? 'bg-blue-600 text-white'
-                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+              activePreset === preset.key ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
             }`}
           >
             {preset.label}

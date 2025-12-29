@@ -1,4 +1,5 @@
 import { SLIP44 } from '../constants'
+
 import { NEAR_INTENTS_TO_CHAIN_ID, SLIP44_BY_NETWORK } from './constants'
 import type { ParseResult } from './types'
 
@@ -59,4 +60,4 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
   return { chainId: `unknown:${prefix}`, assetId: `unknown:${prefix}/unknown` }
 }
 
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

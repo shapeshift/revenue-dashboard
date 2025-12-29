@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -9,6 +10,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+
 import { FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
@@ -54,11 +56,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
     for (const transaction of data.data) {
       const { chainId, assetId } = parseNearIntentsAsset(transaction.originAsset)
-      const txHash =
-        transaction.originChainTxHashes[0] ||
-        transaction.nearTxHashes[0] ||
-        transaction.intentHashes ||
-        ''
+      const txHash = transaction.originChainTxHashes[0] || transaction.nearTxHashes[0] || transaction.intentHashes || ''
 
       for (const appFee of transaction.appFees) {
         const feeAmount = (parseFloat(transaction.amountIn) * appFee.fee) / FEE_BPS_DENOMINATOR

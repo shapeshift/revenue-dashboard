@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
+
 import { MILLISECONDS_PER_SECOND, PRICE_API_URL, RUNE_DECIMALS, THORCHAIN_API_URL } from './constants'
 import type { FeesResponse } from './types'
 

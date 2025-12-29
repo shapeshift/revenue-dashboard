@@ -1,4 +1,8 @@
 import axios from 'axios'
+
+import type { AffiliateRevenueResponse, Service } from '../types'
+import { services } from '../types'
+
 import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
@@ -9,7 +13,6 @@ import * as portals from './portals'
 import * as relay from './relay'
 import * as thorchain from './thorchain'
 import * as zrx from './zrx'
-import { AffiliateRevenueResponse, Service, services } from '../types'
 
 const providerNames: Service[] = [
   'bebop',
@@ -27,7 +30,7 @@ const formatError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 'no response'
     const data = error.response?.data
-    const message = typeof data === 'object' ? JSON.stringify(data) : data ?? error.message
+    const message = typeof data === 'object' ? JSON.stringify(data) : (data ?? error.message)
     return `HTTP ${status}: ${message}`
   }
   if (error instanceof Error) {
@@ -81,7 +84,7 @@ export class AffiliateRevenue {
       if (!byDate[date]) {
         byDate[date] = {
           totalUsd: 0,
-          byService: Object.fromEntries(services.map((s) => [s, 0])) as Record<Service, number>,
+          byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
         }
       }
 
@@ -90,7 +93,7 @@ export class AffiliateRevenue {
       byDate[date].byService[fee.service] += amountUsd
     }
 
-    const byService = Object.fromEntries(services.map((s) => [s, 0])) as Record<Service, number>
+    const byService = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
 
     for (const daily of Object.values(byDate)) {
       for (const service of services) {

@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bun build:dashboard",
+  "buildCommand": "bun build:frontend",
   "outputDirectory": "apps/revenue-dashboard/dist",
   "installCommand": "bun install",
   "framework": "vite",

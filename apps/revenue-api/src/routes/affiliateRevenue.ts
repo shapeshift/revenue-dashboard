@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
+
 import { AffiliateRevenue } from '../affiliateRevenue'
 import type { AffiliateRevenueResponse } from '../types'
 
 const affiliateRevenueRoute = new Hono()
 const affiliateRevenue = new AffiliateRevenue()
 
-affiliateRevenueRoute.get('/affiliate/revenue', async (c) => {
+affiliateRevenueRoute.get('/affiliate/revenue', async c => {
   try {
     const startDate = c.req.query('startDate')
     const endDate = c.req.query('endDate')
@@ -30,18 +31,18 @@ affiliateRevenueRoute.get('/affiliate/revenue', async (c) => {
       return c.json({ error: 'Invalid endDate value' }, 400)
     }
 
-    const result: AffiliateRevenueResponse = await affiliateRevenue.getAffiliateRevenue(
-      startTimestamp,
-      endTimestamp
-    )
+    const result: AffiliateRevenueResponse = await affiliateRevenue.getAffiliateRevenue(startTimestamp, endTimestamp)
 
     return c.json(result)
   } catch (error) {
     console.error('[Affiliate Revenue Error]:', error)
-    return c.json({
-      error: 'Failed to fetch affiliate revenue',
-      message: error instanceof Error ? error.message : String(error)
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to fetch affiliate revenue',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    )
   }
 })
 

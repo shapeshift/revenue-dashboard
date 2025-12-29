@@ -1,8 +1,16 @@
 import axios from 'axios'
 import { decodeAbiParameters, zeroAddress } from 'viem'
+
 import { getCachedDecimals, saveCachedDecimals } from '../cache'
 import { SLIP44 } from '../constants'
-import { AFFILIATE_FEE_BPS, COINGECKO_API_BASE, COINGECKO_CHAINS, FEE_BPS_DENOMINATOR, PORTAL_EVENT_ABI } from './constants'
+
+import {
+  AFFILIATE_FEE_BPS,
+  COINGECKO_API_BASE,
+  COINGECKO_CHAINS,
+  FEE_BPS_DENOMINATOR,
+  PORTAL_EVENT_ABI,
+} from './constants'
 import type { BlockscoutTransaction, DecodedPortalEvent, ExplorerType } from './types'
 
 export const getTransactionTimestamp = async (explorerUrl: string, txHash: string): Promise<number> => {
@@ -89,10 +97,9 @@ export const getTokenPrice = async (chainId: string, tokenAddress: string): Prom
     const isNative = tokenLower === zeroAddress
 
     if (isNative) {
-      const { data } = await axios.get<Record<string, { usd: number }>>(
-        `${COINGECKO_API_BASE}/simple/price`,
-        { params: { vs_currencies: 'usd', ids: chainConfig.nativeCoinId } }
-      )
+      const { data } = await axios.get<Record<string, { usd: number }>>(`${COINGECKO_API_BASE}/simple/price`, {
+        params: { vs_currencies: 'usd', ids: chainConfig.nativeCoinId },
+      })
       const price = data[chainConfig.nativeCoinId]?.usd ?? null
       priceCache[cacheKey] = { price, timestamp: Date.now() }
       return price

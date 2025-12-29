@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+
 import type { DailyRevenue } from '../types'
 
 interface RevenueTimeSeriesProps {
@@ -32,9 +33,7 @@ export function RevenueTimeSeries({ byDate, isLoading }: RevenueTimeSeriesProps)
     return (
       <div className="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
         <h2 className="text-xl font-semibold mb-6">Daily Revenue</h2>
-        <div className="h-64 flex items-center justify-center text-zinc-500">
-          No data available
-        </div>
+        <div className="h-64 flex items-center justify-center text-zinc-500">No data available</div>
       </div>
     )
   }
@@ -55,16 +54,12 @@ export function RevenueTimeSeries({ byDate, isLoading }: RevenueTimeSeriesProps)
             dataKey="date"
             stroke="#9ca3af"
             tick={{ fill: '#9ca3af' }}
-            tickFormatter={(value) => {
+            tickFormatter={(value: string) => {
               const date = new Date(value)
               return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             }}
           />
-          <YAxis
-            stroke="#9ca3af"
-            tick={{ fill: '#9ca3af' }}
-            tickFormatter={(value) => `$${value.toLocaleString()}`}
-          />
+          <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} tickFormatter={value => `$${value.toLocaleString()}`} />
           <Tooltip
             contentStyle={{
               backgroundColor: '#1f2937',
@@ -72,10 +67,18 @@ export function RevenueTimeSeries({ byDate, isLoading }: RevenueTimeSeriesProps)
               borderRadius: '0.5rem',
               color: '#f3f4f6',
             }}
-            formatter={(value: number | undefined) => [`$${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Revenue']}
-            labelFormatter={(label) => {
+            formatter={(value: number | undefined) => [
+              `$${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              'Revenue',
+            ]}
+            labelFormatter={(label: string) => {
               const date = new Date(label)
-              return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+              return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
             }}
           />
           <Area

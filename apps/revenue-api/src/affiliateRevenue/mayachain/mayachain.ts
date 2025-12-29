@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { MAYACHAIN_CHAIN_ID, SLIP44 } from '../constants'
+
 import { CACAO_DECIMALS, MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND, PRICE_API_URL } from './constants'
 import type { FeesResponse } from './types'
 

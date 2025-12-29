@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { DAO_TREASURY_BASE } from '../constants'
+
 import { RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
 import { buildAssetId, getChainConfig } from './utils'
@@ -32,14 +34,11 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     for (const request of data.requests) {
       const appFees = request.data?.appFees ?? []
 
-      const relevantFees = appFees.filter(
-        (fee) => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase()
-      )
+      const relevantFees = appFees.filter(fee => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase())
 
       if (relevantFees.length === 0) continue
 
-      const currencyObject =
-        request.data?.feeCurrencyObject ?? request.data?.metadata?.currencyIn?.currency
+      const currencyObject = request.data?.feeCurrencyObject ?? request.data?.metadata?.currencyIn?.currency
       if (!currencyObject) continue
 
       const { chainId, slip44, isEvm } = getChainConfig(currencyObject.chainId)

@@ -17,7 +17,6 @@ apps/*/dist
 apps/*/node_modules
 
 # Environment files
-.env
 .env.local
 .env.*.local
 # Note: .env.production is committed as a template

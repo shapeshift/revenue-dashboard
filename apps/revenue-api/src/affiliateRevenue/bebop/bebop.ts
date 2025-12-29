@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Fees } from '..'
+
+import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,7 +11,14 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44 } from '../constants'
-import { BEBOP_API_KEY, BEBOP_API_URL, FEE_BPS_DENOMINATOR, NANOSECONDS_PER_SECOND, SHAPESHIFT_REFERRER } from './constants'
+
+import {
+  BEBOP_API_KEY,
+  BEBOP_API_URL,
+  FEE_BPS_DENOMINATOR,
+  NANOSECONDS_PER_SECOND,
+  SHAPESHIFT_REFERRER,
+} from './constants'
 import type { TradesResponse } from './types'
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -38,7 +46,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       timestamp: Math.floor(new Date(trade.timestamp).getTime() / 1000),
       amount: trade.partnerFeeNative,
       amountUsd:
-        trade.volumeUsd !== undefined ? String(trade.volumeUsd * (Number(trade.partnerFeeBps) / FEE_BPS_DENOMINATOR)) : undefined,
+        trade.volumeUsd !== undefined
+          ? String(trade.volumeUsd * (Number(trade.partnerFeeBps) / FEE_BPS_DENOMINATOR))
+          : undefined,
     })
   }
 

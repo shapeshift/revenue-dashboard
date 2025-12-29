@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+
 import type { ServiceRevenue } from '../types'
 
 type ServiceBreakdownProps = {
@@ -21,8 +22,7 @@ const SERVICE_COLORS: Record<string, string> = {
   nearintents: '#06b6d4',
 }
 
-const getServiceColor = (service: string) =>
-  SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
+const getServiceColor = (service: string) => SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
 
 const formatUsd = (amount: number) =>
   new Intl.NumberFormat('en-US', {
@@ -44,16 +44,14 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
         amount,
         percentage: (amount / totalUsd) * 100,
       }))
-      .filter((s) => s.amount > 0)
+      .filter(s => s.amount > 0)
       .sort((a, b) => b.amount - a.amount)
   }, [byService, totalUsd])
 
   if (isLoading) {
     return (
       <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
-        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">
-          Revenue by Service
-        </h2>
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Service</h2>
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-8 bg-zinc-700 rounded animate-pulse" />
@@ -66,9 +64,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
   if (serviceData.length === 0) {
     return (
       <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
-        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">
-          Revenue by Service
-        </h2>
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Service</h2>
         <p className="text-zinc-500">No revenue data available</p>
       </div>
     )
@@ -76,9 +72,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
 
   return (
     <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
-      <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">
-        Revenue by Service
-      </h2>
+      <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Service</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -95,12 +89,12 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                 label={({ name }) => name}
                 labelLine={false}
               >
-                {serviceData.map((entry) => (
+                {serviceData.map(entry => (
                   <Cell key={entry.service} fill={getServiceColor(entry.service)} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => formatUsd(Number(value))}
+                formatter={value => formatUsd(Number(value))}
                 contentStyle={{
                   backgroundColor: '#27272a',
                   border: '1px solid #3f3f46',
@@ -121,7 +115,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
               </tr>
             </thead>
             <tbody>
-              {serviceData.map((service) => (
+              {serviceData.map(service => (
                 <tr key={service.service} className="border-b border-zinc-800">
                   <td className="py-3">
                     <div className="flex items-center gap-2">
@@ -132,12 +126,8 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                       <span className="text-zinc-200 capitalize">{service.service}</span>
                     </div>
                   </td>
-                  <td className="text-right py-3 text-zinc-200 font-mono">
-                    {formatUsd(service.amount)}
-                  </td>
-                  <td className="text-right py-3 text-zinc-400">
-                    {formatPercent(service.percentage)}
-                  </td>
+                  <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.amount)}</td>
+                  <td className="text-right py-3 text-zinc-400">{formatPercent(service.percentage)}</td>
                 </tr>
               ))}
             </tbody>
