@@ -22,7 +22,7 @@ import type { ChainConfig } from './types'
 export const AFFILIATE_FEE_BPS = 55
 export const FEE_BPS_DENOMINATOR = 10000
 
-export const PORTAL_EVENT_SIGNATURE = '0x5915121a82fd755e41c1e456ef88c033de2bce9c1293024de10dddb0e2f4a101'
+export const PORTAL_EVENT_SIGNATURE = '0x5915121ae705c6baa1bd6698f437ff30eb4b7dbd20e1f7d83c2f1a8be09a1f03'
 export const PORTAL_EVENT_ABI = [
   { type: 'address', name: 'inputToken' },
   { type: 'uint256', name: 'inputAmount' },
@@ -37,64 +37,64 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     network: 'ethereum',
     router: '0xbf5a7f3629fb325e2a8453d595ab103465f75e62',
     treasury: DAO_TREASURY_ETHEREUM,
-    explorerType: 'blockscout',
     explorerUrl: 'https://eth.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: ARBITRUM_CHAIN_ID,
     network: 'arbitrum',
     router: '0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d',
     treasury: DAO_TREASURY_ARBITRUM,
-    explorerType: 'blockscout',
     explorerUrl: 'https://arbitrum.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: OPTIMISM_CHAIN_ID,
     network: 'optimism',
     router: '0x43838f0c0d499f5c3101589f0f452b1fc7515178',
     treasury: DAO_TREASURY_OPTIMISM,
-    explorerType: 'blockscout',
     explorerUrl: 'https://optimism.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: BASE_CHAIN_ID,
     network: 'base',
     router: '0xb0324286b3ef7dddc93fb2ff7c8b7b8a3524803c',
     treasury: DAO_TREASURY_BASE,
-    explorerType: 'blockscout',
     explorerUrl: 'https://base.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: POLYGON_CHAIN_ID,
     network: 'polygon',
     router: '0xC74063fdb47fe6dCE6d029A489BAb37b167Da57f',
     treasury: DAO_TREASURY_POLYGON,
-    explorerType: 'blockscout',
     explorerUrl: 'https://polygon.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: GNOSIS_CHAIN_ID,
     network: 'gnosis',
     router: '0x8e74454b2cf2f6cc2a06083ef122187551cf391c',
     treasury: DAO_TREASURY_GNOSIS,
-    explorerType: 'blockscout',
     explorerUrl: 'https://gnosis.blockscout.com',
+    apiType: 'blockscout',
   },
   {
     chainId: BSC_CHAIN_ID,
     network: 'bsc',
     router: '0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d',
     treasury: DAO_TREASURY_BSC,
-    explorerType: 'etherscan',
     explorerUrl: 'https://api.bscscan.com',
+    apiType: 'etherscan',
   },
   {
     chainId: AVALANCHE_CHAIN_ID,
     network: 'avalanche',
     router: '0xbf5A7F3629fB325E2a8453D595AB103465F75E62',
     treasury: DAO_TREASURY_AVALANCHE,
-    explorerType: 'etherscan',
     explorerUrl: 'https://api.snowtrace.io',
+    apiType: 'etherscan',
   },
 ]
 

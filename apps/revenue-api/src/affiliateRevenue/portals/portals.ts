@@ -14,123 +14,38 @@ import {
   tryGetCachedFees,
 } from '../cache'
 
+import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
 import type {
-  BlockscoutLogsResponse,
-  BlockscoutTokenTransfersResponse,
+  BlockscoutTokenTransferResponse,
   ChainConfig,
   EtherscanLogsResponse,
   EtherscanTokenTxResponse,
   PortalEventData,
   TokenTransfer,
 } from './types'
-import {
-  buildAssetId,
-  calculateFallbackFee,
-  decodePortalEventData,
-  getTokenDecimals,
-  getTokenPrice,
-  getTransactionTimestamp,
-} from './utils'
+import { buildAssetId, calculateFallbackFee, decodePortalEventData, getTokenDecimals, getTokenPrice } from './utils'
 
-const getPortalEventsBlockscout = async (
-  config: ChainConfig,
-  startTimestamp: number,
-  endTimestamp: number
-): Promise<PortalEventData[]> => {
-  const events: PortalEventData[] = []
-  const treasuryLower = config.treasury.toLowerCase()
-  const txTimestampCache: Record<string, number> = {}
-
-  let nextPageParams: BlockscoutLogsResponse['next_page_params'] = undefined
-  let reachedStartTimestamp = false
-
-  do {
-    const params = new URLSearchParams()
-    if (nextPageParams) {
-      params.set('block_number', nextPageParams.block_number.toString())
-      params.set('index', nextPageParams.index.toString())
-    }
-
-    const url = `${config.explorerUrl}/api/v2/addresses/${config.router}/logs?${params.toString()}`
-    const { data } = await axios.get<BlockscoutLogsResponse>(url)
-
-    for (const log of data.items) {
-      if (!log.decoded?.parameters) continue
-
-      const partnerParam = log.decoded.parameters.find(p => p.name === 'partner')
-      if (!partnerParam || partnerParam.value.toLowerCase() !== treasuryLower) continue
-
-      let logTimestamp = txTimestampCache[log.transaction_hash]
-      if (!logTimestamp) {
-        logTimestamp = await getTransactionTimestamp(config.explorerUrl, log.transaction_hash)
-        txTimestampCache[log.transaction_hash] = logTimestamp
-      }
-
-      if (logTimestamp < startTimestamp) {
-        reachedStartTimestamp = true
-        continue
-      }
-      if (logTimestamp > endTimestamp) continue
-
-      const inputToken = log.decoded.parameters.find(p => p.name === 'inputToken')?.value ?? ''
-      const inputAmount = log.decoded.parameters.find(p => p.name === 'inputAmount')?.value ?? '0'
-      const outputToken = log.decoded.parameters.find(p => p.name === 'outputToken')?.value ?? ''
-      const outputAmount = log.decoded.parameters.find(p => p.name === 'outputAmount')?.value ?? '0'
-
-      events.push({
-        txHash: log.transaction_hash,
-        timestamp: logTimestamp,
-        inputToken,
-        inputAmount,
-        outputToken,
-        outputAmount,
-      })
-    }
-
-    if (reachedStartTimestamp && data.items.length > 0) {
-      nextPageParams = undefined
-    } else {
-      nextPageParams = data.next_page_params
-    }
-  } while (nextPageParams)
-
-  return events
-}
-
-const getFeeTransferBlockscout = async (config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
-  const treasuryLower = config.treasury.toLowerCase()
-
-  const url = `${config.explorerUrl}/api/v2/transactions/${txHash}/token-transfers`
-  const { data } = await axios.get<BlockscoutTokenTransfersResponse>(url)
-
-  for (const transfer of data.items) {
-    const toAddress = transfer.to?.hash
-    if (!toAddress) continue
-
-    if (toAddress.toLowerCase() === treasuryLower) {
-      const tokenAddress = transfer.token?.address_hash
-      if (!tokenAddress) continue
-
-      return {
-        token: tokenAddress,
-        amount: transfer.total?.value ?? '0',
-        decimals: parseInt(transfer.total?.decimals ?? '18'),
-        symbol: transfer.token?.symbol ?? 'UNKNOWN',
-      }
-    }
-  }
-
-  return null
-}
-
-const getPortalEventsEtherscan = async (
+const getPortalEventsFromExplorer = async (
   config: ChainConfig,
   startTimestamp: number,
   endTimestamp: number
 ): Promise<PortalEventData[]> => {
   const events: PortalEventData[] = []
   const treasuryTopic = padHex(config.treasury.toLowerCase() as `0x${string}`, { size: 32 })
+
+  const startTime = Date.now()
+
+  // Convert timestamps to block numbers for efficient API filtering
+  const blockRange = await getBlockNumbersForRange(config, startTimestamp, endTimestamp)
+
+  if (!blockRange) {
+    console.error(`[portals:${config.network}] Block conversion failed, cannot fetch events`)
+    return events
+  }
+
+  const fromBlock = blockRange.fromBlock
+  const toBlock = blockRange.toBlock
 
   const url = `${config.explorerUrl}/api`
   const { data } = await axios.get<EtherscanLogsResponse>(url, {
@@ -141,20 +56,33 @@ const getPortalEventsEtherscan = async (
       topic0: PORTAL_EVENT_SIGNATURE,
       topic0_3_opr: 'and',
       topic3: treasuryTopic,
-      fromBlock: 0,
-      toBlock: 'latest',
+      fromBlock,
+      toBlock,
       sort: 'desc',
     },
   })
+  const fetchTime = Date.now() - startTime
 
   if (data.status !== '1' || !Array.isArray(data.result)) {
+    const errorMsg = data.message || 'Unknown error'
+    if (data.status === '0' && errorMsg !== 'No records found') {
+      console.error(`[portals:${config.network}] API error: ${errorMsg} [${fetchTime}ms]`)
+    } else {
+      console.log(`[portals:${config.network}] No events found [${fetchTime}ms]`)
+    }
     return events
   }
 
+  const totalLogs = data.result.length
+  console.log(
+    `[portals:${config.network}] Received ${totalLogs} events from blocks ${fromBlock}-${toBlock} [${fetchTime}ms]`
+  )
+
   for (const log of data.result) {
     const logTimestamp = parseInt(log.timeStamp, 16)
-    if (logTimestamp < startTimestamp) break
-    if (logTimestamp > endTimestamp) continue
+
+    // Timestamp validation as safety check (block range should handle this, but extra safety)
+    if (logTimestamp < startTimestamp || logTimestamp > endTimestamp) continue
 
     const decoded = decodePortalEventData(log.data)
     if (!decoded) continue
@@ -172,29 +100,50 @@ const getPortalEventsEtherscan = async (
   return events
 }
 
-const getFeeTransferEtherscan = async (config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
+const getFeeTransferFromExplorer = async (config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
   const treasuryLower = config.treasury.toLowerCase()
 
-  const url = `${config.explorerUrl}/api`
-  const { data } = await axios.get<EtherscanTokenTxResponse>(url, {
-    params: {
-      module: 'account',
-      action: 'tokentx',
-      txhash: txHash,
-    },
-  })
+  if (config.apiType === 'blockscout') {
+    const url = `${config.explorerUrl}/api/v2/transactions/${txHash}/token-transfers`
+    try {
+      const { data } = await axios.get<BlockscoutTokenTransferResponse>(url)
 
-  if (data.status !== '1' || !Array.isArray(data.result)) {
-    return null
-  }
+      for (const transfer of data.items || []) {
+        if (transfer.to?.hash?.toLowerCase() === treasuryLower && transfer.token_type === 'ERC-20') {
+          return {
+            token: transfer.token.address_hash,
+            amount: transfer.total.value,
+            decimals: parseInt(transfer.total.decimals),
+            symbol: transfer.token.symbol || '',
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[portals:${config.network}] Failed to fetch Blockscout token transfers for ${txHash}:`, error)
+      return null
+    }
+  } else {
+    const url = `${config.explorerUrl}/api`
+    const { data } = await axios.get<EtherscanTokenTxResponse>(url, {
+      params: {
+        module: 'account',
+        action: 'tokentx',
+        txhash: txHash,
+      },
+    })
 
-  for (const transfer of data.result) {
-    if (transfer.to.toLowerCase() === treasuryLower) {
-      return {
-        token: transfer.contractAddress,
-        amount: transfer.value,
-        decimals: parseInt(transfer.tokenDecimal),
-        symbol: transfer.tokenSymbol,
+    if (data.status !== '1' || !Array.isArray(data.result)) {
+      return null
+    }
+
+    for (const transfer of data.result) {
+      if (transfer.to.toLowerCase() === treasuryLower) {
+        return {
+          token: transfer.contractAddress,
+          amount: transfer.value,
+          decimals: parseInt(transfer.tokenDecimal),
+          symbol: transfer.tokenSymbol,
+        }
       }
     }
   }
@@ -212,13 +161,11 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
         ? cached
         : await (async () => {
             try {
-              const transfer =
-                config.explorerType === 'blockscout'
-                  ? await getFeeTransferBlockscout(config, event.txHash)
-                  : await getFeeTransferEtherscan(config, event.txHash)
+              const transfer = await getFeeTransferFromExplorer(config, event.txHash)
               saveCachedTokenTransfer(cacheKey, transfer)
               return transfer
-            } catch {
+            } catch (error) {
+              console.error(`[portals:${config.network}] Failed to fetch fee transfer for ${event.txHash}:`, error)
               saveCachedTokenTransfer(cacheKey, null)
               return null
             }
@@ -242,7 +189,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
     } else {
       const inputToken = event.inputToken ?? zeroAddress
       const assetId = buildAssetId(config.chainId, inputToken)
-      const decimals = await getTokenDecimals(config.explorerUrl, config.explorerType, inputToken)
+      const decimals = await getTokenDecimals(config.explorerUrl, inputToken, config.apiType)
       const feeWei = calculateFallbackFee(event.inputAmount)
       const feeDecimal = Number(feeWei) / 10 ** decimals
       const price = await getTokenPrice(config.chainId, inputToken)
@@ -258,7 +205,8 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
         amountUsd,
       }
     }
-  } catch {
+  } catch (error) {
+    console.error(`[portals:${config.network}] Failed to construct fee from event ${event.txHash}:`, error)
     return null
   }
 }
@@ -268,10 +216,7 @@ const fetchFeesForChain = async (
   startTimestamp: number,
   endTimestamp: number
 ): Promise<Fees[]> => {
-  const events =
-    config.explorerType === 'blockscout'
-      ? await getPortalEventsBlockscout(config, startTimestamp, endTimestamp)
-      : await getPortalEventsEtherscan(config, startTimestamp, endTimestamp)
+  const events = await getPortalEventsFromExplorer(config, startTimestamp, endTimestamp)
 
   const feePromises = events.map(event => constructFeeFromEvent(config, event))
   const feeResults = await Promise.allSettled(feePromises)
@@ -281,10 +226,13 @@ const fetchFeesForChain = async (
     .map(r => r.value)
     .filter((fee): fee is Fees => fee !== null)
 
+  console.log(`[portals:${config.network}] Constructed ${fees.length} fees from ${events.length} events`)
+
   return fees.sort((a, b) => b.timestamp - a.timestamp)
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const overallStart = Date.now()
   const allFees: Fees[] = []
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
@@ -336,7 +284,10 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     }
   }
 
-  console.log(`[portals] Cache stats: ${cacheHits} hits, ${cacheMisses} misses`)
+  const overallTime = Date.now() - overallStart
+  console.log(
+    `[portals] Total: ${allFees.length} fees in ${overallTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
   return allFees
 }

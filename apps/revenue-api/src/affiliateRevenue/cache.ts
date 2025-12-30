@@ -23,6 +23,12 @@ export const decimalsCache = new LRUCache<string, number>({
   ttl: 1000 * 60 * 60 * 24 * 90,
 })
 
+export const blockNumberCache = new LRUCache<string, number>({
+  max: 1000,
+  ttl: 1000 * 60 * 60 * 24 * 365, // 1 year default, overridden by saveCachedBlockNumber
+  updateAgeOnGet: true,
+})
+
 export const timestampToDate = (timestamp: number): string => {
   const date = new Date(timestamp * 1000)
   return date.toISOString().split('T')[0]
@@ -123,4 +129,23 @@ export const getCachedDecimals = (key: string): number | undefined => {
 
 export const saveCachedDecimals = (key: string, decimals: number): void => {
   decimalsCache.set(key, decimals)
+}
+
+export const getBlockCacheKey = (chainId: string, timestamp: number): string => {
+  return `block:${chainId}:${timestamp}`
+}
+
+export const getCachedBlockNumber = (chainId: string, timestamp: number): number | undefined => {
+  const key = getBlockCacheKey(chainId, timestamp)
+  return blockNumberCache.get(key)
+}
+
+export const saveCachedBlockNumber = (chainId: string, timestamp: number, blockNumber: number): void => {
+  const key = getBlockCacheKey(chainId, timestamp)
+  const now = Math.floor(Date.now() / 1000)
+  const age = now - timestamp
+  // Old blocks (>1 hour) never change, cache for 1 year
+  // Recent blocks still being mined, cache for 5 minutes
+  const ttl = age > 3600 ? 1000 * 60 * 60 * 24 * 365 : 1000 * 60 * 5
+  blockNumberCache.set(key, blockNumber, { ttl })
 }
