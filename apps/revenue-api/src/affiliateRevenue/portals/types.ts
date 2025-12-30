@@ -1,12 +1,12 @@
-export type ExplorerType = 'blockscout' | 'etherscan'
+export type ExplorerApiType = 'blockscout' | 'etherscan'
 
 export type ChainConfig = {
   chainId: string
   network: string
   router: string
   treasury: string
-  explorerType: ExplorerType
   explorerUrl: string
+  apiType: ExplorerApiType
 }
 
 export type PortalEventData = {
@@ -23,39 +23,6 @@ export type TokenTransfer = {
   amount: string
   decimals: number
   symbol: string
-}
-
-export type BlockscoutLogItem = {
-  transaction_hash: string
-  block_number: number
-  decoded?: {
-    parameters: Array<{
-      name: string
-      value: string
-      indexed: boolean
-    }>
-  }
-}
-
-export type BlockscoutTransaction = {
-  timestamp: string
-  hash: string
-}
-
-export type BlockscoutLogsResponse = {
-  items: BlockscoutLogItem[]
-  next_page_params?: { block_number: number; index: number }
-}
-
-export type BlockscoutTokenTransfer = {
-  from: { hash: string }
-  to: { hash: string }
-  token: { address_hash: string; symbol: string; decimals: string }
-  total: { value: string; decimals: string }
-}
-
-export type BlockscoutTokenTransfersResponse = {
-  items: BlockscoutTokenTransfer[]
 }
 
 export type EtherscanLogResult = {
@@ -87,9 +54,24 @@ export type EtherscanTokenTxResponse = {
   result: EtherscanTokenTxResult[]
 }
 
+export type BlockscoutTokenTransferResponse = {
+  items: Array<{
+    to: { hash: string }
+    token: { address_hash: string; symbol: string }
+    total: { value: string; decimals: string }
+    token_type: string
+  }>
+}
+
 export type DecodedPortalEvent = {
   inputToken: string
   inputAmount: string
   outputToken: string
   outputAmount: string
+}
+
+export type BlockNumberResponse = {
+  status: string
+  message: string
+  result: string | { blockNumber: string }
 }

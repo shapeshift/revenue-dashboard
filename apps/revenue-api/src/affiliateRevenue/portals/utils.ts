@@ -11,13 +11,7 @@ import {
   FEE_BPS_DENOMINATOR,
   PORTAL_EVENT_ABI,
 } from './constants'
-import type { BlockscoutTransaction, DecodedPortalEvent, ExplorerType } from './types'
-
-export const getTransactionTimestamp = async (explorerUrl: string, txHash: string): Promise<number> => {
-  const url = `${explorerUrl}/api/v2/transactions/${txHash}`
-  const { data } = await axios.get<BlockscoutTransaction>(url)
-  return Math.floor(new Date(data.timestamp).getTime() / 1000)
-}
+import type { DecodedPortalEvent } from './types'
 
 export const decodePortalEventData = (data: string): DecodedPortalEvent | null => {
   if (!data || data.length < 258) return null
@@ -43,8 +37,8 @@ export const calculateFallbackFee = (inputAmount: string): string => {
 
 export const getTokenDecimals = async (
   explorerUrl: string,
-  explorerType: ExplorerType,
-  tokenAddress: string
+  tokenAddress: string,
+  apiType: 'blockscout' | 'etherscan'
 ): Promise<number> => {
   if (tokenAddress.toLowerCase() === zeroAddress) return 18
 
@@ -53,20 +47,22 @@ export const getTokenDecimals = async (
   if (cached !== undefined) return cached
 
   try {
-    if (explorerType === 'blockscout') {
+    if (apiType === 'blockscout') {
       const { data } = await axios.get<{ decimals?: string }>(`${explorerUrl}/api/v2/tokens/${tokenAddress}`)
       const decimals = parseInt(data.decimals ?? '18')
       saveCachedDecimals(cacheKey, decimals)
       return decimals
+    } else {
+      const { data } = await axios.get<{ result?: Array<{ divisor?: string }> }>(`${explorerUrl}/api`, {
+        params: { module: 'token', action: 'tokeninfo', contractaddress: tokenAddress },
+      })
+      const decimals = parseInt(data.result?.[0]?.divisor ?? '18')
+      saveCachedDecimals(cacheKey, decimals)
+      return decimals
     }
-
-    const { data } = await axios.get<{ result?: Array<{ divisor?: string }> }>(`${explorerUrl}/api`, {
-      params: { module: 'token', action: 'tokeninfo', contractaddress: tokenAddress },
-    })
-    const decimals = parseInt(data.result?.[0]?.divisor ?? '18')
-    saveCachedDecimals(cacheKey, decimals)
-    return decimals
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.warn(`Failed to fetch decimals for ${tokenAddress}, defaulting to 18:`, message)
     saveCachedDecimals(cacheKey, 18)
     return 18
   }
