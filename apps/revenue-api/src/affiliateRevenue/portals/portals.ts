@@ -289,6 +289,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
+  let cacheHits = 0
+  let cacheMisses = 0
+
   const results = await Promise.allSettled(
     CHAIN_CONFIGS.map(async config => {
       const cachedFees: Fees[] = []
@@ -298,8 +301,10 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
         const cached = tryGetCachedFees('portals', config.chainId, date)
         if (cached) {
           cachedFees.push(...cached)
+          cacheHits++
         } else {
           datesToFetch.push(date)
+          cacheMisses++
         }
       }
 
@@ -330,6 +335,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
       allFees.push(...result.value)
     }
   }
+
+  console.log(`[portals] Cache stats: ${cacheHits} hits, ${cacheMisses} misses`)
 
   return allFees
 }

@@ -9,7 +9,23 @@ const app = new Hono()
 app.use(
   '/*',
   cors({
-    origin: ['http://localhost:5173', 'https://*.vercel.app'],
+    origin: origin => {
+      if (!origin) return 'http://localhost:5173'
+
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'https://revenue-dashboard-gamma.vercel.app',
+        'https://revenue.shapeshift.com',
+        'http://revenue.shapeshift.com',
+      ]
+
+      if (allowedOrigins.includes(origin)) return origin
+
+      if (origin.endsWith('.vercel.app')) return origin
+
+      return 'http://localhost:5173'
+    },
     credentials: true,
   })
 )

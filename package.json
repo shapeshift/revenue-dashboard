@@ -12,7 +12,7 @@
     "build:backend": "tsc --build && bun --filter @shapeshiftoss/revenue-api build",
     "build:frontend": "tsc --build && bun --filter @shapeshiftoss/revenue-dashboard build",
     "dev": "concurrently -n \"api,dashboard\" -c \"blue,magenta\" \"bun dev:api\" \"bun dev:dashboard\"",
-    "dev:backend": "bun --filter @shapeshiftoss/revenue-api dev",
+    "dev:backend": "bun --filter @shapeshiftoss/revenue-api --elide-lines=0 dev",
     "dev:frontend": "bun --filter @shapeshiftoss/revenue-dashboard dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
