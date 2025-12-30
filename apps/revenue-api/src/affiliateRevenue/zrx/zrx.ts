@@ -11,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44 } from '../constants'
+import { withRetry } from '../../utils/retry'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
@@ -22,13 +23,15 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     let cursor: string | undefined
 
     do {
-      const { data } = await axios.get<TradesResponse>(`${ZRX_API_URL}/${service}`, {
-        params: { cursor, startTimestamp, endTimestamp },
-        headers: {
-          '0x-api-key': ZRX_API_KEY,
-          '0x-version': 'v2',
-        },
-      })
+      const { data } = await withRetry(() =>
+        axios.get<TradesResponse>(`${ZRX_API_URL}/${service}`, {
+          params: { cursor, startTimestamp, endTimestamp },
+          headers: {
+            '0x-api-key': ZRX_API_KEY,
+            '0x-version': 'v2',
+          },
+        })
+      )
 
       for (const trade of data.trades) {
         const token = trade.fees.integratorFee?.token

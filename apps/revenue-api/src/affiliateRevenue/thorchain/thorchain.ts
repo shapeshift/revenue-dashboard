@@ -11,17 +11,20 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
+import { withRetry } from '../../utils/retry'
 
 import { MILLISECONDS_PER_SECOND, PRICE_API_URL, RUNE_DECIMALS, THORCHAIN_API_URL } from './constants'
 import type { FeesResponse } from './types'
 
 const getRunePriceUsd = async (): Promise<number> => {
-  const { data } = await axios.get<{ thorchain: { usd: string } }>(PRICE_API_URL, {
-    params: {
-      vs_currencies: 'usd',
-      ids: 'thorchain',
-    },
-  })
+  const { data } = await withRetry(() =>
+    axios.get<{ thorchain: { usd: string } }>(PRICE_API_URL, {
+      params: {
+        vs_currencies: 'usd',
+        ids: 'thorchain',
+      },
+    })
+  )
 
   return Number(data.thorchain.usd)
 }
@@ -45,9 +48,11 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   const start = startTimestamp * MILLISECONDS_PER_SECOND
   const end = endTimestamp * MILLISECONDS_PER_SECOND
 
-  const { data } = await axios.get<FeesResponse>(THORCHAIN_API_URL, {
-    params: { start, end },
-  })
+  const { data } = await withRetry(() =>
+    axios.get<FeesResponse>(THORCHAIN_API_URL, {
+      params: { start, end },
+    })
+  )
 
   const runePriceUsd = await getRunePriceUsd()
 

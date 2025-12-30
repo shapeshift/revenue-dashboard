@@ -10,6 +10,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { withRetry } from '../../utils/retry'
 
 import { FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
@@ -18,10 +19,9 @@ import { parseNearIntentsAsset, sleep } from './utils'
 const fetchPage = async (
   page: number,
   startTimestamp: number,
-  endTimestamp: number,
-  retries = 3
+  endTimestamp: number
 ): Promise<TransactionsResponse> => {
-  try {
+  return withRetry(async () => {
     const { data } = await axios.get<TransactionsResponse>(
       'https://explorer.near-intents.org/api/v0/transactions-pages',
       {
@@ -37,14 +37,7 @@ const fetchPage = async (
       }
     )
     return data
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 429 && retries > 0) {
-      console.warn(`[nearIntents] Rate limited, waiting 5s before retry (${retries} retries left)`)
-      await sleep(5000)
-      return fetchPage(page, startTimestamp, endTimestamp, retries - 1)
-    }
-    throw error
-  }
+  })
 }
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
