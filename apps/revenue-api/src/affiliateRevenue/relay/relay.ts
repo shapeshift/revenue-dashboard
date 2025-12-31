@@ -84,6 +84,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const startTime = Date.now()
   const cacheFees = (chunk: string[], fees: Fees[]) => {
     const feesByDate = groupFeesByDate(fees)
     for (const date of chunk) {
@@ -92,17 +93,21 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   }
 
   const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
+  const { cacheableDates, recentStart} = splitDateRange(startTimestamp, endTimestamp, threshold)
 
   const cachedFees: Fees[] = []
   const datesToFetch: string[] = []
+  let cacheHits = 0
+  let cacheMisses = 0
 
   for (const date of cacheableDates) {
     const cached = tryGetCachedFees('relay', 'all', date)
     if (cached) {
       cachedFees.push(...cached)
+      cacheHits++
     } else {
       datesToFetch.push(date)
+      cacheMisses++
     }
   }
 
@@ -163,6 +168,11 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   if (recentStart !== null) {
     recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
   }
+
+  const totalFees = cachedFees.length + newFees.length + recentFees.length
+  const duration = Date.now() - startTime
+
+  console.log(`[relay] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
   return [...cachedFees, ...newFees, ...recentFees]
 }

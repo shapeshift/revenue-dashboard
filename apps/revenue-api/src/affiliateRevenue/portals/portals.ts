@@ -34,13 +34,10 @@ const getPortalEventsFromExplorer = async (
   const events: PortalEventData[] = []
   const treasuryTopic = padHex(config.treasury.toLowerCase() as `0x${string}`, { size: 32 })
 
-  const startTime = Date.now()
-
   // Convert timestamps to block numbers for efficient API filtering
   const blockRange = await getBlockNumbersForRange(config, startTimestamp, endTimestamp)
 
   if (!blockRange) {
-    console.error(`[portals:${config.network}] Block conversion failed, cannot fetch events`)
     return events
   }
 
@@ -61,22 +58,10 @@ const getPortalEventsFromExplorer = async (
       sort: 'desc',
     },
   })
-  const fetchTime = Date.now() - startTime
 
   if (data.status !== '1' || !Array.isArray(data.result)) {
-    const errorMsg = data.message || 'Unknown error'
-    if (data.status === '0' && errorMsg !== 'No records found') {
-      console.error(`[portals:${config.network}] API error: ${errorMsg} [${fetchTime}ms]`)
-    } else {
-      console.log(`[portals:${config.network}] No events found [${fetchTime}ms]`)
-    }
     return events
   }
-
-  const totalLogs = data.result.length
-  console.log(
-    `[portals:${config.network}] Received ${totalLogs} events from blocks ${fromBlock}-${toBlock} [${fetchTime}ms]`
-  )
 
   for (const log of data.result) {
     const logTimestamp = parseInt(log.timeStamp, 16)
@@ -119,7 +104,6 @@ const getFeeTransferFromExplorer = async (config: ChainConfig, txHash: string): 
         }
       }
     } catch (error) {
-      console.error(`[portals:${config.network}] Failed to fetch Blockscout token transfers for ${txHash}:`, error)
       return null
     }
   } else {
@@ -165,7 +149,6 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
               saveCachedTokenTransfer(cacheKey, transfer)
               return transfer
             } catch (error) {
-              console.error(`[portals:${config.network}] Failed to fetch fee transfer for ${event.txHash}:`, error)
               saveCachedTokenTransfer(cacheKey, null)
               return null
             }
@@ -206,7 +189,6 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
       }
     }
   } catch (error) {
-    console.error(`[portals:${config.network}] Failed to construct fee from event ${event.txHash}:`, error)
     return null
   }
 }
@@ -225,8 +207,6 @@ const fetchFeesForChain = async (
     .filter((r): r is PromiseFulfilledResult<Fees | null> => r.status === 'fulfilled')
     .map(r => r.value)
     .filter((fee): fee is Fees => fee !== null)
-
-  console.log(`[portals:${config.network}] Constructed ${fees.length} fees from ${events.length} events`)
 
   return fees.sort((a, b) => b.timestamp - a.timestamp)
 }
