@@ -11,7 +11,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { getSlip44ForChain } from '../utils'
+import { getSlip44ForChain, safeAmountToString } from '../utils'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
@@ -35,8 +35,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
       for (const trade of data.trades) {
         const token = trade.fees.integratorFee?.token
+        const rawAmount = safeAmountToString(trade.fees.integratorFee?.amount)
 
-        if (!trade.fees.integratorFee?.amount || !token) continue
+        if (!rawAmount || !token) continue
 
         const chainId = `eip155:${trade.chainId}`
         const assetId =
@@ -50,8 +51,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           service: 'zrx',
           txHash: trade.transactionHash,
           timestamp: trade.timestamp,
-          amount: trade.fees.integratorFee.amount,
-          amountUsd: trade.fees.integratorFee.amountUsd,
+          amount: rawAmount,
+          amountUsd: trade.fees.integratorFee?.amountUsd,
         })
       }
 

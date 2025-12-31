@@ -52,7 +52,10 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         if (relevantFees.length === 0) continue
 
         const currencyObject = request.data?.feeCurrencyObject ?? request.data?.metadata?.currencyIn?.currency
-        if (!currencyObject) continue
+        if (!currencyObject) {
+          console.warn(`[relay] Skipped fee - missing currency object`, { requestId: request.id })
+          continue
+        }
 
         let chainConfig = chainConfigCache.get(currencyObject.chainId)
         if (!chainConfig) {

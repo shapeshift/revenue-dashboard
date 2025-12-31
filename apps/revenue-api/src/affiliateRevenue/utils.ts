@@ -26,3 +26,9 @@ export const getSlip44ForChain = (chainId: string): number => {
   const numericChainId = parseInt(chainId.split(':')[1])
   return EVM_CHAIN_TO_SLIP44[numericChainId] ?? SLIP44.ETHEREUM
 }
+
+// Converts amount to string, handling cases where 0x API returns it as a number
+export const safeAmountToString = (amount: string | number | undefined): string => {
+  if (amount === undefined || amount === null) return ''
+  return typeof amount === 'string' ? amount : String(amount)
+}
