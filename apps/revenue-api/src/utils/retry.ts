@@ -22,7 +22,7 @@ export function isRetryableError(error: unknown): boolean {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status
 
-    if (status === 429 || status === 504) return true
+    if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return true
 
     if (!error.response && error.code) {
       const retryableCodes = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED']

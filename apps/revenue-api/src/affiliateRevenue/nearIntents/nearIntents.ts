@@ -12,7 +12,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 
-import { FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
+import { DAO_TREASURY_NEAR, FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 
@@ -43,13 +43,32 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   while (page) {
     const data = await fetchPage(page, startTimestamp, endTimestamp)
 
+    if (!data || !Array.isArray(data.data)) {
+      console.error(`[nearIntents] Invalid API response structure on page ${page}`, data)
+      break
+    }
+
     for (const transaction of data.data) {
       const { chainId, assetId } = parseNearIntentsAsset(transaction.originAsset)
       const txHash = transaction.originChainTxHashes[0] || transaction.nearTxHashes[0] || transaction.intentHashes || ''
 
       for (const appFee of transaction.appFees) {
-        const feeAmount = (parseFloat(transaction.amountIn) * appFee.fee) / FEE_BPS_DENOMINATOR
-        const feeUsd = (parseFloat(transaction.amountInUsd) * appFee.fee) / FEE_BPS_DENOMINATOR
+        if (appFee.recipient !== DAO_TREASURY_NEAR) {
+          continue
+        }
+
+        const amountIn = parseFloat(transaction.amountIn)
+        const amountInUsd = parseFloat(transaction.amountInUsd)
+
+        if (isNaN(amountIn) || isNaN(amountInUsd)) {
+          console.warn(
+            `[nearIntents] Invalid amounts in tx ${transaction.intentHashes}: amountIn=${transaction.amountIn}, amountInUsd=${transaction.amountInUsd}`
+          )
+          continue
+        }
+
+        const feeAmount = (amountIn * appFee.fee) / FEE_BPS_DENOMINATOR
+        const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
 
         fees.push({
           chainId,

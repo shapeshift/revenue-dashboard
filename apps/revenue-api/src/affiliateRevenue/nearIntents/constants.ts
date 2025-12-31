@@ -20,6 +20,7 @@ import {
 
 export const NEAR_INTENTS_API_KEY = process.env.NEAR_INTENTS_API_KEY
 export const FEE_BPS_DENOMINATOR = 10000
+export const DAO_TREASURY_NEAR = 'f471d0b0f90593d85125f38aaf5458748d6f23fd5b437b844d293d8e87557070'
 
 if (!NEAR_INTENTS_API_KEY) throw new Error('NEAR_INTENTS_API_KEY env var not set')
 
