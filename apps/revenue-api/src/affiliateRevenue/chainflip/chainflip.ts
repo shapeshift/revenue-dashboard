@@ -35,7 +35,23 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       operationName: 'GetAffiliateSwaps',
     })
 
+    if (!data?.data?.allSwapRequests) {
+      throw new Error('Chainflip API returned invalid response structure')
+    }
+
+    if ('errors' in data && Array.isArray(data.errors) && data.errors.length > 0) {
+      throw new Error(`Chainflip GraphQL errors: ${JSON.stringify(data.errors)}`)
+    }
+
     const { edges, pageInfo } = data.data.allSwapRequests
+
+    if (!edges || !Array.isArray(edges)) {
+      throw new Error('Chainflip API returned invalid edges array')
+    }
+
+    if (!pageInfo || typeof pageInfo.hasNextPage !== 'boolean') {
+      throw new Error('Chainflip API returned invalid pageInfo')
+    }
 
     for (const { node: swap } of edges) {
       if (!swap.affiliateBroker1FeeValueUsd) continue
@@ -49,7 +65,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         service: 'chainflip',
         txHash: '',
         timestamp: Math.floor(new Date(swap.completedBlockTimestamp).getTime() / 1000),
-        amount: '0',
+        amount: swap.affiliateBroker1FeeValueUsd,
         amountUsd: swap.affiliateBroker1FeeValueUsd,
       })
     }

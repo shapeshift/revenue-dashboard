@@ -14,4 +14,8 @@ export type GraphQLResponse = {
       totalCount: number
     }
   }
+  errors?: Array<{
+    message: string
+    locations?: Array<{ line: number; column: number }>
+  }>
 }
