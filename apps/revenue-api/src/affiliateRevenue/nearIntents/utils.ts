@@ -1,4 +1,4 @@
-import { SLIP44 } from '../constants'
+import { getSlip44ForChain } from '../utils'
 
 import { NEAR_INTENTS_TO_CHAIN_ID, SLIP44_BY_NETWORK } from './constants'
 import type { ParseResult } from './types'
@@ -17,7 +17,11 @@ export const buildAssetId = (chainId: string, network: string, tokenAddress?: st
   }
 
   if (chainId.startsWith('eip155:')) {
-    return tokenAddress ? `${chainId}/erc20:${tokenAddress}` : `${chainId}/slip44:${SLIP44.ETHEREUM}`
+    if (tokenAddress) {
+      return `${chainId}/erc20:${tokenAddress}`
+    }
+    const slip44 = getSlip44ForChain(chainId)
+    return `${chainId}/slip44:${slip44}`
   }
 
   const slip44 = SLIP44_BY_NETWORK[network] ?? 0
@@ -52,7 +56,8 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
   const nep245Match = asset.match(/^nep245:v2_1\.omni\.hot\.tg:(\d+)_.+$/)
   if (nep245Match) {
     const chainId = `eip155:${nep245Match[1]}`
-    return { chainId, assetId: `${chainId}/slip44:${SLIP44.ETHEREUM}` }
+    const slip44 = getSlip44ForChain(chainId)
+    return { chainId, assetId: `${chainId}/slip44:${slip44}` }
   }
 
   const prefix = asset.split(':')[0] ?? 'unknown'

@@ -59,10 +59,7 @@ function calculateDelay(
   return cappedDelay
 }
 
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
   let lastError: unknown
 
@@ -79,17 +76,13 @@ export async function withRetry<T>(
         throw error
       }
 
-      const delay = calculateDelay(
-        attempt,
-        opts.initialDelay,
-        opts.backoffMultiplier,
-        opts.maxDelay,
-        opts.jitter
-      )
+      const delay = calculateDelay(attempt, opts.initialDelay, opts.backoffMultiplier, opts.maxDelay, opts.jitter)
 
       const errorMsg = axios.isAxiosError(error)
         ? `HTTP ${error.response?.status || 'network error'}`
-        : error instanceof Error ? error.message : String(error)
+        : error instanceof Error
+          ? error.message
+          : String(error)
 
       console.warn(`[retry] Attempt ${attempt + 1} failed (${errorMsg}), retrying after ${Math.round(delay)}ms`)
 

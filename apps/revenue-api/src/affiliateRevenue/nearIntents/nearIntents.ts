@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,17 +11,12 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { withRetry } from '../../utils/retry'
 
 import { FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 
-const fetchPage = async (
-  page: number,
-  startTimestamp: number,
-  endTimestamp: number
-): Promise<TransactionsResponse> => {
+const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {
   return withRetry(async () => {
     const { data } = await axios.get<TransactionsResponse>(
       'https://explorer.near-intents.org/api/v0/transactions-pages',
@@ -40,10 +36,7 @@ const fetchPage = async (
   })
 }
 
-const fetchFeesFromAPI = async (
-  startTimestamp: number,
-  endTimestamp: number
-): Promise<Fees[]> => {
+const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
   let page: number | undefined = 1
 
@@ -124,7 +117,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const totalFees = cachedFees.length + newFees.length + recentFees.length
   const duration = Date.now() - startTime
 
-  console.log(`[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
+  console.log(
+    `[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
   return [...cachedFees, ...newFees, ...recentFees]
 }

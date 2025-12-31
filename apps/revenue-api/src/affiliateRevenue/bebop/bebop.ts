@@ -10,7 +10,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { SLIP44 } from '../constants'
+import { getSlip44ForChain } from '../utils'
 
 import {
   BEBOP_API_KEY,
@@ -36,7 +36,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     if (!trade.partnerFeeBps || !trade.partnerFeeNative) continue
 
     const chainId = `eip155:${trade.chain_id}`
-    const assetId = `${chainId}/slip44:${SLIP44.ETHEREUM}`
+    const slip44 = getSlip44ForChain(chainId)
+    const assetId = `${chainId}/slip44:${slip44}`
 
     fees.push({
       chainId,

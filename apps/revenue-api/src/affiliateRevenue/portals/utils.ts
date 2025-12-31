@@ -2,7 +2,7 @@ import axios from 'axios'
 import { decodeAbiParameters, zeroAddress } from 'viem'
 
 import { getCachedDecimals, saveCachedDecimals } from '../cache'
-import { SLIP44 } from '../constants'
+import { getSlip44ForChain } from '../utils'
 
 import {
   AFFILIATE_FEE_BPS,
@@ -71,7 +71,8 @@ export const getTokenDecimals = async (
 export const buildAssetId = (chainId: string, tokenAddress: string): string => {
   const tokenLower = tokenAddress.toLowerCase()
   const isNative = tokenLower === zeroAddress
-  return isNative ? `${chainId}/slip44:${SLIP44.ETHEREUM}` : `${chainId}/erc20:${tokenLower}`
+  const slip44 = isNative ? getSlip44ForChain(chainId) : undefined
+  return isNative ? `${chainId}/slip44:${slip44}` : `${chainId}/erc20:${tokenLower}`
 }
 
 const priceCache: Record<string, { price: number | null; timestamp: number }> = {}

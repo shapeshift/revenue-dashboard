@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -11,7 +12,6 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { DAO_TREASURY_BASE } from '../constants'
-import { withRetry } from '../../utils/retry'
 
 import { RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
@@ -93,7 +93,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   }
 
   const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart} = splitDateRange(startTimestamp, endTimestamp, threshold)
+  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
   const cachedFees: Fees[] = []
   const datesToFetch: string[] = []

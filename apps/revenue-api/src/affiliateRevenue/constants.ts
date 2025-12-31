@@ -46,9 +46,12 @@ export const SLIP44 = {
   TRON: 195,
   NEAR: 397,
   SOLANA: 501,
+  BNB: 714,
   SUI: 784,
-  THORCHAIN: 931,
   MAYACHAIN: 931,
+  THORCHAIN: 931,
+  MATIC: 966,
+  AVAX: 9000,
   STARKNET: 9004,
 } as const
 
