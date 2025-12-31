@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
+import { assetDataService } from '../assetDataService'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -11,6 +12,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../postProcessing'
 
 import { DAO_TREASURY_NEAR, FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
@@ -67,8 +69,12 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           continue
         }
 
-        const feeAmount = (amountIn * appFee.fee) / FEE_BPS_DENOMINATOR
+        const feeAmountDecimal = (amountIn * appFee.fee) / FEE_BPS_DENOMINATOR
         const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
+
+        // Convert decimal amount to wei
+        const decimals = assetDataService.getAssetDecimals(assetId)
+        const feeAmountWei = String(Math.floor(feeAmountDecimal * 10 ** decimals))
 
         fees.push({
           chainId,
@@ -76,8 +82,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           service: 'nearintents',
           txHash,
           timestamp: transaction.createdAtTimestamp,
-          amount: String(feeAmount),
-          amountUsd: String(feeUsd),
+          amount: feeAmountWei,
+          originalUsdValue: String(feeUsd),
         })
       }
     }
@@ -93,6 +99,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  await assetDataService.ensureLoadedAsync()
+
   const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
@@ -140,5 +148,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     `[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
   )
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

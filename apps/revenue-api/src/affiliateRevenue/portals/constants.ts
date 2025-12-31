@@ -99,16 +99,3 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
   },
 ]
-
-export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {
-  '1': { platform: 'ethereum', nativeCoinId: 'ethereum' },
-  '42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
-  '10': { platform: 'optimistic-ethereum', nativeCoinId: 'ethereum' },
-  '8453': { platform: 'base', nativeCoinId: 'ethereum' },
-  '137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
-  '100': { platform: 'xdai', nativeCoinId: 'xdai' },
-  '56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
-  '43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
-}
-
-export const COINGECKO_API_BASE = 'https://api.proxy.shapeshift.com/api/v1/markets'

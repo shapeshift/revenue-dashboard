@@ -11,6 +11,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../postProcessing'
 import { getSlip44ForChain, safeAmountToString } from '../utils'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
@@ -52,7 +53,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           txHash: trade.transactionHash,
           timestamp: trade.timestamp,
           amount: rawAmount,
-          amountUsd: trade.fees.integratorFee?.amountUsd,
+          originalUsdValue: trade.fees.integratorFee?.amountUsd,
         })
       }
 
@@ -107,5 +108,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[zrx] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

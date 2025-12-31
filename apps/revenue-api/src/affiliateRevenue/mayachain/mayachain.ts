@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -11,22 +12,12 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { MAYACHAIN_CHAIN_ID, SLIP44 } from '../constants'
+import { enrichFeesWithUsdPrices } from '../postProcessing'
 
-import { CACAO_DECIMALS, MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND, PRICE_API_URL } from './constants'
+import { MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND } from './constants'
 import type { FeesResponse } from './types'
 
-const getCacaoPriceUsd = async (): Promise<number> => {
-  const { data } = await axios.get<{ cacao: { usd: string } }>(PRICE_API_URL, {
-    params: {
-      vs_currencies: 'usd',
-      ids: 'cacao',
-    },
-  })
-
-  return Number(data.cacao.usd)
-}
-
-const transformFee = (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Fees => {
+const transformFee = (fee: FeesResponse['fees'][0]): Fees => {
   const chainId = MAYACHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.MAYACHAIN}`
 
@@ -37,7 +28,6 @@ const transformFee = (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Fees
     txHash: fee.txId,
     timestamp: Math.round(fee.timestamp / 1000),
     amount: fee.amount,
-    amountUsd: ((Number(fee.amount) / 10 ** CACAO_DECIMALS) * cacaoPriceUsd).toString(),
   }
 }
 
@@ -45,13 +35,17 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   const start = startTimestamp * MILLISECONDS_PER_SECOND
   const end = endTimestamp * MILLISECONDS_PER_SECOND
 
-  const { data } = await axios.get<FeesResponse>(MAYACHAIN_API_URL, {
-    params: { start, end },
-  })
+  const { data } = await withRetry(() =>
+    axios.get<FeesResponse>(MAYACHAIN_API_URL, {
+      params: { start, end },
+    })
+  )
 
-  const cacaoPriceUsd = await getCacaoPriceUsd()
+  if (!data?.fees || !Array.isArray(data.fees)) {
+    throw new Error('Mayachain API returned invalid response structure')
+  }
 
-  return data.fees.map(fee => transformFee(fee, cacaoPriceUsd))
+  return data.fees.map(fee => transformFee(fee))
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -98,5 +92,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[mayachain] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

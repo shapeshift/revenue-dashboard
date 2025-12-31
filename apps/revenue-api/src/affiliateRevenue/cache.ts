@@ -18,11 +18,6 @@ export const tokenTransferCache = new LRUCache<string, { transfer: TokenTransfer
   ttl: 1000 * 60 * 60 * 24 * 7,
 })
 
-export const decimalsCache = new LRUCache<string, number>({
-  max: 1000,
-  ttl: 1000 * 60 * 60 * 24 * 90,
-})
-
 export const blockNumberCache = new LRUCache<string, number>({
   max: 1000,
   ttl: 1000 * 60 * 60 * 24 * 365, // 1 year default, overridden by saveCachedBlockNumber
@@ -121,14 +116,6 @@ export const getCachedTokenTransfer = (key: string): TokenTransfer | null | unde
 
 export const saveCachedTokenTransfer = (key: string, transfer: TokenTransfer | null): void => {
   tokenTransferCache.set(key, { transfer })
-}
-
-export const getCachedDecimals = (key: string): number | undefined => {
-  return decimalsCache.get(key)
-}
-
-export const saveCachedDecimals = (key: string, decimals: number): void => {
-  decimalsCache.set(key, decimals)
 }
 
 export const getBlockCacheKey = (chainId: string, timestamp: number): string => {

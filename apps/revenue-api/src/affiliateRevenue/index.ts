@@ -42,6 +42,7 @@ const formatError = (error: unknown): string => {
 export type Fees = {
   amount: string
   amountUsd?: string
+  originalUsdValue?: string
   assetId: string
   chainId: string
   service: Service

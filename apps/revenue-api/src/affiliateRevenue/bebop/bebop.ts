@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { assetDataService } from '../assetDataService'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../postProcessing'
 import { getSlip44ForChain } from '../utils'
 
 import {
@@ -39,15 +41,18 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const slip44 = getSlip44ForChain(chainId)
     const assetId = `${chainId}/slip44:${slip44}`
 
+    const decimals = assetDataService.getAssetDecimals(assetId)
+    const amount = String(Math.floor(Number(trade.partnerFeeNative) * 10 ** decimals))
+
     fees.push({
       chainId,
       assetId,
       service: 'bebop',
       txHash: trade.txHash,
       timestamp: Math.floor(new Date(trade.timestamp).getTime() / 1000),
-      amount: trade.partnerFeeNative,
-      amountUsd:
-        trade.volumeUsd !== undefined
+      amount,
+      originalUsdValue:
+        trade.volumeUsd !== undefined && trade.partnerFeeBps !== undefined
           ? String(trade.volumeUsd * (Number(trade.partnerFeeBps) / FEE_BPS_DENOMINATOR))
           : undefined,
     })
@@ -57,6 +62,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  await assetDataService.ensureLoadedAsync()
+
   const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
@@ -100,5 +107,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[bebop] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

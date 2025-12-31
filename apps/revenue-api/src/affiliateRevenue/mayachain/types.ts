@@ -1,4 +1,4 @@
-export type FeesResponse = {
+export interface FeesResponse {
   fees: Array<{
     address: string
     amount: string
