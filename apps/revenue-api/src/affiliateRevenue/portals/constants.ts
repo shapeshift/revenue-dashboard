@@ -85,8 +85,9 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     network: 'bsc',
     router: '0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d',
     treasury: DAO_TREASURY_BSC,
-    explorerUrl: 'https://api.bscscan.com',
+    explorerUrl: '', // Deprecated - BscScan V1 API no longer works
     apiType: 'etherscan',
+    rpcUrl: 'https://bsc-dataseed.binance.org/',
   },
   {
     chainId: AVALANCHE_CHAIN_ID,
@@ -95,6 +96,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     treasury: DAO_TREASURY_AVALANCHE,
     explorerUrl: 'https://api.snowtrace.io',
     apiType: 'etherscan',
+    rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
   },
 ]
 

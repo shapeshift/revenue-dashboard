@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import { getCachedBlockNumber, saveCachedBlockNumber } from '../cache'
 
+import { findBlockByTimestamp } from './rpc'
 import type { BlockNumberResponse, ChainConfig } from './types'
 
 const RECENT_THRESHOLD = 3600 // 1 hour in seconds
@@ -10,6 +11,15 @@ export const convertTimestampToBlock = async (config: ChainConfig, timestamp: nu
   // Check cache first
   const cached = getCachedBlockNumber(config.chainId, timestamp)
   if (cached !== undefined) return cached
+
+  // If RPC is available but no explorer URL, skip straight to RPC (for chains with deprecated APIs)
+  if ((!config.explorerUrl || config.explorerUrl === '') && config.rpcUrl) {
+    const blockNumber = await findBlockByTimestamp(config.rpcUrl, timestamp)
+    if (blockNumber !== null) {
+      saveCachedBlockNumber(config.chainId, timestamp, blockNumber)
+    }
+    return blockNumber
+  }
 
   try {
     const { data } = await axios.get<BlockNumberResponse>(`${config.explorerUrl}/api`, {
@@ -23,6 +33,14 @@ export const convertTimestampToBlock = async (config: ChainConfig, timestamp: nu
     })
 
     if (data.status !== '1' || !data.result) {
+      if (config.rpcUrl) {
+        const blockNumber = await findBlockByTimestamp(config.rpcUrl, timestamp)
+        if (blockNumber !== null) {
+          saveCachedBlockNumber(config.chainId, timestamp, blockNumber)
+          return blockNumber
+        }
+      }
+
       console.warn(
         `[portals:${config.network}] Failed to get block number for timestamp ${timestamp}: ${data.message || 'Unknown error'}`
       )
@@ -44,6 +62,18 @@ export const convertTimestampToBlock = async (config: ChainConfig, timestamp: nu
     saveCachedBlockNumber(config.chainId, timestamp, blockNumber)
     return blockNumber
   } catch (error) {
+    if (config.rpcUrl) {
+      try {
+        const blockNumber = await findBlockByTimestamp(config.rpcUrl, timestamp)
+        if (blockNumber !== null) {
+          saveCachedBlockNumber(config.chainId, timestamp, blockNumber)
+          return blockNumber
+        }
+      } catch {
+        // RPC also failed, fall through to final error
+      }
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error(`[portals:${config.network}] Error converting timestamp to block:`, message)
     return null
