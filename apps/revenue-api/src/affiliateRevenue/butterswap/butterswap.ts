@@ -73,6 +73,7 @@ const generateSyntheticTxHash = (service: string, date: string): string => {
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Array<Fees>> => {
+  const startTime = Date.now()
   const tokens = await fetchTokenList()
 
   const currentBlock = await getBlockNumber()
@@ -92,6 +93,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const feesForPeriod = balanceAtEnd - balanceAtStart
 
   if (feesForPeriod <= BigInt(0)) {
+    const duration = Date.now() - startTime
+    console.log(`[butterswap] Total: 0 fees in ${duration}ms`)
     return []
   }
 
@@ -101,8 +104,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const feesPerDay = feesForPeriod / BigInt(numDays)
   const feesPerDayUsd = Number(feesPerDay) / 10 ** USDT_DECIMALS
 
-  return dates.map(date => ({
-    service: 'butterswap',
+  const fees = dates.map(date => ({
+    service: 'butterswap' as const,
     amount: feesPerDay.toString(),
     amountUsd: feesPerDayUsd.toString(),
     chainId: MAP_CHAIN_ID,
@@ -110,4 +113,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     timestamp: getDateStartTimestamp(date),
     txHash: generateSyntheticTxHash('butterswap', date),
   }))
+
+  const duration = Date.now() - startTime
+  console.log(`[butterswap] Total: ${fees.length} fees in ${duration}ms`)
+
+  return fees
 }

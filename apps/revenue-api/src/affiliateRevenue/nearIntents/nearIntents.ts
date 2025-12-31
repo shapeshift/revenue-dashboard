@@ -28,7 +28,7 @@ const fetchPage = async (
         params: {
           referral: 'shapeshift',
           page,
-          perPage: 100,
+          perPage: 1000,
           statuses: 'SUCCESS',
           startTimestampUnix: startTimestamp,
           endTimestampUnix: endTimestamp,
@@ -40,7 +40,10 @@ const fetchPage = async (
   })
 }
 
-const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+const fetchFeesFromAPI = async (
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<Fees[]> => {
   const fees: Fees[] = []
   let page: number | undefined = 1
 
@@ -70,7 +73,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     page = data.nextPage
 
     if (page) {
-      await sleep(1000)
+      await sleep(5000)
     }
   }
 
@@ -78,6 +81,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
@@ -107,15 +111,20 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     for (const date of datesToFetch) {
       saveCachedFees('nearintents', 'all', date, feesByDate[date] || [])
     }
+
     newFees.push(...fetched)
   }
 
   const recentFees: Fees[] = []
   if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
+    const fetched = await fetchFeesFromAPI(recentStart, endTimestamp)
+    recentFees.push(...fetched)
   }
 
-  console.log(`[nearintents] Cache stats: ${cacheHits} hits, ${cacheMisses} misses`)
+  const totalFees = cachedFees.length + newFees.length + recentFees.length
+  const duration = Date.now() - startTime
+
+  console.log(`[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
   return [...cachedFees, ...newFees, ...recentFees]
 }

@@ -56,6 +56,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
@@ -93,7 +94,10 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
   }
 
-  console.log(`[bebop] Cache stats: ${cacheHits} hits, ${cacheMisses} misses`)
+  const totalFees = cachedFees.length + newFees.length + recentFees.length
+  const duration = Date.now() - startTime
+
+  console.log(`[bebop] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
   return [...cachedFees, ...newFees, ...recentFees]
 }

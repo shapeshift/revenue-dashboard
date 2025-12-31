@@ -22,7 +22,7 @@ export function isRetryableError(error: unknown): boolean {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status
 
-    if (status === 429 || status === 503 || status === 504) return true
+    if (status === 429 || status === 504) return true
 
     if (!error.response && error.code) {
       const retryableCodes = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED']
@@ -91,9 +91,7 @@ export async function withRetry<T>(
         ? `HTTP ${error.response?.status || 'network error'}`
         : error instanceof Error ? error.message : String(error)
 
-      console.warn(
-        `Retry attempt ${attempt + 1}/${opts.maxRetries} after ${Math.round(delay)}ms (${errorMsg})`
-      )
+      console.warn(`[retry] Attempt ${attempt + 1} failed (${errorMsg}), retrying after ${Math.round(delay)}ms`)
 
       await new Promise(resolve => setTimeout(resolve, delay))
     }
