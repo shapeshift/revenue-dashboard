@@ -3,7 +3,6 @@ import { BUTTERSWAP_AFFILIATE_ID, BUTTERSWAP_CONTRACT, MAP_CHAIN_ID, MAP_RPC_URL
 export { BUTTERSWAP_AFFILIATE_ID, BUTTERSWAP_CONTRACT, MAP_CHAIN_ID, MAP_RPC_URL, MAP_USDT_ADDRESS }
 
 export const BLOCK_TIME_SECONDS = 5
-export const USDT_DECIMALS = 18
 export const TOKEN_LIST_API = 'https://butterapi.chainservice.io/api/token/bam/list'
 export const TOKEN_CACHE_TTL_MS = 60 * 60 * 1000
 

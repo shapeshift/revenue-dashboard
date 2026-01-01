@@ -2,6 +2,7 @@ import { SLIP44 } from './constants'
 
 /**
  * Maps EVM chain IDs (numeric) to their native token's SLIP44 coin type
+ * Note: Some chains use non-standard slip44 values in the asset database for compatibility
  */
 export const EVM_CHAIN_TO_SLIP44: Record<number, number> = {
   1: SLIP44.ETHEREUM,
@@ -11,7 +12,7 @@ export const EVM_CHAIN_TO_SLIP44: Record<number, number> = {
   137: SLIP44.MATIC,
   8453: SLIP44.ETHEREUM,
   42161: SLIP44.ETHEREUM,
-  43114: SLIP44.AVAX,
+  43114: SLIP44.ETHEREUM, // AVAX uses slip44:60 in asset database, not slip44:9000
 }
 
 /**

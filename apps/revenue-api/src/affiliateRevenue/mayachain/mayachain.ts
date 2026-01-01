@@ -11,8 +11,9 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { MAYACHAIN_CHAIN_ID, SLIP44 } from '../constants'
+import { assetDataService } from '../../utils/assetDataService'
 
-import { CACAO_DECIMALS, MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND, PRICE_API_URL } from './constants'
+import { MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND, PRICE_API_URL } from './constants'
 import type { FeesResponse } from './types'
 
 const getCacaoPriceUsd = async (): Promise<number> => {
@@ -29,6 +30,7 @@ const getCacaoPriceUsd = async (): Promise<number> => {
 const transformFee = (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Fees => {
   const chainId = MAYACHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.MAYACHAIN}`
+  const decimals = assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -37,7 +39,7 @@ const transformFee = (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Fees
     txHash: fee.txId,
     timestamp: Math.round(fee.timestamp / 1000),
     amount: fee.amount,
-    amountUsd: ((Number(fee.amount) / 10 ** CACAO_DECIMALS) * cacaoPriceUsd).toString(),
+    amountUsd: ((Number(fee.amount) / 10 ** decimals) * cacaoPriceUsd).toString(),
   }
 }
 
@@ -55,6 +57,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  await assetDataService.ensureLoadedAsync()
+
   const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)

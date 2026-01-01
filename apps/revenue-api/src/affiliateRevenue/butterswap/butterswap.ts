@@ -4,6 +4,7 @@ import { encodeAbiParameters, parseAbiParameters } from 'viem'
 
 import type { Fees } from '..'
 import { getDateRange, getDateStartTimestamp } from '../cache'
+import { assetDataService } from '../../utils/assetDataService'
 
 import {
   API_SUCCESS_CODE,
@@ -18,7 +19,6 @@ import {
   TOKEN_CACHE_TTL_MS,
   TOKEN_LIST_API,
   UINT256_HEX_LENGTH,
-  USDT_DECIMALS,
 } from './constants'
 import type { TokenListResponse } from './types'
 import { estimateBlockFromTimestamp, rpcCall } from './utils'
@@ -73,6 +73,8 @@ const generateSyntheticTxHash = (service: string, date: string): string => {
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Array<Fees>> => {
+  await assetDataService.ensureLoadedAsync()
+
   const startTime = Date.now()
   const tokens = await fetchTokenList()
 
@@ -100,16 +102,18 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   const dates = getDateRange(startTimestamp, endTimestamp)
   const numDays = dates.length
+  const assetId = `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`
 
   const feesPerDay = feesForPeriod / BigInt(numDays)
-  const feesPerDayUsd = Number(feesPerDay) / 10 ** USDT_DECIMALS
+  const decimals = assetDataService.getAssetDecimals(assetId)
+  const feesPerDayUsd = Number(feesPerDay) / 10 ** decimals
 
   const fees = dates.map(date => ({
     service: 'butterswap' as const,
     amount: feesPerDay.toString(),
     amountUsd: feesPerDayUsd.toString(),
     chainId: MAP_CHAIN_ID,
-    assetId: `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`,
+    assetId,
     timestamp: getDateStartTimestamp(date),
     txHash: generateSyntheticTxHash('butterswap', date),
   }))

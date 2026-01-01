@@ -13,6 +13,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { assetDataService } from '../../utils/assetDataService'
 
 import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -24,7 +25,7 @@ import type {
   PortalEventData,
   TokenTransfer,
 } from './types'
-import { buildAssetId, calculateFallbackFee, decodePortalEventData, getTokenDecimals, getTokenPrice } from './utils'
+import { buildAssetId, calculateFallbackFee, decodePortalEventData, getTokenPrice } from './utils'
 
 const getPortalEventsFromExplorer = async (
   config: ChainConfig,
@@ -172,7 +173,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
     } else {
       const inputToken = event.inputToken ?? zeroAddress
       const assetId = buildAssetId(config.chainId, inputToken)
-      const decimals = await getTokenDecimals(config.explorerUrl, inputToken, config.apiType)
+      const decimals = assetDataService.getAssetDecimals(assetId)
       const feeWei = calculateFallbackFee(event.inputAmount)
       const feeDecimal = Number(feeWei) / 10 ** decimals
       const price = await getTokenPrice(config.chainId, inputToken)
@@ -212,6 +213,8 @@ const fetchFeesForChain = async (
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  await assetDataService.ensureLoadedAsync()
+
   const overallStart = Date.now()
   const allFees: Fees[] = []
   const threshold = getCacheableThreshold()

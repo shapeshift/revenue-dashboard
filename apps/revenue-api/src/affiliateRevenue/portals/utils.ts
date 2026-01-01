@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { decodeAbiParameters, zeroAddress } from 'viem'
 
-import { getCachedDecimals, saveCachedDecimals } from '../cache'
 import { getSlip44ForChain } from '../utils'
 
 import {
@@ -33,39 +32,6 @@ export const calculateFallbackFee = (inputAmount: string): string => {
   const amount = BigInt(inputAmount)
   const fee = (amount * BigInt(AFFILIATE_FEE_BPS)) / BigInt(FEE_BPS_DENOMINATOR)
   return fee.toString()
-}
-
-export const getTokenDecimals = async (
-  explorerUrl: string,
-  tokenAddress: string,
-  apiType: 'blockscout' | 'etherscan'
-): Promise<number> => {
-  if (tokenAddress.toLowerCase() === zeroAddress) return 18
-
-  const cacheKey = `${explorerUrl}:${tokenAddress.toLowerCase()}`
-  const cached = getCachedDecimals(cacheKey)
-  if (cached !== undefined) return cached
-
-  try {
-    if (apiType === 'blockscout') {
-      const { data } = await axios.get<{ decimals?: string }>(`${explorerUrl}/api/v2/tokens/${tokenAddress}`)
-      const decimals = parseInt(data.decimals ?? '18')
-      saveCachedDecimals(cacheKey, decimals)
-      return decimals
-    } else {
-      const { data } = await axios.get<{ result?: Array<{ divisor?: string }> }>(`${explorerUrl}/api`, {
-        params: { module: 'token', action: 'tokeninfo', contractaddress: tokenAddress },
-      })
-      const decimals = parseInt(data.result?.[0]?.divisor ?? '18')
-      saveCachedDecimals(cacheKey, decimals)
-      return decimals
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    console.warn(`Failed to fetch decimals for ${tokenAddress}, defaulting to 18:`, message)
-    saveCachedDecimals(cacheKey, 18)
-    return 18
-  }
 }
 
 export const buildAssetId = (chainId: string, tokenAddress: string): string => {

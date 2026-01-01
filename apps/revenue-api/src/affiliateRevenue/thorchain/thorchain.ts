@@ -12,8 +12,9 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
+import { assetDataService } from '../../utils/assetDataService'
 
-import { MILLISECONDS_PER_SECOND, PRICE_API_URL, RUNE_DECIMALS, THORCHAIN_API_URL } from './constants'
+import { MILLISECONDS_PER_SECOND, PRICE_API_URL, THORCHAIN_API_URL } from './constants'
 import type { FeesResponse } from './types'
 
 const getRunePriceUsd = async (): Promise<number> => {
@@ -32,6 +33,7 @@ const getRunePriceUsd = async (): Promise<number> => {
 const transformFee = (fee: FeesResponse['fees'][0], runePriceUsd: number): Fees => {
   const chainId = THORCHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.THORCHAIN}`
+  const decimals = assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -40,7 +42,7 @@ const transformFee = (fee: FeesResponse['fees'][0], runePriceUsd: number): Fees 
     txHash: fee.txId,
     timestamp: Math.round(fee.timestamp / 1000),
     amount: fee.amount,
-    amountUsd: ((Number(fee.amount) / 10 ** RUNE_DECIMALS) * runePriceUsd).toString(),
+    amountUsd: ((Number(fee.amount) / 10 ** decimals) * runePriceUsd).toString(),
   }
 }
 
@@ -60,6 +62,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  await assetDataService.ensureLoadedAsync()
+
   const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
