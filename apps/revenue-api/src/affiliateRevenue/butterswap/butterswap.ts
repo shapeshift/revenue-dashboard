@@ -3,8 +3,8 @@ import { createHash } from 'crypto'
 import { encodeAbiParameters, parseAbiParameters } from 'viem'
 
 import type { Fees } from '..'
-import { getDateRange, getDateStartTimestamp } from '../cache'
 import { assetDataService } from '../../utils/assetDataService'
+import { getDateRange, getDateStartTimestamp } from '../cache'
 
 import {
   API_SUCCESS_CODE,

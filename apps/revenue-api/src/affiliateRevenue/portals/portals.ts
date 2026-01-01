@@ -2,6 +2,7 @@ import axios from 'axios'
 import { padHex, zeroAddress } from 'viem'
 
 import type { Fees } from '..'
+import { assetDataService } from '../../utils/assetDataService'
 import {
   getCacheableThreshold,
   getCachedTokenTransfer,
@@ -13,7 +14,6 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { assetDataService } from '../../utils/assetDataService'
 
 import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -104,7 +104,7 @@ const getFeeTransferFromExplorer = async (config: ChainConfig, txHash: string): 
           }
         }
       }
-    } catch (error) {
+    } catch {
       return null
     }
   } else {
@@ -149,7 +149,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
               const transfer = await getFeeTransferFromExplorer(config, event.txHash)
               saveCachedTokenTransfer(cacheKey, transfer)
               return transfer
-            } catch (error) {
+            } catch {
               saveCachedTokenTransfer(cacheKey, null)
               return null
             }
@@ -189,7 +189,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
         amountUsd,
       }
     }
-  } catch (error) {
+  } catch {
     return null
   }
 }

@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { assetDataService } from '../../utils/assetDataService'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -12,7 +13,6 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
-import { assetDataService } from '../../utils/assetDataService'
 
 import { MILLISECONDS_PER_SECOND, PRICE_API_URL, THORCHAIN_API_URL } from './constants'
 import type { FeesResponse } from './types'

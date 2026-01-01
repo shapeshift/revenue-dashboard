@@ -7,6 +7,7 @@ import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
+// import { enrichFeesWithUsdPrices } from './enrichment'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
@@ -42,6 +43,7 @@ const formatError = (error: unknown): string => {
 export type Fees = {
   amount: string
   amountUsd?: string
+  originalUsdValue?: string
   assetId: string
   chainId: string
   service: Service
@@ -76,9 +78,14 @@ export class AffiliateRevenue {
       }
     })
 
+    // Enrich fees with USD prices
+    // DISABLED: Amount fields are inconsistent across integrations - fixing per-integration
+    // const enrichedFees = await enrichFeesWithUsdPrices(fees)
+    const enrichedFees = fees // Skip enrichment for now
+
     const byDate: AffiliateRevenueResponse['byDate'] = {}
 
-    for (const fee of fees) {
+    for (const fee of enrichedFees) {
       const date = timestampToDate(fee.timestamp)
 
       if (!byDate[date]) {

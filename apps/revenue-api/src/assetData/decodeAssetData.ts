@@ -23,9 +23,7 @@ const fromAssetId = (assetId: string): { chainId: string; assetReference: string
 export const decodeAssetData = (encodedAssetData: EncodedAssetData) => {
   const { assetIdPrefixes, encodedAssetIds, encodedAssets } = encodedAssetData
 
-  const sortedAssetIds: string[] = encodedAssetIds.map(encodedAssetId =>
-    decodeAssetId(encodedAssetId, assetIdPrefixes)
-  )
+  const sortedAssetIds: string[] = encodedAssetIds.map(encodedAssetId => decodeAssetId(encodedAssetId, assetIdPrefixes))
 
   const assetData = encodedAssets.reduce<Record<string, StaticAsset>>((acc, encodedAsset, idx) => {
     const assetId = sortedAssetIds[idx]
