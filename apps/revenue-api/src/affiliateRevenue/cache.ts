@@ -8,7 +8,7 @@ export const feeCache = new LRUCache<string, Fees[]>({
   max: 5000,
   maxSize: 500_000_000,
   sizeCalculation: fees => fees.length * 200 + 100,
-  ttl: 1000 * 60 * 60 * 24 * 90,
+  ttl: 1000 * 60 * 60 * 24, // 1 day - refresh daily for current prices
   updateAgeOnGet: true,
   updateAgeOnHas: false,
 })

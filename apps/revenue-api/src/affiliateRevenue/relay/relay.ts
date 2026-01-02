@@ -76,7 +76,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
             txHash,
             timestamp,
             amount: appFee.amount,
-            amountUsd: appFee.amountUsd,
+            // Use current USD from Relay's API (with live prices)
+            // Fallback to historical if current unavailable (older API responses)
+            amountUsd: appFee.amountUsdCurrent ?? appFee.amountUsd,
           })
         }
       }
@@ -177,5 +179,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[relay] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
+  // Don't enrich Relay fees - they already provide current USD via amountUsdCurrent
+  // Investigation revealed Relay's amount field has inconsistent formats (raw units vs USD×1M)
+  // and assetId building doesn't work correctly for BSC/Solana tokens. Relay handles this correctly.
   return [...cachedFees, ...newFees, ...recentFees]
 }
