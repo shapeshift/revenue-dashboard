@@ -173,7 +173,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
     } else {
       const inputToken = event.inputToken ?? zeroAddress
       const assetId = buildAssetId(config.chainId, inputToken)
-      const decimals = assetDataService.getAssetDecimals(assetId)
+      const decimals = await assetDataService.getAssetDecimals(assetId)
       const feeWei = calculateFallbackFee(event.inputAmount)
       const feeDecimal = Number(feeWei) / 10 ** decimals
       const price = await getTokenPrice(config.chainId, inputToken)

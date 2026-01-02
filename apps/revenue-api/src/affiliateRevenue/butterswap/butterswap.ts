@@ -105,7 +105,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const assetId = `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`
 
   const feesPerDay = feesForPeriod / BigInt(numDays)
-  const decimals = assetDataService.getAssetDecimals(assetId)
+  const decimals = await assetDataService.getAssetDecimals(assetId)
   const feesPerDayUsd = Number(feesPerDay) / 10 ** decimals
 
   const fees = dates.map(date => ({

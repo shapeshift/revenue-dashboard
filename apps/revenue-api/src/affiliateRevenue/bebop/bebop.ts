@@ -41,7 +41,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const slip44 = getSlip44ForChain(chainId)
     const assetId = `${chainId}/slip44:${slip44}`
 
-    const decimals = assetDataService.getAssetDecimals(assetId)
+    const decimals = await assetDataService.getAssetDecimals(assetId)
     const amount = String(Math.floor(Number(trade.partnerFeeNative) * 10 ** decimals))
 
     fees.push({

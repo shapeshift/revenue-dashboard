@@ -27,10 +27,10 @@ const getCacaoPriceUsd = async (): Promise<number> => {
   return Number(data.cacao.usd)
 }
 
-const transformFee = (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Fees => {
+const transformFee = async (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Promise<Fees> => {
   const chainId = MAYACHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.MAYACHAIN}`
-  const decimals = assetDataService.getAssetDecimals(assetId)
+  const decimals = await assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -53,7 +53,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
   const cacaoPriceUsd = await getCacaoPriceUsd()
 
-  return data.fees.map(fee => transformFee(fee, cacaoPriceUsd))
+  return Promise.all(data.fees.map(fee => transformFee(fee, cacaoPriceUsd)))
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {

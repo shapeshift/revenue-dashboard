@@ -30,10 +30,10 @@ const getRunePriceUsd = async (): Promise<number> => {
   return Number(data.thorchain.usd)
 }
 
-const transformFee = (fee: FeesResponse['fees'][0], runePriceUsd: number): Fees => {
+const transformFee = async (fee: FeesResponse['fees'][0], runePriceUsd: number): Promise<Fees> => {
   const chainId = THORCHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.THORCHAIN}`
-  const decimals = assetDataService.getAssetDecimals(assetId)
+  const decimals = await assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -58,7 +58,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
   const runePriceUsd = await getRunePriceUsd()
 
-  return data.fees.map(fee => transformFee(fee, runePriceUsd))
+  return Promise.all(data.fees.map(fee => transformFee(fee, runePriceUsd)))
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {

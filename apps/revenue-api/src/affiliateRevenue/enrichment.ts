@@ -32,52 +32,53 @@ export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> => 
   let enrichedCount = 0
   let missingPriceCount = 0
 
-  const enrichedFees = fees.map(fee => {
-    const price = priceMap.get(fee.assetId)
+  const enrichedFees = await Promise.all(
+    fees.map(async fee => {
+      const price = priceMap.get(fee.assetId)
 
-    // IMPORTANT: Move existing amountUsd → originalUsdValue (if not already set)
-    // This preserves what the integration calculated
-    if (fee.amountUsd && !fee.originalUsdValue) {
-      fee.originalUsdValue = fee.amountUsd
-    }
+      // IMPORTANT: Move existing amountUsd → originalUsdValue (if not already set)
+      // This preserves what the integration calculated
+      if (fee.amountUsd && !fee.originalUsdValue) {
+        fee.originalUsdValue = fee.amountUsd
+      }
 
-    // Calculate NEW amountUsd from live prices
-    if (price !== null && price !== undefined) {
-      const decimals = assetDataService.getAssetDecimals(fee.assetId)
-      const amountDecimal = Number(fee.amount) / 10 ** decimals
-      const calculatedUsd = (amountDecimal * price).toString()
+      // Calculate NEW amountUsd from live prices
+      if (price !== null && price !== undefined) {
+        const decimals = await assetDataService.getAssetDecimals(fee.assetId)
+        const amountDecimal = Number(fee.amount) / 10 ** decimals
+        const calculatedUsd = (amountDecimal * price).toString()
 
-      // Debug: Compare calculated vs original
-      if (DEBUG_USD_CALC && fee.originalUsdValue) {
-        const original = parseFloat(fee.originalUsdValue)
-        const calculated = parseFloat(calculatedUsd)
-        const ratio = calculated / original
+        // Debug: Compare calculated vs original
+        if (DEBUG_USD_CALC && fee.originalUsdValue) {
+          const original = parseFloat(fee.originalUsdValue)
+          const calculated = parseFloat(calculatedUsd)
+          const ratio = calculated / original
 
-        if (ratio > 2 || ratio < 0.5) {
-          console.log(
-            `[Enrichment] USD mismatch for ${fee.service} ${fee.assetId}: ` +
-              `calc=${calculated.toFixed(4)} orig=${original.toFixed(4)} ratio=${ratio.toFixed(2)}`
-          )
+          if (ratio > 2 || ratio < 0.5) {
+            console.log(
+              `[Enrichment] USD mismatch for ${fee.service} ${fee.assetId}: ` +
+                `calc=${calculated.toFixed(4)} orig=${original.toFixed(4)} ratio=${ratio.toFixed(2)}`
+            )
+          }
+        }
+
+        fee.amountUsd = calculatedUsd
+        enrichedCount++
+      } else {
+        // Fallback to originalUsdValue (what integration calculated)
+        if (fee.originalUsdValue) {
+          fee.amountUsd = fee.originalUsdValue
+          enrichedCount++
+        } else {
+          // No price AND no original value - set undefined
+          fee.amountUsd = undefined
+          missingPriceCount++
         }
       }
 
-      fee.amountUsd = calculatedUsd
-      enrichedCount++
-    } else {
-      // Fallback to originalUsdValue (what integration calculated)
-      if (fee.originalUsdValue) {
-        fee.amountUsd = fee.originalUsdValue
-        enrichedCount++
-      } else {
-        // No price AND no original value - set undefined
-        fee.amountUsd = undefined
-        missingPriceCount++
-        console.warn(`[Enrichment] Price unavailable for ${fee.assetId} (${fee.service}), no fallback`)
-      }
-    }
-
-    return fee
-  })
+      return fee
+    })
+  )
 
   console.log(`[Enrichment] Enriched ${enrichedCount}/${fees.length} fees, ${missingPriceCount} without prices`)
 
