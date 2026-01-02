@@ -13,27 +13,14 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 
-import { MILLISECONDS_PER_SECOND, PRICE_API_URL, THORCHAIN_API_URL } from './constants'
+import { MILLISECONDS_PER_SECOND, THORCHAIN_API_URL } from './constants'
 import type { FeesResponse } from './types'
 
-const getRunePriceUsd = async (): Promise<number> => {
-  const { data } = await withRetry(() =>
-    axios.get<{ thorchain: { usd: string } }>(PRICE_API_URL, {
-      params: {
-        vs_currencies: 'usd',
-        ids: 'thorchain',
-      },
-    })
-  )
-
-  return Number(data.thorchain.usd)
-}
-
-const transformFee = async (fee: FeesResponse['fees'][0], runePriceUsd: number): Promise<Fees> => {
+const transformFee = (fee: FeesResponse['fees'][0]): Fees => {
   const chainId = THORCHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.THORCHAIN}`
-  const decimals = await assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -42,7 +29,6 @@ const transformFee = async (fee: FeesResponse['fees'][0], runePriceUsd: number):
     txHash: fee.txId,
     timestamp: Math.round(fee.timestamp / 1000),
     amount: fee.amount,
-    amountUsd: ((Number(fee.amount) / 10 ** decimals) * runePriceUsd).toString(),
   }
 }
 
@@ -56,9 +42,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     })
   )
 
-  const runePriceUsd = await getRunePriceUsd()
+  const fees = data.fees.map(fee => transformFee(fee))
 
-  return Promise.all(data.fees.map(fee => transformFee(fee, runePriceUsd)))
+  return enrichFeesWithUsdPrices(fees)
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
