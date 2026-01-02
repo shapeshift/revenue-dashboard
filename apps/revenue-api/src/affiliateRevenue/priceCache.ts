@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { LRUCache } from 'lru-cache'
 
-import { coingeckoMappingService } from './coingeckoMappingService'
+import * as coingeckoMappingService from './coingeckoMappingService'
 
 const PRICE_CACHE_TTL = 1000 * 60 * 10 // 10 minutes
 const PRICE_API_URL = 'https://api.proxy.shapeshift.com/api/v1/markets/simple/price'

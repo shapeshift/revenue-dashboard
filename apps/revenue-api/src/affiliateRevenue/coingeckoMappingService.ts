@@ -28,136 +28,136 @@ interface CachedMappings {
 
 type LoadState = 'uninitialized' | 'loading' | 'loaded' | 'failed'
 
-class CoingeckoMappingService {
-  private static instance: CoingeckoMappingService
-  private loadState: LoadState = 'uninitialized'
-  private mappings: Map<string, string> | null = null
-  private loadPromise: Promise<void> | null = null
+// Module-level state
+let loadState: LoadState = 'uninitialized'
+let mappings: Map<string, string> | null = null
+let loadPromise: Promise<void> | null = null
 
-  private constructor() {}
+// Runtime validation helper for mapping data
+const isValidMappingData = (data: unknown): data is Record<string, string> => {
+  if (typeof data !== 'object' || data === null) return false
 
-  static getInstance(): CoingeckoMappingService {
-    if (!CoingeckoMappingService.instance) {
-      CoingeckoMappingService.instance = new CoingeckoMappingService()
-    }
-    return CoingeckoMappingService.instance
+  return Object.entries(data).every(([key, value]) => typeof key === 'string' && typeof value === 'string')
+}
+
+export async function ensureLoadedAsync(): Promise<void> {
+  if (loadState === 'loaded') return
+
+  if (loadState === 'loading') {
+    await loadPromise
+    return
   }
 
-  async ensureLoadedAsync(): Promise<void> {
-    if (this.loadState === 'loaded') return
+  loadState = 'loading'
+  loadPromise = load()
 
-    if (this.loadState === 'loading') {
-      await this.loadPromise
-      return
-    }
-
-    this.loadState = 'loading'
-    this.loadPromise = this.load()
-
-    try {
-      await this.loadPromise
-      this.loadState = 'loaded'
-    } catch (error) {
-      console.warn('[CoingeckoMappingService] Load failed, using empty fallback:', error)
-      this.loadState = 'failed'
-      this.loadFromFallback()
-    }
-  }
-
-  getCoingeckoId(assetId: string): string | undefined {
-    return this.mappings?.get(assetId)
-  }
-
-  isLoaded(): boolean {
-    return this.loadState === 'loaded'
-  }
-
-  private async load(): Promise<void> {
-    if (await this.loadFromCache()) {
-      console.log('[CoingeckoMappingService] Loaded from cache')
-      return
-    }
-
-    if (await this.loadFromNetwork()) {
-      console.log('[CoingeckoMappingService] Loaded from network')
-      return
-    }
-
-    console.warn('[CoingeckoMappingService] Using empty fallback')
-    this.loadFromFallback()
-  }
-
-  private async loadFromCache(): Promise<boolean> {
-    try {
-      const content = await readFile(CACHE_FILE, 'utf-8')
-      const cached: CachedMappings = JSON.parse(content)
-
-      if (Date.now() > cached.expiresAt) {
-        console.log('[CoingeckoMappingService] Cache expired')
-        return false
-      }
-
-      this.mappings = new Map(Object.entries(cached.data))
-      return true
-    } catch (error) {
-      console.warn('[CoingeckoMappingService] Failed to read cache:', (error as Error).message)
-      return false
-    }
-  }
-
-  private async loadFromNetwork(): Promise<boolean> {
-    try {
-      const mappings: Record<string, string> = {}
-
-      for (const chain of COINGECKO_CHAINS) {
-        const url = `${GITHUB_BASE_URL}/${chain}/adapter.json`
-        try {
-          const response = await fetch(url)
-          if (response.ok) {
-            const data = (await response.json()) as Record<string, string>
-            Object.assign(mappings, data)
-          } else {
-            console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}: ${response.status}`)
-          }
-        } catch (error) {
-          console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}:`, error)
-        }
-      }
-
-      if (Object.keys(mappings).length === 0) {
-        console.warn('[CoingeckoMappingService] No mappings loaded from network')
-        return false
-      }
-
-      this.mappings = new Map(Object.entries(mappings))
-
-      await this.saveToCache(mappings)
-
-      return true
-    } catch (error) {
-      console.warn('[CoingeckoMappingService] Network fetch failed:', error)
-      return false
-    }
-  }
-
-  private async saveToCache(data: Record<string, string>): Promise<void> {
-    const cached: CachedMappings = {
-      data,
-      timestamp: Date.now(),
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    }
-
-    try {
-      await writeFile(CACHE_FILE, JSON.stringify(cached))
-      console.log('[CoingeckoMappingService] Saved to cache:', CACHE_FILE)
-    } catch (error) {
-      console.warn('[CoingeckoMappingService] Failed to write cache:', (error as Error).message)
-    }
-  }
-
-  private loadFromFallback(): void {
-    this.mappings = new Map()
+  try {
+    await loadPromise
+    loadState = 'loaded'
+  } catch (error) {
+    console.warn('[CoingeckoMappingService] Load failed, using empty fallback:', error)
+    loadState = 'failed'
+    loadFromFallback()
   }
 }
 
-export const coingeckoMappingService = CoingeckoMappingService.getInstance()
+export function getCoingeckoId(assetId: string): string | undefined {
+  return mappings?.get(assetId)
+}
+
+export function isLoaded(): boolean {
+  return loadState === 'loaded'
+}
+
+async function load(): Promise<void> {
+  if (await loadFromCache()) {
+    console.log('[CoingeckoMappingService] Loaded from cache')
+    return
+  }
+
+  if (await loadFromNetwork()) {
+    console.log('[CoingeckoMappingService] Loaded from network')
+    return
+  }
+
+  console.warn('[CoingeckoMappingService] Using empty fallback')
+  loadFromFallback()
+}
+
+async function loadFromCache(): Promise<boolean> {
+  try {
+    const content = await readFile(CACHE_FILE, 'utf-8')
+    const cached: CachedMappings = JSON.parse(content)
+
+    if (Date.now() > cached.expiresAt) {
+      console.log('[CoingeckoMappingService] Cache expired')
+      return false
+    }
+
+    mappings = new Map(Object.entries(cached.data))
+    return true
+  } catch (error) {
+    console.warn('[CoingeckoMappingService] Failed to read cache:', (error as Error).message)
+    return false
+  }
+}
+
+async function loadFromNetwork(): Promise<boolean> {
+  try {
+    const loadedMappings: Record<string, string> = {}
+
+    for (const chain of COINGECKO_CHAINS) {
+      const url = `${GITHUB_BASE_URL}/${chain}/adapter.json`
+      try {
+        const response = await fetch(url)
+        if (response.ok) {
+          const rawData = await response.json()
+
+          if (!isValidMappingData(rawData)) {
+            console.warn(`[CoingeckoMappingService] Invalid mapping data from ${chain}`)
+            continue
+          }
+
+          Object.assign(loadedMappings, rawData)
+        } else {
+          console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}: ${response.status}`)
+        }
+      } catch (error) {
+        console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}:`, error)
+      }
+    }
+
+    if (Object.keys(loadedMappings).length === 0) {
+      console.warn('[CoingeckoMappingService] No mappings loaded from network')
+      return false
+    }
+
+    mappings = new Map(Object.entries(loadedMappings))
+
+    await saveToCache(loadedMappings)
+
+    return true
+  } catch (error) {
+    console.warn('[CoingeckoMappingService] Network fetch failed:', error)
+    return false
+  }
+}
+
+async function saveToCache(data: Record<string, string>): Promise<void> {
+  const cached: CachedMappings = {
+    data,
+    timestamp: Date.now(),
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  }
+
+  try {
+    await writeFile(CACHE_FILE, JSON.stringify(cached))
+    console.log('[CoingeckoMappingService] Saved to cache:', CACHE_FILE)
+  } catch (error) {
+    console.warn('[CoingeckoMappingService] Failed to write cache:', (error as Error).message)
+  }
+}
+
+function loadFromFallback(): void {
+  mappings = new Map()
+}
