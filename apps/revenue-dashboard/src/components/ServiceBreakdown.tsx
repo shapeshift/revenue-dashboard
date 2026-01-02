@@ -37,8 +37,7 @@ const SERVICE_LABELS: Record<string, string> = {
   relay: 'Relay',
 }
 
-const getServiceLabel = (service: string) =>
-  SERVICE_LABELS[service.toLowerCase()] || service
+const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
 
 const formatUsd = (amount: number) =>
   new Intl.NumberFormat('en-US', {
@@ -50,7 +49,17 @@ const formatUsd = (amount: number) =>
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
-const CustomTooltip = ({ active, payload }: any) => {
+type TooltipPayload = {
+  name: string
+  value: number
+}
+
+type CustomTooltipProps = {
+  active?: boolean
+  payload?: TooltipPayload[]
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload || !payload.length) return null
 
   const data = payload[0]
@@ -126,7 +135,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                 outerRadius={100}
                 innerRadius={60}
                 paddingAngle={2}
-                label={({ name }) => getServiceLabel(name)}
+                label={({ name }) => (name ? getServiceLabel(name) : '')}
                 labelLine={false}
               >
                 {serviceData.map(entry => (
