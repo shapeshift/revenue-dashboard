@@ -5,6 +5,7 @@ import { encodeAbiParameters, parseAbiParameters } from 'viem'
 import type { Fees } from '..'
 import { assetDataService } from '../../utils/assetDataService'
 import { getDateRange, getDateStartTimestamp } from '../cache'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 
 import {
   API_SUCCESS_CODE,
@@ -121,5 +122,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const duration = Date.now() - startTime
   console.log(`[butterswap] Total: ${fees.length} fees in ${duration}ms`)
 
-  return fees
+  return enrichFeesWithUsdPrices(fees)
 }
