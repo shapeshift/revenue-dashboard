@@ -57,3 +57,16 @@ export const SLIP44 = {
 
 // Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
 export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
+
+// CoinGecko platform IDs and native coin IDs for each chain
+// Used for price lookups and token metadata
+export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {
+  '1': { platform: 'ethereum', nativeCoinId: 'ethereum' },
+  '10': { platform: 'optimistic-ethereum', nativeCoinId: 'ethereum' },
+  '56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
+  '100': { platform: 'xdai', nativeCoinId: 'xdai' },
+  '137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
+  '8453': { platform: 'base', nativeCoinId: 'ethereum' },
+  '42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
+  '43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
+}

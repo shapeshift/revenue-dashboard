@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { assetDataService } from '../../utils/assetDataService'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -11,6 +12,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 import { getSlip44ForChain, safeAmountToString } from '../utils'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
@@ -45,13 +47,18 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
             ? `${chainId}/slip44:${getSlip44ForChain(chainId)}`
             : `${chainId}/erc20:${token}`
 
+        // 0x API returns amounts in DECIMAL format (e.g., "2.5" USDC, not "2500000" wei)
+        // Convert to wei (smallest units) for consistency with other integrations
+        const decimals = await assetDataService.getAssetDecimals(assetId)
+        const amountInWei = (parseFloat(rawAmount) * 10 ** decimals).toString()
+
         fees.push({
           chainId,
           assetId,
           service: 'zrx',
           txHash: trade.transactionHash,
           timestamp: trade.timestamp,
-          amount: rawAmount,
+          amount: amountInWei,
           amountUsd: trade.fees.integratorFee?.amountUsd,
         })
       }
@@ -107,5 +114,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[zrx] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices([...cachedFees, ...newFees, ...recentFees])
 }

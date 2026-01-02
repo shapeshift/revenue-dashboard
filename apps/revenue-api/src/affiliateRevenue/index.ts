@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import type { AffiliateRevenueResponse, Service } from '../types'
 import { services } from '../types'
+import { assetDataService } from '../utils/assetDataService'
 
 import * as bebop from './bebop'
 import * as butterswap from './butterswap'
@@ -42,6 +43,7 @@ const formatError = (error: unknown): string => {
 export type Fees = {
   amount: string
   amountUsd?: string
+  originalUsdValue?: string
   assetId: string
   chainId: string
   service: Service
@@ -51,6 +53,8 @@ export type Fees = {
 
 export class AffiliateRevenue {
   async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
+    await assetDataService.ensureLoadedAsync()
+
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 

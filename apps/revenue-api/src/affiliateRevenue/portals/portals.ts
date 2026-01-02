@@ -13,6 +13,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 
 import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -24,7 +25,7 @@ import type {
   PortalEventData,
   TokenTransfer,
 } from './types'
-import { buildAssetId, calculateFallbackFee, decodePortalEventData, getTokenDecimals, getTokenPrice } from './utils'
+import { buildAssetId, calculateFallbackFee, decodePortalEventData } from './utils'
 
 const getPortalEventsFromExplorer = async (
   config: ChainConfig,
@@ -103,7 +104,7 @@ const getFeeTransferFromExplorer = async (config: ChainConfig, txHash: string): 
           }
         }
       }
-    } catch (error) {
+    } catch {
       return null
     }
   } else {
@@ -148,7 +149,7 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
               const transfer = await getFeeTransferFromExplorer(config, event.txHash)
               saveCachedTokenTransfer(cacheKey, transfer)
               return transfer
-            } catch (error) {
+            } catch {
               saveCachedTokenTransfer(cacheKey, null)
               return null
             }
@@ -156,9 +157,6 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
 
     if (feeTransfer) {
       const assetId = buildAssetId(config.chainId, feeTransfer.token ?? zeroAddress)
-      const amountDecimal = Number(feeTransfer.amount) / 10 ** feeTransfer.decimals
-      const price = await getTokenPrice(config.chainId, feeTransfer.token ?? '')
-      const amountUsd = price ? (amountDecimal * price).toString() : undefined
 
       return {
         chainId: config.chainId,
@@ -167,16 +165,11 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
         txHash: event.txHash,
         timestamp: event.timestamp,
         amount: feeTransfer.amount,
-        amountUsd,
       }
     } else {
       const inputToken = event.inputToken ?? zeroAddress
       const assetId = buildAssetId(config.chainId, inputToken)
-      const decimals = await getTokenDecimals(config.explorerUrl, inputToken, config.apiType)
       const feeWei = calculateFallbackFee(event.inputAmount)
-      const feeDecimal = Number(feeWei) / 10 ** decimals
-      const price = await getTokenPrice(config.chainId, inputToken)
-      const amountUsd = price ? (feeDecimal * price).toString() : undefined
 
       return {
         chainId: config.chainId,
@@ -185,10 +178,9 @@ const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData
         txHash: event.txHash,
         timestamp: event.timestamp,
         amount: feeWei,
-        amountUsd,
       }
     }
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -269,5 +261,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     `[portals] Total: ${allFees.length} fees in ${overallTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
   )
 
-  return allFees
+  return enrichFeesWithUsdPrices(allFees)
 }

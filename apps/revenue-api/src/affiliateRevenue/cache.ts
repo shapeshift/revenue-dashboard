@@ -8,7 +8,7 @@ export const feeCache = new LRUCache<string, Fees[]>({
   max: 5000,
   maxSize: 500_000_000,
   sizeCalculation: fees => fees.length * 200 + 100,
-  ttl: 1000 * 60 * 60 * 24 * 90,
+  ttl: 1000 * 60 * 60 * 24, // 1 day - refresh daily for current prices
   updateAgeOnGet: true,
   updateAgeOnHas: false,
 })
@@ -16,11 +16,6 @@ export const feeCache = new LRUCache<string, Fees[]>({
 export const tokenTransferCache = new LRUCache<string, { transfer: TokenTransfer | null }>({
   max: 500,
   ttl: 1000 * 60 * 60 * 24 * 7,
-})
-
-export const decimalsCache = new LRUCache<string, number>({
-  max: 1000,
-  ttl: 1000 * 60 * 60 * 24 * 90,
 })
 
 export const blockNumberCache = new LRUCache<string, number>({
@@ -121,14 +116,6 @@ export const getCachedTokenTransfer = (key: string): TokenTransfer | null | unde
 
 export const saveCachedTokenTransfer = (key: string, transfer: TokenTransfer | null): void => {
   tokenTransferCache.set(key, { transfer })
-}
-
-export const getCachedDecimals = (key: string): number | undefined => {
-  return decimalsCache.get(key)
-}
-
-export const saveCachedDecimals = (key: string, decimals: number): void => {
-  decimalsCache.set(key, decimals)
 }
 
 export const getBlockCacheKey = (chainId: string, timestamp: number): string => {
