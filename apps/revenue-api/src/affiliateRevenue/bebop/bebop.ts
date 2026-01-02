@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
+import { assetDataService } from '../../utils/assetDataService'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -10,6 +11,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 import { getSlip44ForChain } from '../utils'
 
 import {
@@ -39,13 +41,16 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const slip44 = getSlip44ForChain(chainId)
     const assetId = `${chainId}/slip44:${slip44}`
 
+    const decimals = assetDataService.getAssetDecimals(assetId)
+    const amount = String(Math.floor(Number(trade.partnerFeeNative) * 10 ** decimals))
+
     fees.push({
       chainId,
       assetId,
       service: 'bebop',
       txHash: trade.txHash,
       timestamp: Math.floor(new Date(trade.timestamp).getTime() / 1000),
-      amount: trade.partnerFeeNative,
+      amount,
       amountUsd:
         trade.volumeUsd !== undefined
           ? String(trade.volumeUsd * (Number(trade.partnerFeeBps) / FEE_BPS_DENOMINATOR))
@@ -100,5 +105,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[bebop] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

@@ -7,7 +7,7 @@ import { SLIP44 } from './constants'
 export const EVM_CHAIN_TO_SLIP44: Record<number, number> = {
   1: SLIP44.ETHEREUM,
   10: SLIP44.ETHEREUM,
-  56: SLIP44.BNB,
+  56: SLIP44.ETHEREUM, // BNB uses slip44:60 in asset database, not slip44:714
   100: SLIP44.ETHEREUM,
   137: SLIP44.MATIC,
   8453: SLIP44.ETHEREUM,
