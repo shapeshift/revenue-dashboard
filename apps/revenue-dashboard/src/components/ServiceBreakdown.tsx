@@ -24,6 +24,22 @@ const SERVICE_COLORS: Record<string, string> = {
 
 const getServiceColor = (service: string) => SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
 
+const SERVICE_LABELS: Record<string, string> = {
+  nearintents: 'Near Intents',
+  butterswap: 'Butter Swap',
+  thorchain: 'THORChain',
+  mayachain: 'Maya Protocol',
+  chainflip: 'Chainflip',
+  zrx: '0x',
+  bebop: 'Bebop',
+  portals: 'Portals',
+  cowswap: 'CoW Swap',
+  relay: 'Relay',
+}
+
+const getServiceLabel = (service: string) =>
+  SERVICE_LABELS[service.toLowerCase()] || service
+
 const formatUsd = (amount: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -33,6 +49,30 @@ const formatUsd = (amount: number) =>
   }).format(amount)
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (!active || !payload || !payload.length) return null
+
+  const data = payload[0]
+  const serviceName = data.name
+  const serviceLabel = getServiceLabel(serviceName)
+  const value = formatUsd(Number(data.value))
+
+  return (
+    <div
+      style={{
+        backgroundColor: '#27272a',
+        border: '1px solid #3f3f46',
+        borderRadius: '8px',
+        padding: '8px 12px',
+      }}
+    >
+      <p style={{ color: '#fff', margin: 0 }}>
+        {serviceLabel}: {value}
+      </p>
+    </div>
+  )
+}
 
 export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBreakdownProps) {
   const serviceData: ServiceRevenue[] = useMemo(() => {
@@ -86,22 +126,15 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                 outerRadius={100}
                 innerRadius={60}
                 paddingAngle={2}
-                label={({ name }) => name}
+                label={({ name }) => getServiceLabel(name)}
                 labelLine={false}
               >
                 {serviceData.map(entry => (
                   <Cell key={entry.service} fill={getServiceColor(entry.service)} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={value => formatUsd(Number(value))}
-                contentStyle={{
-                  backgroundColor: '#27272a',
-                  border: '1px solid #3f3f46',
-                  borderRadius: '8px',
-                }}
-              />
-              <Legend />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend formatter={getServiceLabel} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -123,7 +156,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: getServiceColor(service.service) }}
                       />
-                      <span className="text-zinc-200 capitalize">{service.service}</span>
+                      <span className="text-zinc-200">{getServiceLabel(service.service)}</span>
                     </div>
                   </td>
                   <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.amount)}</td>
