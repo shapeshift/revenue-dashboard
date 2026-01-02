@@ -8,7 +8,6 @@ import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
-// import { enrichFeesWithUsdPrices } from './enrichment'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
@@ -81,10 +80,8 @@ export class AffiliateRevenue {
       }
     })
 
-    // Enrich fees with USD prices
-    // DISABLED: Amount fields are inconsistent across integrations - fixing per-integration
-    // const enrichedFees = await enrichFeesWithUsdPrices(fees)
-    const enrichedFees = fees // Skip enrichment for now
+    // Each integration handles its own enrichment
+    const enrichedFees = fees
 
     const byDate: AffiliateRevenueResponse['byDate'] = {}
 

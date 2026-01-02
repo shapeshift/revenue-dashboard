@@ -11,6 +11,7 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 
 import { DAO_TREASURY_NEAR, FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
@@ -57,6 +58,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           continue
         }
 
+        // amountIn is already in smallest units (wei/satoshi), use directly
         const amountIn = parseFloat(transaction.amountIn)
         const amountInUsd = parseFloat(transaction.amountInUsd)
 
@@ -67,7 +69,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           continue
         }
 
-        const feeAmount = (amountIn * appFee.fee) / FEE_BPS_DENOMINATOR
+        // Calculate fee in smallest units (no conversion needed - already wei/satoshi)
+        const feeAmount = Math.floor((amountIn * appFee.fee) / FEE_BPS_DENOMINATOR)
         const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
 
         fees.push({
@@ -133,12 +136,14 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     recentFees.push(...fetched)
   }
 
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  const totalFees = allFees.length
   const duration = Date.now() - startTime
 
-  console.log(
-    `[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
-  )
+  console.log(`[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  // Enrich NEAR Intents fees with current USD prices
+  const enrichedFees = await enrichFeesWithUsdPrices(allFees)
+
+  return enrichedFees
 }

@@ -1,7 +1,14 @@
+import bs58 from 'bs58'
+
 import { getSlip44ForChain } from '../utils'
 
 import { NEAR_INTENTS_TO_CHAIN_ID, SLIP44_BY_NETWORK } from './constants'
 import type { ParseResult } from './types'
+
+// NEP245 parsing constants
+const SUPPORTED_NEP245_VERSION = 'v2_1'
+const NEP245_CONTRACT_IDENTIFIER = 'omni.hot.tg'
+const ETHEREUM_ADDRESS_LENGTH = 20 // bytes
 
 export const resolveChainId = (network: string): string | undefined => {
   const chainId = NEAR_INTENTS_TO_CHAIN_ID[network]
@@ -26,6 +33,44 @@ export const buildAssetId = (chainId: string, network: string, tokenAddress?: st
 
   const slip44 = SLIP44_BY_NETWORK[network] ?? 0
   return `${chainId}/slip44:${slip44}`
+}
+
+/**
+ * Decodes NEP245 token suffix (Base58) to Ethereum address.
+ *
+ * Format: Base58-encoded 20-byte Ethereum address
+ * Example: "2CMMyVTGZkeyNZTSvS5sarzfir6g" → "0x55d398326f99059ff775485246999027b3197955"
+ *
+ * @param suffix - Base58-encoded suffix from NEP245 format
+ * @returns Ethereum address in 0x format, or null if decoding fails
+ */
+const decodeNEP245TokenSuffix = (suffix: string): string | null => {
+  try {
+    // Decode base58 to get raw bytes
+    const decoded = bs58.decode(suffix)
+
+    // Ethereum addresses are exactly 20 bytes (160 bits)
+    if (decoded.length !== ETHEREUM_ADDRESS_LENGTH) {
+      console.warn(
+        `[nearIntents] Invalid decoded address length: expected ${ETHEREUM_ADDRESS_LENGTH} bytes, got ${decoded.length} for suffix ${suffix}`
+      )
+      return null
+    }
+
+    // Convert bytes to hex string with 0x prefix
+    const hexAddress = '0x' + Buffer.from(decoded).toString('hex').toLowerCase()
+
+    // Validate hex address format (0x + 40 hex chars)
+    if (!/^0x[a-f0-9]{40}$/.test(hexAddress)) {
+      console.warn(`[nearIntents] Invalid hex address format: ${hexAddress}`)
+      return null
+    }
+
+    return hexAddress
+  } catch (error) {
+    console.warn(`[nearIntents] Failed to decode NEP245 suffix ${suffix}:`, error)
+    return null
+  }
 }
 
 export const parseNearIntentsAsset = (asset: string): ParseResult => {
@@ -53,11 +98,42 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
     return { chainId, assetId: `${chainId}/nep141:${tokenAddress}` }
   }
 
-  const nep245Match = asset.match(/^nep245:v2_1\.omni\.hot\.tg:(\d+)_.+$/)
+  // NEP245 format: nep245:VERSION.CONTRACT:CHAIN_SUFFIX
+  // Example: nep245:v2_1.omni.hot.tg:56_2CMMyVTGZkeyNZTSvS5sarzfir6g
+  const nep245Pattern = new RegExp(`^nep245:(v\\d+_\\d+)\\.${NEP245_CONTRACT_IDENTIFIER}:(\\d+)_(.+)$`)
+  const nep245Match = asset.match(nep245Pattern)
   if (nep245Match) {
-    const chainId = `eip155:${nep245Match[1]}`
-    const slip44 = getSlip44ForChain(chainId)
-    return { chainId, assetId: `${chainId}/slip44:${slip44}` }
+    const version = nep245Match[1]
+    const chainId = `eip155:${nep245Match[2]}`
+    const suffix = nep245Match[3]
+
+    // Warn if we see a version we haven't tested
+    if (version !== SUPPORTED_NEP245_VERSION) {
+      console.warn(
+        `[nearIntents] Untested NEP245 version '${version}' detected (expected '${SUPPORTED_NEP245_VERSION}'). Parser may need updates.`
+      )
+    }
+
+    // Native token convention: suffix is all 1's (e.g., "11111111111111111111")
+    // This follows the pattern used by Solana (32 ones) and other blockchains
+    // to represent native/gas tokens without a contract address
+    const isNativeToken = /^1+$/.test(suffix)
+
+    if (isNativeToken) {
+      const slip44 = getSlip44ForChain(chainId)
+      return { chainId, assetId: `${chainId}/slip44:${slip44}` }
+    }
+
+    // Decode suffix to get ERC20 token address
+    const tokenAddress = decodeNEP245TokenSuffix(suffix)
+
+    if (tokenAddress) {
+      return { chainId, assetId: `${chainId}/erc20:${tokenAddress}` }
+    } else {
+      // Fallback to unknown if decoding fails
+      console.warn(`[nearIntents] Could not decode token suffix: ${suffix}`)
+      return { chainId, assetId: `${chainId}/unknown:${suffix}` }
+    }
   }
 
   const prefix = asset.split(':')[0] ?? 'unknown'
