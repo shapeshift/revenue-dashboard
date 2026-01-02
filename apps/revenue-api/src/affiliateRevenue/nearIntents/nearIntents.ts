@@ -140,7 +140,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const totalFees = allFees.length
   const duration = Date.now() - startTime
 
-  console.log(`[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
+  console.log(
+    `[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
   // Enrich NEAR Intents fees with current USD prices
   const enrichedFees = await enrichFeesWithUsdPrices(allFees)

@@ -12,25 +12,14 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { MAYACHAIN_CHAIN_ID, SLIP44 } from '../constants'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 
-import { MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND, PRICE_API_URL } from './constants'
+import { MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND } from './constants'
 import type { FeesResponse } from './types'
 
-const getCacaoPriceUsd = async (): Promise<number> => {
-  const { data } = await axios.get<{ cacao: { usd: string } }>(PRICE_API_URL, {
-    params: {
-      vs_currencies: 'usd',
-      ids: 'cacao',
-    },
-  })
-
-  return Number(data.cacao.usd)
-}
-
-const transformFee = async (fee: FeesResponse['fees'][0], cacaoPriceUsd: number): Promise<Fees> => {
+const transformFee = (fee: FeesResponse['fees'][0]): Fees => {
   const chainId = MAYACHAIN_CHAIN_ID
   const assetId = `${chainId}/slip44:${SLIP44.MAYACHAIN}`
-  const decimals = await assetDataService.getAssetDecimals(assetId)
 
   return {
     chainId,
@@ -39,7 +28,6 @@ const transformFee = async (fee: FeesResponse['fees'][0], cacaoPriceUsd: number)
     txHash: fee.txId,
     timestamp: Math.round(fee.timestamp / 1000),
     amount: fee.amount,
-    amountUsd: ((Number(fee.amount) / 10 ** decimals) * cacaoPriceUsd).toString(),
   }
 }
 
@@ -51,9 +39,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     params: { start, end },
   })
 
-  const cacaoPriceUsd = await getCacaoPriceUsd()
-
-  return Promise.all(data.fees.map(fee => transformFee(fee, cacaoPriceUsd)))
+  return data.fees.map(transformFee)
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -102,5 +88,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[mayachain] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices([...cachedFees, ...newFees, ...recentFees])
 }
