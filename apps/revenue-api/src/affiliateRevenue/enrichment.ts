@@ -23,13 +23,6 @@ export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> => 
   // Batch fetch prices
   const priceMap = await getBulkAssetPrices(uniqueAssetIds)
 
-  // Ensure asset data loaded
-  await assetDataService.ensureLoadedAsync()
-
-  // Enrich each fee
-  let enrichedCount = 0
-  let missingPriceCount = 0
-
   const enrichedFees = await Promise.all(
     fees.map(async fee => {
       const price = priceMap.get(fee.assetId)
@@ -47,16 +40,13 @@ export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> => 
         const calculatedUsd = (amountDecimal * price).toString()
 
         fee.amountUsd = calculatedUsd
-        enrichedCount++
       } else {
         // Fallback to originalUsdValue (what integration calculated)
         if (fee.originalUsdValue) {
           fee.amountUsd = fee.originalUsdValue
-          enrichedCount++
         } else {
           // No price AND no original value - set undefined
           fee.amountUsd = undefined
-          missingPriceCount++
         }
       }
 

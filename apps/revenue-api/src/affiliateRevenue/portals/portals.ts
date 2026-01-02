@@ -2,7 +2,6 @@ import axios from 'axios'
 import { padHex, zeroAddress } from 'viem'
 
 import type { Fees } from '..'
-import { assetDataService } from '../../utils/assetDataService'
 import {
   getCacheableThreshold,
   getCachedTokenTransfer,
@@ -205,8 +204,6 @@ const fetchFeesForChain = async (
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  await assetDataService.ensureLoadedAsync()
-
   const overallStart = Date.now()
   const allFees: Fees[] = []
   const threshold = getCacheableThreshold()

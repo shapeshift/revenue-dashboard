@@ -80,12 +80,9 @@ export class AffiliateRevenue {
       }
     })
 
-    // Each integration handles its own enrichment
-    const enrichedFees = fees
-
     const byDate: AffiliateRevenueResponse['byDate'] = {}
 
-    for (const fee of enrichedFees) {
+    for (const fee of fees) {
       const date = timestampToDate(fee.timestamp)
 
       if (!byDate[date]) {
@@ -113,7 +110,7 @@ export class AffiliateRevenue {
     return {
       totalUsd,
       byService,
-      byDate: {}, //TEMP
+      byDate,
       failedProviders,
     }
   }

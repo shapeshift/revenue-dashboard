@@ -1,3 +1,5 @@
+import { LRUCache } from 'lru-cache'
+
 import { COINGECKO_CHAINS } from '../affiliateRevenue/constants'
 
 import { DiskCache } from './cache'
@@ -14,7 +16,10 @@ class AssetDataService {
   private assetData: Map<string, StaticAsset> | null = null
   private loadPromise: Promise<void> | null = null
   private cache: DiskCache
-  private coingeckoDecimalsCache: Map<string, number | null> = new Map()
+  private coingeckoDecimalsCache = new LRUCache<string, { decimals: number | null }>({
+    max: 1000,
+    ttl: 1000 * 60 * 60 * 24,
+  })
 
   private constructor() {
     this.cache = new DiskCache()
@@ -82,7 +87,7 @@ class AssetDataService {
   private async fetchDecimalsFromCoingecko(assetId: string): Promise<number | null> {
     // Check cache first (stores both successes and failures)
     const cached = this.coingeckoDecimalsCache.get(assetId)
-    if (cached !== undefined) return cached
+    if (cached !== undefined) return cached.decimals
 
     try {
       const [chainPart, tokenPart] = assetId.split('/')
@@ -100,24 +105,26 @@ class AssetDataService {
       const response = await fetch(url)
 
       if (!response.ok) {
-        this.coingeckoDecimalsCache.set(assetId, null)
+        this.coingeckoDecimalsCache.set(assetId, { decimals: null })
         return null
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as {
+        detail_platforms?: Record<string, { decimal_place?: number }>
+      }
       const decimals = data.detail_platforms?.[platform]?.decimal_place
 
       if (typeof decimals === 'number') {
         console.log(`[AssetDataService] Got decimals from CoinGecko for ${assetId}: ${decimals}`)
-        this.coingeckoDecimalsCache.set(assetId, decimals)
+        this.coingeckoDecimalsCache.set(assetId, { decimals })
         return decimals
       }
 
-      this.coingeckoDecimalsCache.set(assetId, null)
+      this.coingeckoDecimalsCache.set(assetId, { decimals: null })
       return null
     } catch {
       // Cache errors to avoid retrying
-      this.coingeckoDecimalsCache.set(assetId, null)
+      this.coingeckoDecimalsCache.set(assetId, { decimals: null })
       return null
     }
   }

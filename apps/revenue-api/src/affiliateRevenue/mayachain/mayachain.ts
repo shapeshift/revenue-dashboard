@@ -1,7 +1,6 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
-import { assetDataService } from '../../utils/assetDataService'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -43,8 +42,6 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  await assetDataService.ensureLoadedAsync()
-
   const startTime = Date.now()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)

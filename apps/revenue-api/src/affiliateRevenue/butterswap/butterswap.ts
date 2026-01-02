@@ -74,8 +74,6 @@ const generateSyntheticTxHash = (service: string, date: string): string => {
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Array<Fees>> => {
-  await assetDataService.ensureLoadedAsync()
-
   const startTime = Date.now()
   const tokens = await fetchTokenList()
 

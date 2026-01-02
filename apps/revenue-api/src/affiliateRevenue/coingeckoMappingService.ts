@@ -114,7 +114,7 @@ class CoingeckoMappingService {
         try {
           const response = await fetch(url)
           if (response.ok) {
-            const data = await response.json()
+            const data = (await response.json()) as Record<string, string>
             Object.assign(mappings, data)
           } else {
             console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}: ${response.status}`)
