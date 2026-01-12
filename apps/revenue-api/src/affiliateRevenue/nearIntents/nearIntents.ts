@@ -12,6 +12,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import { calculateFee } from '../utils'
 
 import { DAO_TREASURY_NEAR, FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
@@ -59,18 +60,18 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         }
 
         // amountIn is already in smallest units (wei/satoshi), use directly
-        const amountIn = parseFloat(transaction.amountIn)
+        const amountInStr = transaction.amountIn
         const amountInUsd = parseFloat(transaction.amountInUsd)
 
-        if (isNaN(amountIn) || isNaN(amountInUsd)) {
+        if (isNaN(amountInUsd)) {
           console.warn(
-            `[nearIntents] Invalid amounts in tx ${transaction.intentHashes}: amountIn=${transaction.amountIn}, amountInUsd=${transaction.amountInUsd}`
+            `[nearIntents] Invalid amountInUsd in tx ${transaction.intentHashes}: ${transaction.amountInUsd}`
           )
           continue
         }
 
-        // Calculate fee in smallest units (no conversion needed - already wei/satoshi)
-        const feeAmount = Math.floor((amountIn * appFee.fee) / FEE_BPS_DENOMINATOR)
+        // Calculate fee using BigNumber arithmetic
+        const feeAmount = calculateFee(amountInStr, appFee.fee, FEE_BPS_DENOMINATOR)
         const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
 
         fees.push({
@@ -79,7 +80,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           service: 'nearintents',
           txHash,
           timestamp: transaction.createdAtTimestamp,
-          amount: String(feeAmount),
+          amount: feeAmount,
           amountUsd: String(feeUsd),
         })
       }

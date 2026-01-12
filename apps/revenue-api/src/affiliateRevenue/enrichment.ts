@@ -4,16 +4,7 @@ import { getBulkAssetPrices } from './priceCache'
 
 import type { Fees } from './index'
 
-/**
- * Enriches fees with USD prices calculated from live market data.
- *
- * Moves existing amountUsd → originalUsdValue, then recalculates amountUsd
- * using current prices. This preserves integration-provided values while
- * standardizing on live prices.
- *
- * NOTE: Integrations continue to work unchanged - this function runs centrally
- * after all fees are collected.
- */
+// Moves existing amountUsd → originalUsdValue, then recalculates using live prices
 export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> => {
   if (fees.length === 0) return fees
 

@@ -1,6 +1,7 @@
 import { subDays, format } from 'date-fns'
 import { useState } from 'react'
 
+import { AssetBreakdown } from './components/AssetBreakdown'
 import { DateRangePicker } from './components/DateRangePicker'
 import { RevenueTimeSeries } from './components/RevenueTimeSeries'
 import { ServiceBreakdown } from './components/ServiceBreakdown'
@@ -53,6 +54,7 @@ function App() {
           <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
           <RevenueTimeSeries byDate={data?.byDate} isLoading={isLoading} />
           <ServiceBreakdown byService={data?.byService} totalUsd={data?.totalUsd} isLoading={isLoading} />
+          <AssetBreakdown byAsset={data?.byAsset} totalUsd={data?.totalUsd} isLoading={isLoading} />
         </div>
       </div>
     </div>
