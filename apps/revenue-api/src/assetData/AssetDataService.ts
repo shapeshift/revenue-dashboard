@@ -70,7 +70,6 @@ export async function getAssetDecimals(assetId: string, useCoinGeckoFallback = t
 
   const manualAsset = MANUAL_ASSETS[assetId.toLowerCase()]
   if (manualAsset) {
-    console.log(`[AssetDataService] Using manual asset definition for ${assetId}`)
     return manualAsset.precision
   }
 

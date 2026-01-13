@@ -7,6 +7,7 @@ import { formatUsd, formatPercent } from '../utils/formatters'
 
 type ServiceBreakdownProps = {
   byService: Record<string, number> | undefined
+  byServiceVolume: Record<string, number> | undefined
   totalUsd: number | undefined
   isLoading: boolean
 }
@@ -60,19 +61,20 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   )
 }
 
-export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBreakdownProps) {
+export function ServiceBreakdown({ byService, byServiceVolume, totalUsd, isLoading }: ServiceBreakdownProps) {
   const serviceData: ServiceRevenue[] = useMemo(() => {
-    if (!byService || !totalUsd || totalUsd === 0) return []
+    if (!byService || !byServiceVolume || !totalUsd || totalUsd === 0) return []
 
     return Object.entries(byService)
       .map(([service, amount]) => ({
         service,
         amount,
+        volume: byServiceVolume[service] || 0,
         percentage: (amount / totalUsd) * 100,
       }))
       .filter(s => s.amount > 0)
       .sort((a, b) => b.amount - a.amount)
-  }, [byService, totalUsd])
+  }, [byService, byServiceVolume, totalUsd])
 
   if (isLoading) {
     return (
@@ -130,6 +132,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
               <tr className="text-zinc-400 border-b border-zinc-700">
                 <th className="text-left py-2 font-medium">Service</th>
                 <th className="text-right py-2 font-medium">Revenue</th>
+                <th className="text-right py-2 font-medium">Volume</th>
                 <th className="text-right py-2 font-medium">Share</th>
               </tr>
             </thead>
@@ -146,6 +149,7 @@ export function ServiceBreakdown({ byService, totalUsd, isLoading }: ServiceBrea
                     </div>
                   </td>
                   <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.amount)}</td>
+                  <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.volume)}</td>
                   <td className="text-right py-3 text-zinc-400">{formatPercent(service.percentage)}</td>
                 </tr>
               ))}

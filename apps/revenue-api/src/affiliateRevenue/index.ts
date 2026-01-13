@@ -17,6 +17,8 @@ import * as thorchain from './thorchain'
 import { baseUnitToTokenAmount } from './utils'
 import * as zrx from './zrx'
 
+const FEE_RATE = 0.0055
+
 const providerNames: Service[] = [
   'bebop',
   'butterswap',
@@ -103,6 +105,7 @@ const getOrCreateAssetRevenue = (
       assetId,
       tokenAmount: '0',
       amountUsd: 0,
+      volumeUsd: 0,
       byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
     }
   }
@@ -157,13 +160,17 @@ export class AffiliateRevenue {
       if (!byDate[date]) {
         byDate[date] = {
           totalUsd: 0,
+          totalVolumeUsd: 0,
           byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
+          byServiceVolume: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
           byAsset: {},
         }
       }
 
       byDate[date].totalUsd += amountUsd
+      byDate[date].totalVolumeUsd += amountUsd / FEE_RATE
       byDate[date].byService[fee.service] += amountUsd
+      byDate[date].byServiceVolume[fee.service] += amountUsd / FEE_RATE
 
       const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
 
@@ -171,28 +178,35 @@ export class AffiliateRevenue {
       const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
       dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
       dailyAsset.amountUsd += amountUsd
+      dailyAsset.volumeUsd += amountUsd / FEE_RATE
       dailyAsset.byService[fee.service] += amountUsd
 
       // Global asset aggregation
       const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
       globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
       globalAsset.amountUsd += amountUsd
+      globalAsset.volumeUsd += amountUsd / FEE_RATE
       globalAsset.byService[fee.service] += amountUsd
     }
 
     const byService = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
+    const byServiceVolume = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
 
     for (const daily of Object.values(byDate)) {
       for (const service of services) {
         byService[service] += daily.byService[service]
+        byServiceVolume[service] += daily.byServiceVolume[service]
       }
     }
 
     const totalUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalUsd, 0)
+    const totalVolumeUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalVolumeUsd, 0)
 
     return {
       totalUsd,
+      totalVolumeUsd,
       byService,
+      byServiceVolume,
       byDate,
       byAsset,
       failedProviders,
