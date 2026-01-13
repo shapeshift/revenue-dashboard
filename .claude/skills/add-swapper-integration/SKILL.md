@@ -1,3 +1,8 @@
+---
+name: add-swapper-integration
+description: Guide for adding new DEX/swapper integrations to the ShapeShift Revenue Dashboard. Covers research, API investigation, implementation patterns, and frontend integration.
+---
+
 # Add Swapper Integration Skill
 
 This skill guides you through adding a new swapper/DEX integration to the ShapeShift Revenue Dashboard.
