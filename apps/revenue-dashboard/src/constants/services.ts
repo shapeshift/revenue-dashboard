@@ -11,4 +11,32 @@ export const SERVICE_LABELS: Record<string, string> = {
   relay: 'Relay',
 }
 
+export const SERVICE_COLORS: Record<string, string> = {
+  thorchain: '#0095FF',
+  mayachain: '#6366f1',
+  chainflip: '#22c55e',
+  zrx: '#f59e0b',
+  bebop: '#ec4899',
+  portals: '#14b8a6',
+  cowswap: '#8b5cf6',
+  relay: '#f97316',
+  butterswap: '#84cc16',
+  nearintents: '#06b6d4',
+}
+
 export const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
+
+export const getServiceColor = (service: string) => SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
+
+export const SERVICE_STACK_ORDER = [
+  'thorchain',
+  'zrx',
+  'bebop',
+  'mayachain',
+  'chainflip',
+  'portals',
+  'cowswap',
+  'relay',
+  'butterswap',
+  'nearintents',
+]

@@ -1,31 +1,17 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 
-import { getServiceLabel } from '../constants/services'
+import { getServiceLabel, getServiceColor } from '../constants/services'
 import type { ServiceRevenue } from '../types'
 import { formatUsd, formatPercent } from '../utils/formatters'
 
 type ServiceBreakdownProps = {
   byService: Record<string, number> | undefined
   byServiceVolume: Record<string, number> | undefined
+  byServiceFeeCount: Record<string, number> | undefined
   totalUsd: number | undefined
   isLoading: boolean
 }
-
-const SERVICE_COLORS: Record<string, string> = {
-  thorchain: '#0095FF',
-  mayachain: '#6366f1',
-  chainflip: '#22c55e',
-  zrx: '#f59e0b',
-  bebop: '#ec4899',
-  portals: '#14b8a6',
-  cowswap: '#8b5cf6',
-  relay: '#f97316',
-  butterswap: '#84cc16',
-  nearintents: '#06b6d4',
-}
-
-const getServiceColor = (service: string) => SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
 
 type TooltipPayload = {
   name: string
@@ -61,20 +47,27 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   )
 }
 
-export function ServiceBreakdown({ byService, byServiceVolume, totalUsd, isLoading }: ServiceBreakdownProps) {
+export function ServiceBreakdown({
+  byService,
+  byServiceVolume,
+  byServiceFeeCount,
+  totalUsd,
+  isLoading,
+}: ServiceBreakdownProps) {
   const serviceData: ServiceRevenue[] = useMemo(() => {
-    if (!byService || !byServiceVolume || !totalUsd || totalUsd === 0) return []
+    if (!byService || !byServiceVolume || !byServiceFeeCount || !totalUsd || totalUsd === 0) return []
 
     return Object.entries(byService)
       .map(([service, amount]) => ({
         service,
         amount,
         volume: byServiceVolume[service] || 0,
+        feeCount: byServiceFeeCount[service] || 0,
         percentage: (amount / totalUsd) * 100,
       }))
       .filter(s => s.amount > 0)
       .sort((a, b) => b.amount - a.amount)
-  }, [byService, byServiceVolume, totalUsd])
+  }, [byService, byServiceVolume, byServiceFeeCount, totalUsd])
 
   if (isLoading) {
     return (
@@ -133,6 +126,7 @@ export function ServiceBreakdown({ byService, byServiceVolume, totalUsd, isLoadi
                 <th className="text-left py-2 font-medium">Service</th>
                 <th className="text-right py-2 font-medium">Revenue</th>
                 <th className="text-right py-2 font-medium">Volume</th>
+                <th className="text-right py-2 font-medium">Fees</th>
                 <th className="text-right py-2 font-medium">Share</th>
               </tr>
             </thead>
@@ -150,6 +144,7 @@ export function ServiceBreakdown({ byService, byServiceVolume, totalUsd, isLoadi
                   </td>
                   <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.amount)}</td>
                   <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(service.volume)}</td>
+                  <td className="text-right py-3 text-zinc-400">{service.feeCount.toLocaleString()}</td>
                   <td className="text-right py-3 text-zinc-400">{formatPercent(service.percentage)}</td>
                 </tr>
               ))}
