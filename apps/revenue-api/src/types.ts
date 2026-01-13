@@ -20,22 +20,28 @@ export interface AssetRevenue {
   tokenAmount: string
   amountUsd: number
   volumeUsd: number
+  feeCount: number
   byService: Record<Service, number>
+  byServiceFeeCount: Record<Service, number>
 }
 
 export interface DailyRevenue {
   totalUsd: number
   totalVolumeUsd: number
+  totalFeeCount: number
   byService: Record<Service, number>
   byServiceVolume: Record<Service, number>
+  byServiceFeeCount: Record<Service, number>
   byAsset?: Record<string, AssetRevenue>
 }
 
 export interface AffiliateRevenueResponse {
   totalUsd: number
   totalVolumeUsd: number
+  totalFeeCount: number
   byService: Record<Service, number>
   byServiceVolume: Record<Service, number>
+  byServiceFeeCount: Record<Service, number>
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: Service[]

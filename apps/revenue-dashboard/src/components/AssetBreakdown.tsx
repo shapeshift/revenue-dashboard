@@ -59,6 +59,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading }: AssetBreakdownP
               <th className="text-right py-2 font-medium">Amount</th>
               <th className="text-right py-2 font-medium">USD Value</th>
               <th className="text-right py-2 font-medium">Volume</th>
+              <th className="text-right py-2 font-medium">Fees</th>
               <th className="text-right py-2 font-medium">Share</th>
               <th className="text-right py-2 font-medium">Top Provider</th>
             </tr>
@@ -77,6 +78,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading }: AssetBreakdownP
                 <td className="text-right py-3 text-zinc-200 font-mono">{asset.formattedAmount}</td>
                 <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(asset.amountUsd)}</td>
                 <td className="text-right py-3 text-zinc-200 font-mono">{formatUsd(asset.volumeUsd)}</td>
+                <td className="text-right py-3 text-zinc-400">{asset.feeCount.toLocaleString()}</td>
                 <td className="text-right py-3 text-zinc-400">{formatPercent(asset.percentage)}</td>
                 <td className="text-right py-3 text-zinc-400">
                   {asset.topProvider ? getServiceLabel(asset.topProvider[0]) : '-'}

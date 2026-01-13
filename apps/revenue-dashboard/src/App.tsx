@@ -3,8 +3,9 @@ import { useState } from 'react'
 
 import { AssetBreakdown } from './components/AssetBreakdown'
 import { DateRangePicker } from './components/DateRangePicker'
-import { RevenueTimeSeries } from './components/RevenueTimeSeries'
 import { ServiceBreakdown } from './components/ServiceBreakdown'
+import { ServiceStackedBarChart } from './components/ServiceStackedBarChart'
+import { TotalFees } from './components/TotalFees'
 import { TotalRevenue } from './components/TotalRevenue'
 import { TotalVolume } from './components/TotalVolume'
 import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
@@ -52,14 +53,16 @@ function App() {
         )}
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
             <TotalVolume amount={data?.totalVolumeUsd} isLoading={isLoading} />
+            <TotalFees count={data?.totalFeeCount} isLoading={isLoading} />
           </div>
-          <RevenueTimeSeries byDate={data?.byDate} isLoading={isLoading} />
+          <ServiceStackedBarChart byDate={data?.byDate} isLoading={isLoading} />
           <ServiceBreakdown
             byService={data?.byService}
             byServiceVolume={data?.byServiceVolume}
+            byServiceFeeCount={data?.byServiceFeeCount}
             totalUsd={data?.totalUsd}
             isLoading={isLoading}
           />
