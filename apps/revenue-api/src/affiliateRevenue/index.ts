@@ -10,6 +10,7 @@ import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
+import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
@@ -26,6 +27,7 @@ const providerNames: Service[] = [
   'bebop',
   'butterswap',
   'chainflip',
+  'cowswap',
   'jupiter',
   'mayachain',
   'nearintents',
@@ -130,6 +132,7 @@ export class AffiliateRevenue {
       bebop.getFees(startTimestamp, endTimestamp),
       butterswap.getFees(startTimestamp, endTimestamp),
       chainflip.getFees(startTimestamp, endTimestamp),
+      cowswap.getFees(startTimestamp, endTimestamp),
       jupiter.getFees(startTimestamp, endTimestamp),
       mayachain.getFees(startTimestamp, endTimestamp),
       nearintents.getFees(startTimestamp, endTimestamp),
