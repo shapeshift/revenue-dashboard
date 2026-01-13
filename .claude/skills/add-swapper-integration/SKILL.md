@@ -156,6 +156,25 @@ Document your findings before proceeding:
    - ✅ Rate limits?
    - ✅ Requires API key?
 
+   **⚠️ CRITICAL - Performance Requirements:**
+   - ✅ **Must retrieve 30 days of data in under 15 seconds**
+   - ✅ **Batch queries preferred** (get all fees for date range in one/few calls)
+   - ❌ **Avoid per-transaction queries** (if 100 txs = 100 API calls, too slow!)
+   - ✅ Pagination is acceptable if page size is reasonable (e.g., 100-1000 items per page)
+   - ✅ GraphQL batch queries are good
+   - ❌ REST endpoints requiring one call per tx/day are problematic
+
+   **Performance Estimation:**
+   - You don't need to fetch full 30 days - estimate based on test queries
+   - Assume 50-200 transactions over 30 days (typical volume)
+   - Test a small query and calculate: `estimated_time = (api_response_time × number_of_calls_needed)`
+   - Examples:
+     - ✅ Single API call for date range = 1 second → **GOOD**
+     - ✅ Paginated (5 pages @ 200ms each) = 1 second → **GOOD**
+     - ❌ Per-transaction API (150 txs @ 100ms each) = 15 seconds → **BORDERLINE/BAD**
+     - ❌ Per-day + per-transaction lookups (30 days × 5 txs × 200ms) = 30 seconds → **TOO SLOW**
+   - Mark slow approaches as a major drawback in your research summary
+
 #### Step 3: On-Chain Analysis (if no suitable API)
    If no good API exists, investigate on-chain options:
    - Use the **treasury address from Step 0** (if applicable)
@@ -163,6 +182,13 @@ Document your findings before proceeding:
    - Are there events/logs we can filter?
    - Can we use block explorers (Etherscan, Blockscout)?
    - What transaction data is available?
+
+   **RPC Providers:**
+   - ✅ **Check `/home/sean/Repos/shapeshift/.env` for RPC proxies**
+   - ShapeShift has private RPC endpoints configured for most chains
+   - These are **faster and more reliable** than public RPCs
+   - Look for env vars like `VITE_ETHEREUM_NODE_URL`, `VITE_POLYGON_NODE_URL`, etc.
+   - If available for your target chain, prefer these over public RPCs
 
 #### Step 4: Test Your Findings
    - Make sample API requests **using the affiliate identifier from Step 0**
@@ -188,8 +214,10 @@ After research, you should determine which approach fits best:
 **Strengths:**
 - Most accurate
 - Easiest to implement
-- Best performance
+- **Best performance** - single/few API calls for entire date range
 - Direct fee data
+
+**Performance:** ⚡⚡⚡ Excellent (typically <2 seconds for 30 days)
 
 **USD Enrichment:** ✅ **Use `enrichFeesWithUsdPrices()`**
 - Integration returns crypto `amount` only
@@ -229,11 +257,14 @@ return enrichFeesWithUsdPrices(fees)
 - Good data availability
 - Usually has volume data
 - Can verify fee calculations
+- **Good performance** - batch queries with pagination
 
 **Drawbacks:**
 - May need to calculate fees ourselves (volume * BPS)
 - Historical USD values (if provided) are less accurate
 - **Requires decimal-to-base-unit conversion**
+
+**Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days with pagination)
 
 **USD Enrichment:** ✅ **Use `enrichFeesWithUsdPrices()`**
 - Integration returns crypto `amount` (primary)
@@ -284,11 +315,14 @@ return enrichFeesWithUsdPrices(fees)
 - USD values already accurate
 - No need for price enrichment
 - Reduces API calls
+- **Good performance** - batch queries
 
 **Drawbacks:**
 - Must verify API actually uses current prices (not historical)
 - Less common pattern
 - May still need decimal conversion for amounts
+
+**Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days)
 
 **USD Enrichment:** ❌ **Do NOT use `enrichFeesWithUsdPrices()`**
 - Integration returns both `amount` AND `amountUsd`
@@ -329,11 +363,14 @@ return fees // No enrichment!
 **Strengths:**
 - Simple USD tracking
 - Works when crypto amounts unavailable
+- **Good performance** - batch queries
 
 **Drawbacks:**
 - Less accurate (historical USD values)
 - Can't verify with on-chain data
 - Loses native token information
+
+**Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days)
 
 **USD Enrichment:** ❌ **Do NOT use `enrichFeesWithUsdPrices()`**
 - Integration returns synthesized `amount` (calculated from USD) AND `amountUsd`
@@ -386,10 +423,16 @@ return fees // No enrichment - we don't have real amounts
 
 **Drawbacks:**
 - Most complex implementation
-- Slower performance
+- **Slower performance** - multiple API calls per transaction
 - Requires block number lookups
 - Explorer API rate limits
 - Fallback fee calculations needed
+
+**Performance:** ⚡⚡ Moderate (typically 5-10 seconds for 30 days, can be slower)
+- **WARNING:** If approach requires looking up individual tx details, it can be too slow
+- Per-tx lookups: 150 txs × 100ms = 15 seconds (borderline)
+- Must implement carefully with batching/caching to stay under 15s limit
+- **TIP:** Use ShapeShift's private RPC proxies (see `/home/sean/Repos/shapeshift/.env`) for better performance than public RPCs
 
 **USD Enrichment:** ✅ **Use `enrichFeesWithUsdPrices()`**
 - Integration returns crypto `amount` from on-chain transfers
@@ -462,8 +505,9 @@ After completing your research, provide a summary report:
    - **Amount Format:** [Decimal / Base Units / Unknown - needs testing]
    - **Cost:** [Free / Paid / Free trial only] ⚠️ Must be FREE!
    - **API Key Required:** [Yes/No]
+   - **Performance Estimate:** [e.g., "1 call for 30 days ≈ 1s", "5 pages × 200ms ≈ 1s", "150 txs × 100ms ≈ 15s"]
    - **Strengths:** [List]
-   - **Drawbacks:** [List]
+   - **Drawbacks:** [List - include performance issues if slow]
 
 2. **Option 2: [Name]**
    - [Same structure...]
@@ -475,8 +519,11 @@ After completing your research, provide a summary report:
 **Reasoning:**
 - [Why this is best for our use case]
 - [Alignment with our requirements]
-- [Performance considerations]
 - [Accuracy considerations]
+
+**Performance:** [Estimated time to fetch 30 days] ⚡⚡⚡ / ⚡⚡ / ⚡
+- [Brief justification - batch queries, pagination, per-tx, etc.]
+- ✅ Meets 15-second requirement / ⚠️ Borderline / ❌ Too slow
 
 **Amount Format:** [Decimal/Base Units] - [Conversion needed: Yes/No]
 
@@ -958,6 +1005,7 @@ Key files to reference during implementation:
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/ZrxSwapper/` - API key example
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/RelaySwapper/` - Referrer parameter example
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/ChainflipSwapper/` - Broker ID example
+- `/home/sean/Repos/shapeshift/.env` - **RPC proxy endpoints** for on-chain queries
 
 **Backend (Revenue Dashboard):**
 - `apps/revenue-api/src/affiliateRevenue/thorchain/thorchain.ts` - Simple API (base units)

@@ -2,6 +2,7 @@ export const services = [
   'bebop',
   'butterswap',
   'chainflip',
+  'jupiter',
   'mayachain',
   'nearintents',
   'portals',
