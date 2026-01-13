@@ -5,6 +5,7 @@ import type { AffiliateRevenueResponse, AssetRevenue, Service } from '../types'
 import { services } from '../types'
 import { assetDataService } from '../utils/assetDataService'
 
+import * as avnu from './avnu'
 import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
@@ -21,6 +22,7 @@ import * as zrx from './zrx'
 const FEE_RATE = 0.0055
 
 const providerNames: Service[] = [
+  'avnu',
   'bebop',
   'butterswap',
   'chainflip',
@@ -124,6 +126,7 @@ export class AffiliateRevenue {
     const failedProviders: Service[] = []
 
     const results = await Promise.allSettled([
+      avnu.getFees(startTimestamp, endTimestamp),
       bebop.getFees(startTimestamp, endTimestamp),
       butterswap.getFees(startTimestamp, endTimestamp),
       chainflip.getFees(startTimestamp, endTimestamp),

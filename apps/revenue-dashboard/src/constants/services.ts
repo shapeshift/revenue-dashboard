@@ -1,4 +1,5 @@
 export const SERVICE_LABELS: Record<string, string> = {
+  avnu: 'AVNU',
   nearintents: 'Near Intents',
   butterswap: 'Butter Swap',
   thorchain: 'THORChain',
@@ -13,6 +14,7 @@ export const SERVICE_LABELS: Record<string, string> = {
 }
 
 export const SERVICE_COLORS: Record<string, string> = {
+  avnu: '#8b5cf6',
   thorchain: '#0095FF',
   mayachain: '#6366f1',
   chainflip: '#22c55e',
@@ -35,6 +37,7 @@ export const SERVICE_STACK_ORDER = [
   'zrx',
   'bebop',
   'mayachain',
+  'avnu',
   'jupiter',
   'chainflip',
   'portals',

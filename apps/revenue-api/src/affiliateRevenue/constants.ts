@@ -18,7 +18,7 @@ export const SUI_CHAIN_ID = 'sui:35834a8a'
 export const THORCHAIN_CHAIN_ID = 'cosmos:thorchain-1'
 export const MAYACHAIN_CHAIN_ID = 'cosmos:mayachain-mainnet-v1'
 export const NEAR_CHAIN_ID = 'near:mainnet'
-export const STARKNET_CHAIN_ID = 'starknet:SN_MAIN'
+export const STARKNET_CHAIN_ID = 'starknet:sn_main'
 
 // EVM Chain IDs (CAIP-2 format)
 export const ETHEREUM_CHAIN_ID = 'eip155:1'

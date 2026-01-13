@@ -67,14 +67,70 @@ export const MANUAL_ASSETS: Record<string, StaticAsset> = {
     icon: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg',
   },
 
-  'starknet:SN_MAIN/slip44:9004': {
-    assetId: 'starknet:SN_MAIN/slip44:9004',
-    chainId: 'starknet:SN_MAIN',
+  'starknet:sn_main/slip44:9004': {
+    assetId: 'starknet:sn_main/slip44:9004',
+    chainId: 'starknet:sn_main',
     symbol: 'STRK',
     name: 'Starknet',
     precision: 18,
     color: '#EC796B',
     icon: 'https://assets.coingecko.com/coins/images/26433/large/starknet.png',
+  },
+
+  // Starknet Native USDC (Circle official, launched Dec 2025)
+  // Official address: https://www.circle.com/blog/now-available-native-usdc-cctp-on-starknet
+  'starknet:sn_main/token:0x033068f6539f8e6e6b131e6b2b814e6c34a5224bc66947c47dab9dfee93b35fb': {
+    assetId: 'starknet:sn_main/token:0x033068f6539f8e6e6b131e6b2b814e6c34a5224bc66947c47dab9dfee93b35fb',
+    chainId: 'starknet:sn_main',
+    symbol: 'USDC',
+    name: 'USD Coin (Native)',
+    precision: 6,
+    color: '#2775CA',
+    icon: 'https://assets.coingecko.com/coins/images/6319/large/usdc.png',
+  },
+
+  // Starknet Bridged USDC (USDC.e via StarkGate)
+  'starknet:sn_main/token:0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8': {
+    assetId: 'starknet:sn_main/token:0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8',
+    chainId: 'starknet:sn_main',
+    symbol: 'USDC.e',
+    name: 'USD Coin (Bridged)',
+    precision: 6,
+    color: '#2775CA',
+    icon: 'https://assets.coingecko.com/coins/images/6319/large/usdc.png',
+  },
+
+  // Starknet USDT
+  'starknet:sn_main/token:0x068f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8': {
+    assetId: 'starknet:sn_main/token:0x068f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8',
+    chainId: 'starknet:sn_main',
+    symbol: 'USDT',
+    name: 'Tether USD (Starknet)',
+    precision: 6,
+    color: '#26A17B',
+    icon: 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
+  },
+
+  // Starknet ETH (bridged)
+  'starknet:sn_main/token:0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7': {
+    assetId: 'starknet:sn_main/token:0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
+    chainId: 'starknet:sn_main',
+    symbol: 'ETH',
+    name: 'Ethereum (Starknet)',
+    precision: 18,
+    color: '#627EEA',
+    icon: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png',
+  },
+
+  // Starknet DAI
+  'starknet:sn_main/token:0x00da114221cb83fa859dbdb4c44beeaa0bb37c7537ad5ae66fe5e0efd20e6eb3': {
+    assetId: 'starknet:sn_main/token:0x00da114221cb83fa859dbdb4c44beeaa0bb37c7537ad5ae66fe5e0efd20e6eb3',
+    chainId: 'starknet:sn_main',
+    symbol: 'DAI',
+    name: 'Dai Stablecoin (Starknet)',
+    precision: 18,
+    color: '#F4B731',
+    icon: 'https://assets.coingecko.com/coins/images/9956/large/dai-multi-collateral-mcd.png',
   },
 
   'sui:35834a8a/slip44:784': {

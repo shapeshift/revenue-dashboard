@@ -6,9 +6,11 @@ import type { Fees } from '..'
 import { assetDataService } from '../../utils/assetDataService'
 import { getDateRange, getDateStartTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
 
 import {
   API_SUCCESS_CODE,
+  BLOCK_TIME_SECONDS,
   BUTTERSWAP_AFFILIATE_ID,
   BUTTERSWAP_CONTRACT,
   FALLBACK_TOKENS,
@@ -22,7 +24,7 @@ import {
   UINT256_HEX_LENGTH,
 } from './constants'
 import type { TokenListResponse } from './types'
-import { estimateBlockFromTimestamp, rpcCall } from './utils'
+import { rpcCall } from './utils'
 
 let cachedTokens: string[] | null = null
 let tokensCachedAt = 0
@@ -80,8 +82,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const currentBlock = await getBlockNumber()
   const now = Math.floor(Date.now() / 1000)
 
-  const startBlock = estimateBlockFromTimestamp(currentBlock, now, startTimestamp)
-  const endBlock = estimateBlockFromTimestamp(currentBlock, now, endTimestamp)
+  const startBlock = estimateBlockFromTimestamp(currentBlock, now, startTimestamp, BLOCK_TIME_SECONDS)
+  const endBlock = estimateBlockFromTimestamp(currentBlock, now, endTimestamp, BLOCK_TIME_SECONDS)
 
   const [balanceAtStart, balanceAtEnd] = await Promise.all([
     getTotalBalance(startBlock, tokens),
