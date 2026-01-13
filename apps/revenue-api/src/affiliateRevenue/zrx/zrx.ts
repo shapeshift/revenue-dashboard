@@ -13,7 +13,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
-import { getSlip44ForChain, safeAmountToString } from '../utils'
+import { decimalToBaseUnit, getSlip44ForChain, safeAmountToString } from '../utils'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
@@ -50,7 +50,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         // 0x API returns amounts in DECIMAL format (e.g., "2.5" USDC, not "2500000" wei)
         // Convert to wei (smallest units) for consistency with other integrations
         const decimals = await assetDataService.getAssetDecimals(assetId)
-        const amountInWei = (parseFloat(rawAmount) * 10 ** decimals).toString()
+        const amountInWei = decimalToBaseUnit(rawAmount, decimals)
 
         fees.push({
           chainId,

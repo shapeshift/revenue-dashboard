@@ -179,8 +179,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[relay] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  // Don't enrich Relay fees - they already provide current USD via amountUsdCurrent
-  // Investigation revealed Relay's amount field has inconsistent formats (raw units vs USD×1M)
-  // and assetId building doesn't work correctly for BSC/Solana tokens. Relay handles this correctly.
   return [...cachedFees, ...newFees, ...recentFees]
 }

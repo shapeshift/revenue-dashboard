@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 
+import { getServiceLabel } from '../constants/services'
 import type { ServiceRevenue } from '../types'
+import { formatUsd, formatPercent } from '../utils/formatters'
 
 type ServiceBreakdownProps = {
   byService: Record<string, number> | undefined
@@ -23,31 +25,6 @@ const SERVICE_COLORS: Record<string, string> = {
 }
 
 const getServiceColor = (service: string) => SERVICE_COLORS[service.toLowerCase()] || '#6b7280'
-
-const SERVICE_LABELS: Record<string, string> = {
-  nearintents: 'Near Intents',
-  butterswap: 'Butter Swap',
-  thorchain: 'THORChain',
-  mayachain: 'Maya Protocol',
-  chainflip: 'Chainflip',
-  zrx: '0x',
-  bebop: 'Bebop',
-  portals: 'Portals',
-  cowswap: 'CoW Swap',
-  relay: 'Relay',
-}
-
-const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
-
-const formatUsd = (amount: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)
-
-const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
 type TooltipPayload = {
   name: string

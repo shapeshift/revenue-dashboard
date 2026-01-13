@@ -41,9 +41,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     })
   )
 
-  const fees = data.fees.map(fee => transformFee(fee))
-
-  return enrichFeesWithUsdPrices(fees)
+  return data.fees.map(fee => transformFee(fee))
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -90,5 +88,6 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   console.log(`[thorchain] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  return enrichFeesWithUsdPrices(allFees)
 }

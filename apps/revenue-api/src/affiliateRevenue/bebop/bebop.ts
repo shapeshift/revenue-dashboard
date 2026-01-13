@@ -12,7 +12,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
-import { getSlip44ForChain } from '../utils'
+import { decimalToBaseUnit, getSlip44ForChain } from '../utils'
 
 import {
   BEBOP_API_KEY,
@@ -42,7 +42,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const assetId = `${chainId}/slip44:${slip44}`
 
     const decimals = await assetDataService.getAssetDecimals(assetId)
-    const amount = String(Math.floor(Number(trade.partnerFeeNative) * 10 ** decimals))
+    const amount = decimalToBaseUnit(String(trade.partnerFeeNative), decimals)
 
     fees.push({
       chainId,

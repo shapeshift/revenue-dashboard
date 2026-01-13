@@ -35,15 +35,7 @@ export const buildAssetId = (chainId: string, network: string, tokenAddress?: st
   return `${chainId}/slip44:${slip44}`
 }
 
-/**
- * Decodes NEP245 token suffix (Base58) to Ethereum address.
- *
- * Format: Base58-encoded 20-byte Ethereum address
- * Example: "2CMMyVTGZkeyNZTSvS5sarzfir6g" → "0x55d398326f99059ff775485246999027b3197955"
- *
- * @param suffix - Base58-encoded suffix from NEP245 format
- * @returns Ethereum address in 0x format, or null if decoding fails
- */
+// Decodes Base58-encoded 20-byte Ethereum address from NEP245 suffix
 const decodeNEP245TokenSuffix = (suffix: string): string | null => {
   try {
     // Decode base58 to get raw bytes
