@@ -6,6 +6,7 @@ import { DateRangePicker } from './components/DateRangePicker'
 import { RevenueTimeSeries } from './components/RevenueTimeSeries'
 import { ServiceBreakdown } from './components/ServiceBreakdown'
 import { TotalRevenue } from './components/TotalRevenue'
+import { TotalVolume } from './components/TotalVolume'
 import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
 import type { DateRange } from './types'
 
@@ -51,9 +52,17 @@ function App() {
         )}
 
         <div className="space-y-6">
-          <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
+            <TotalVolume amount={data?.totalVolumeUsd} isLoading={isLoading} />
+          </div>
           <RevenueTimeSeries byDate={data?.byDate} isLoading={isLoading} />
-          <ServiceBreakdown byService={data?.byService} totalUsd={data?.totalUsd} isLoading={isLoading} />
+          <ServiceBreakdown
+            byService={data?.byService}
+            byServiceVolume={data?.byServiceVolume}
+            totalUsd={data?.totalUsd}
+            isLoading={isLoading}
+          />
           <AssetBreakdown byAsset={data?.byAsset} totalUsd={data?.totalUsd} isLoading={isLoading} />
         </div>
       </div>
