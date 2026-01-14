@@ -40,10 +40,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
       const params: Record<string, unknown> = {
         filter: 'to',
-      }
-
-      if (nextPageParams) {
-        Object.assign(params, nextPageParams)
+        ...nextPageParams,
       }
 
       const { data } = await axios.get<BlockscoutInternalTxResponse>(url, {
@@ -59,16 +56,13 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       for (const tx of data.items) {
         if (!tx.success) continue
 
-        if (tx.from.hash.toLowerCase() !== COW_PAYOUT_SAFE.toLowerCase()) {
+        if (tx.from.hash.toLowerCase() !== COW_PAYOUT_SAFE) {
           continue
         }
 
         const timestamp = Math.floor(new Date(tx.timestamp).getTime() / 1000)
 
         if (timestamp < startTimestamp) {
-          console.log(
-            `[cowswap] Reached start boundary (${new Date(timestamp * 1000).toISOString()} < ${new Date(startTimestamp * 1000).toISOString()})`
-          )
           return fees
         }
 
@@ -92,9 +86,13 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         console.warn(`[cowswap] Reached max pages (${maxPages}), stopping pagination`)
         break
       }
+
+      // Add delay between pagination requests to avoid rate limiting
+      if (nextPageParams !== null) {
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      }
     } while (nextPageParams !== null)
 
-    console.log(`[cowswap] Fetched ${fees.length} fees across ${pageCount} pages`)
     return fees
   })
 }

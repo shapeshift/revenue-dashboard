@@ -29,8 +29,7 @@ const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
   if (cached !== undefined) return cached
 
   // Fetch from RPC
-  const block = await rpcCall<StarknetBlock>('starknet_getBlockWithTxs', [{ block_number: blockNumber }])
-  const timestamp = block.timestamp
+  const { timestamp } = await rpcCall<StarknetBlock>('starknet_getBlockWithTxs', [{ block_number: blockNumber }])
 
   // Cache with appropriate TTL
   saveCachedBlockTimestamp(STARKNET_CHAIN_ID, blockNumber, timestamp)
@@ -83,10 +82,6 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   const startBlock = Math.max(0, estimatedStart - BLOCK_ESTIMATION_BUFFER)
   const endBlock = Math.min(currentBlock, estimatedEnd + BLOCK_ESTIMATION_BUFFER)
 
-  console.log(
-    `[avnu] Querying blocks ${startBlock} to ${endBlock} (estimated ${estimatedStart}-${estimatedEnd} ±${BLOCK_ESTIMATION_BUFFER} buffer)`
-  )
-
   // Fetch all Transfer events to treasury in block range
   const events = await fetchEventsInBlockRange(startBlock, endBlock)
 
@@ -97,20 +92,21 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     return []
   }
 
-  console.log(`[avnu] Found ${avnuEvents.length} AVNU transfers out of ${events.length} total transfers`)
-
   // Collect unique block numbers for timestamp lookup
   const uniqueBlocks = [...new Set(avnuEvents.map(e => e.block_number))]
   const blockTimestamps = new Map<number, number>()
 
-  // Fetch block timestamps in parallel
+  // Fetch block timestamps in parallel with estimation fallback
   await Promise.all(
     uniqueBlocks.map(async blockNum => {
       try {
         const timestamp = await getBlockTimestamp(blockNum)
         blockTimestamps.set(blockNum, timestamp)
       } catch (error) {
-        console.warn(`[avnu] Failed to fetch timestamp for block ${blockNum}:`, error)
+        // Fallback: estimate timestamp using block time and current block
+        const blockDelta = currentBlock - blockNum
+        const estimatedTimestamp = now - blockDelta * STARKNET_BLOCK_TIME_SECONDS
+        blockTimestamps.set(blockNum, Math.floor(estimatedTimestamp))
       }
     })
   )
@@ -119,7 +115,6 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   for (const event of avnuEvents) {
     const timestamp = blockTimestamps.get(event.block_number)
     if (!timestamp) {
-      console.warn(`[avnu] Skipping event - missing timestamp for block ${event.block_number}`)
       continue
     }
 
@@ -141,7 +136,6 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       txHash: event.transaction_hash,
       timestamp,
       amount,
-      // No amountUsd - let enrichment calculate it
     })
   }
 

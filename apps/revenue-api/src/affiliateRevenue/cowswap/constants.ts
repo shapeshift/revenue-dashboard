@@ -1,5 +1,5 @@
 // CoW Protocol payout Safe address (sends internal transactions)
-export const COW_PAYOUT_SAFE = '0xA03be496e67Ec29bC62F01a428683D7F9c204930'
+export const COW_PAYOUT_SAFE = '0xa03be496e67ec29bc62f01a428683d7f9c204930'
 
 // ShapeShift DAO Treasury address (receives payouts)
 export const DAO_TREASURY_ETHEREUM = '0x90a48d5cf7343b08da12e067680b4c6dbfe551be'

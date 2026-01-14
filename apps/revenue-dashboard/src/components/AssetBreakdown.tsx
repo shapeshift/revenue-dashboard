@@ -1,17 +1,20 @@
 import { useMemo } from 'react'
 
 import { getServiceLabel } from '../constants/services'
-import type { AssetRevenue } from '../types'
+import type { AssetRevenue, DateRange } from '../types'
 import { formatTokenAmountDisplay } from '../utils/assetHelpers'
 import { formatUsd, formatPercent } from '../utils/formatters'
+
+import { ExportButton } from './ExportButton'
 
 type AssetBreakdownProps = {
   byAsset: Record<string, AssetRevenue> | undefined
   totalUsd: number | undefined
   isLoading: boolean
+  dateRange: DateRange
 }
 
-export function AssetBreakdown({ byAsset, totalUsd, isLoading }: AssetBreakdownProps) {
+export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: AssetBreakdownProps) {
   const assetData = useMemo(() => {
     if (!byAsset || !totalUsd || totalUsd === 0) return []
 
@@ -25,6 +28,25 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading }: AssetBreakdownP
       .filter(a => a.amountUsd > 5)
       .sort((a, b) => b.amountUsd - a.amountUsd)
   }, [byAsset, totalUsd])
+
+  const exportData = useMemo(() => {
+    if (!assetData.length) return { headers: [], rows: [] }
+
+    const headers = ['Asset', 'Amount', 'USD Value', 'Volume', 'Fees', 'Share', 'Top Provider']
+    const rows = assetData.map(asset => [
+      `${asset.symbol} (${asset.chainName})`,
+      asset.formattedAmount,
+      formatUsd(asset.amountUsd),
+      formatUsd(asset.volumeUsd),
+      asset.feeCount.toLocaleString(),
+      formatPercent(asset.percentage),
+      asset.topProvider ? getServiceLabel(asset.topProvider[0]) : '-',
+    ])
+
+    return { headers, rows }
+  }, [assetData])
+
+  const filename = `asset-breakdown-${dateRange.startDate}_to_${dateRange.endDate}.csv`
 
   if (isLoading) {
     return (
@@ -50,7 +72,10 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading }: AssetBreakdownP
 
   return (
     <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
-      <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Asset</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Revenue by Asset</h2>
+        <ExportButton headers={exportData.headers} rows={exportData.rows} filename={filename} />
+      </div>
       <div className="overflow-auto">
         <table className="w-full text-sm">
           <thead>
