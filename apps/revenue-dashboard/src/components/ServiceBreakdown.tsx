@@ -2,8 +2,10 @@ import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 
 import { getServiceLabel, getServiceColor } from '../constants/services'
-import type { ServiceRevenue } from '../types'
+import type { ServiceRevenue, DateRange } from '../types'
 import { formatUsd, formatPercent } from '../utils/formatters'
+
+import { ExportButton } from './ExportButton'
 
 type ServiceBreakdownProps = {
   byService: Record<string, number> | undefined
@@ -11,6 +13,7 @@ type ServiceBreakdownProps = {
   byServiceFeeCount: Record<string, number> | undefined
   totalUsd: number | undefined
   isLoading: boolean
+  dateRange: DateRange
 }
 
 type TooltipPayload = {
@@ -53,6 +56,7 @@ export function ServiceBreakdown({
   byServiceFeeCount,
   totalUsd,
   isLoading,
+  dateRange,
 }: ServiceBreakdownProps) {
   const serviceData: ServiceRevenue[] = useMemo(() => {
     if (!byService || !byServiceVolume || !byServiceFeeCount || !totalUsd || totalUsd === 0) return []
@@ -68,6 +72,23 @@ export function ServiceBreakdown({
       .filter(s => s.amount > 0)
       .sort((a, b) => b.amount - a.amount)
   }, [byService, byServiceVolume, byServiceFeeCount, totalUsd])
+
+  const exportData = useMemo(() => {
+    if (!serviceData.length) return { headers: [], rows: [] }
+
+    const headers = ['Service', 'Revenue', 'Volume', 'Fees', 'Share']
+    const rows = serviceData.map(service => [
+      getServiceLabel(service.service),
+      formatUsd(service.amount),
+      formatUsd(service.volume),
+      service.feeCount.toLocaleString(),
+      formatPercent(service.percentage),
+    ])
+
+    return { headers, rows }
+  }, [serviceData])
+
+  const filename = `service-breakdown-${dateRange.startDate}_to_${dateRange.endDate}.csv`
 
   if (isLoading) {
     return (
@@ -93,7 +114,10 @@ export function ServiceBreakdown({
 
   return (
     <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
-      <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Service</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Revenue by Service</h2>
+        <ExportButton headers={exportData.headers} rows={exportData.rows} filename={filename} />
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">

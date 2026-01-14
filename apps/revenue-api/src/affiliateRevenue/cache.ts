@@ -136,3 +136,22 @@ export const saveCachedBlockNumber = (chainId: string, timestamp: number, blockN
   const ttl = age > 3600 ? 1000 * 60 * 60 * 24 * 365 : 1000 * 60 * 5
   blockNumberCache.set(key, blockNumber, { ttl })
 }
+
+export const getBlockTimestampCacheKey = (chainId: string, blockNumber: number): string => {
+  return `blockts:${chainId}:${blockNumber}`
+}
+
+export const getCachedBlockTimestamp = (chainId: string, blockNumber: number): number | undefined => {
+  const key = getBlockTimestampCacheKey(chainId, blockNumber)
+  return blockNumberCache.get(key)
+}
+
+export const saveCachedBlockTimestamp = (chainId: string, blockNumber: number, timestamp: number): void => {
+  const key = getBlockTimestampCacheKey(chainId, blockNumber)
+  const now = Math.floor(Date.now() / 1000)
+  const age = now - timestamp
+  // Old blocks (>1 hour) never change, cache for 1 year
+  // Recent blocks still being mined, cache for 5 minutes
+  const ttl = age > 3600 ? 1000 * 60 * 60 * 24 * 365 : 1000 * 60 * 5
+  blockNumberCache.set(key, timestamp, { ttl })
+}

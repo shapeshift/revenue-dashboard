@@ -1,5 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
+import { MANUAL_COINGECKO_MAPPINGS } from './manualCoingeckoMappings'
+
 const GITHUB_BASE_URL =
   'https://raw.githubusercontent.com/shapeshift/web/develop/packages/caip/src/adapters/coingecko/generated'
 
@@ -62,7 +64,12 @@ export async function ensureLoadedAsync(): Promise<void> {
 }
 
 export function getCoingeckoId(assetId: string): string | undefined {
-  return mappings?.get(assetId)
+  // First try the loaded mappings from GitHub
+  const mappedId = mappings?.get(assetId)
+  if (mappedId) return mappedId
+
+  // Fallback: Check manual mappings for assets not in GitHub (e.g., new tokens, 1:1 pegs)
+  return MANUAL_COINGECKO_MAPPINGS[assetId]
 }
 
 export function isLoaded(): boolean {

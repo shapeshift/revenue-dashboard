@@ -65,8 +65,14 @@ function App() {
             byServiceFeeCount={data?.byServiceFeeCount}
             totalUsd={data?.totalUsd}
             isLoading={isLoading}
+            dateRange={dateRange}
           />
-          <AssetBreakdown byAsset={data?.byAsset} totalUsd={data?.totalUsd} isLoading={isLoading} />
+          <AssetBreakdown
+            byAsset={data?.byAsset}
+            totalUsd={data?.totalUsd}
+            isLoading={isLoading}
+            dateRange={dateRange}
+          />
         </div>
       </div>
     </div>

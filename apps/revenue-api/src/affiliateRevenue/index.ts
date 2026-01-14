@@ -5,10 +5,12 @@ import type { AffiliateRevenueResponse, AssetRevenue, Service } from '../types'
 import { services } from '../types'
 import { assetDataService } from '../utils/assetDataService'
 
+import * as avnu from './avnu'
 import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
+import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
@@ -21,9 +23,11 @@ import * as zrx from './zrx'
 const FEE_RATE = 0.0055
 
 const providerNames: Service[] = [
+  'avnu',
   'bebop',
   'butterswap',
   'chainflip',
+  'cowswap',
   'jupiter',
   'mayachain',
   'nearintents',
@@ -124,9 +128,11 @@ export class AffiliateRevenue {
     const failedProviders: Service[] = []
 
     const results = await Promise.allSettled([
+      avnu.getFees(startTimestamp, endTimestamp),
       bebop.getFees(startTimestamp, endTimestamp),
       butterswap.getFees(startTimestamp, endTimestamp),
       chainflip.getFees(startTimestamp, endTimestamp),
+      cowswap.getFees(startTimestamp, endTimestamp),
       jupiter.getFees(startTimestamp, endTimestamp),
       mayachain.getFees(startTimestamp, endTimestamp),
       nearintents.getFees(startTimestamp, endTimestamp),
