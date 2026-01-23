@@ -11,7 +11,7 @@
     "build": "tsc --build && bun run --filter './apps/*' build",
     "build:backend": "tsc --build && bun --filter @shapeshiftoss/revenue-api build",
     "build:frontend": "tsc --build && bun --filter @shapeshiftoss/revenue-dashboard build",
-    "dev": "concurrently -n \"api,dashboard\" -c \"blue,magenta\" \"bun dev:api\" \"bun dev:dashboard\"",
+    "dev": "concurrently -n \"api,dashboard\" -c \"blue,magenta\" \"bun dev:backend\" \"bun dev:frontend\"",
     "dev:backend": "bun --filter @shapeshiftoss/revenue-api --elide-lines=0 dev",
     "dev:frontend": "bun --filter @shapeshiftoss/revenue-dashboard dev",
     "lint": "eslint .",

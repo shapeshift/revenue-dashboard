@@ -102,7 +102,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       try {
         const timestamp = await getBlockTimestamp(blockNum)
         blockTimestamps.set(blockNum, timestamp)
-      } catch (error) {
+      } catch {
         // Fallback: estimate timestamp using block time and current block
         const blockDelta = currentBlock - blockNum
         const estimatedTimestamp = now - blockDelta * STARKNET_BLOCK_TIME_SECONDS

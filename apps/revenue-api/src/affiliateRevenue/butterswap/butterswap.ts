@@ -4,7 +4,7 @@ import { encodeAbiParameters, parseAbiParameters } from 'viem'
 
 import type { Fees } from '..'
 import { assetDataService } from '../../utils/assetDataService'
-import { getDateRange, getDateStartTimestamp } from '../cache'
+import { getDateRange, getDateStartTimestamp, getDateEndTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
 
@@ -82,42 +82,49 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const currentBlock = await getBlockNumber()
   const now = Math.floor(Date.now() / 1000)
 
-  const startBlock = estimateBlockFromTimestamp(currentBlock, now, startTimestamp, BLOCK_TIME_SECONDS)
-  const endBlock = estimateBlockFromTimestamp(currentBlock, now, endTimestamp, BLOCK_TIME_SECONDS)
-
-  const [balanceAtStart, balanceAtEnd] = await Promise.all([
-    getTotalBalance(startBlock, tokens),
-    getTotalBalance(endBlock, tokens),
-  ]).catch(error => {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Failed to query ButterSwap balance: ${message}`)
-  })
-
-  const feesForPeriod = balanceAtEnd - balanceAtStart
-
-  if (feesForPeriod <= BigInt(0)) {
-    const duration = Date.now() - startTime
-    console.log(`[butterswap] Total: 0 fees in ${duration}ms`)
-    return []
-  }
-
   const dates = getDateRange(startTimestamp, endTimestamp)
-  const numDays = dates.length
   const assetId = `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`
-
-  const feesPerDay = feesForPeriod / BigInt(numDays)
   const decimals = await assetDataService.getAssetDecimals(assetId)
-  const feesPerDayUsd = Number(feesPerDay) / 10 ** decimals
 
-  const fees = dates.map(date => ({
-    service: 'butterswap' as const,
-    amount: feesPerDay.toString(),
-    amountUsd: feesPerDayUsd.toString(),
-    chainId: MAP_CHAIN_ID,
-    assetId,
-    timestamp: getDateStartTimestamp(date),
-    txHash: generateSyntheticTxHash('butterswap', date),
-  }))
+  const fees: Fees[] = []
+
+  // Query balance at day boundaries, using exact input timestamps for first/last days
+  for (let i = 0; i < dates.length; i++) {
+    const date = dates[i]
+    const isFirstDay = i === 0
+    const isLastDay = i === dates.length - 1
+
+    const dayStart = isFirstDay ? startTimestamp : getDateStartTimestamp(date)
+    const dayEnd = isLastDay ? endTimestamp : getDateEndTimestamp(date)
+
+    const startBlock = estimateBlockFromTimestamp(currentBlock, now, dayStart, BLOCK_TIME_SECONDS)
+    const endBlock = estimateBlockFromTimestamp(currentBlock, now, dayEnd, BLOCK_TIME_SECONDS)
+
+    const [balanceAtDayStart, balanceAtDayEnd] = await Promise.all([
+      getTotalBalance(startBlock, tokens),
+      getTotalBalance(endBlock, tokens),
+    ]).catch(error => {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to query ButterSwap balance: ${message}`)
+    })
+
+    const feesForDay = balanceAtDayEnd - balanceAtDayStart
+
+    // Skip days with no fees
+    if (feesForDay <= BigInt(0)) continue
+
+    const feesForDayUsd = Number(feesForDay) / 10 ** decimals
+
+    fees.push({
+      service: 'butterswap',
+      amount: feesForDay.toString(),
+      amountUsd: feesForDayUsd.toString(),
+      chainId: MAP_CHAIN_ID,
+      assetId,
+      timestamp: dayStart,
+      txHash: generateSyntheticTxHash('butterswap', date),
+    })
+  }
 
   const duration = Date.now() - startTime
   console.log(`[butterswap] Total: ${fees.length} fees in ${duration}ms`)
