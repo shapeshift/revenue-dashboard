@@ -46,10 +46,9 @@ const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Prom
       {
         from_block: { block_number: fromBlock },
         to_block: { block_number: toBlock },
-        address: null, // Any token contract
         keys: [
           [TRANSFER_SELECTOR], // Transfer events only
-          null, // from: any
+          [], // from: any (empty array is wildcard)
           [SHAPESHIFT_TREASURY], // to: treasury only
         ],
         chunk_size: 1000,

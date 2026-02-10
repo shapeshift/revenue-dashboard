@@ -65,13 +65,14 @@ export function getAsset(assetId: string): StaticAsset | undefined {
 }
 
 export async function getAssetDecimals(assetId: string, useCoinGeckoFallback = true): Promise<number> {
-  const mainAsset = assetData?.get(assetId)
-  if (mainAsset) return mainAsset.precision
-
+  // Check MANUAL_ASSETS first to allow overriding incorrect data from main database
   const manualAsset = MANUAL_ASSETS[assetId.toLowerCase()]
   if (manualAsset) {
     return manualAsset.precision
   }
+
+  const mainAsset = assetData?.get(assetId)
+  if (mainAsset) return mainAsset.precision
 
   if (useCoinGeckoFallback) {
     const cgDecimals = await fetchDecimalsFromCoingecko(assetId)

@@ -64,7 +64,18 @@ export const getBulkAssetPrices = async (assetIds: string[]): Promise<Map<string
       }
     }
   } catch (error) {
-    console.error('[PriceCache] Failed to fetch bulk prices:', error)
+    if (axios.isAxiosError(error)) {
+      console.error('[PriceCache] CoinGecko API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        params: error.config?.params,
+        ids: idsParam,
+      })
+    } else {
+      console.error('[PriceCache] Failed to fetch bulk prices:', error)
+    }
     // Mark all as null
     for (const assetId of uncachedAssetIds) {
       if (!result.has(assetId)) {

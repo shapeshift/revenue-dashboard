@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "starknet_getEvents",
+  "params": [{
+    "from_block": {"block_number": 6299840},
+    "to_block": {"block_number": 6299850},
+    "keys": [
+      ["0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"],
+      null,
+      ["0x052a1132ea4db81bde863afb18a4d4ce5de9d3efdfda6b3daa6484e26425d467"]
+    ],
+    "chunk_size": 10
+  }]
+}

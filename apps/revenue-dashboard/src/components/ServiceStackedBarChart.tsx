@@ -47,11 +47,12 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
         }}
       >
         {label &&
-          new Date(label).toLocaleDateString('en-US', {
+          new Date(label + 'T12:00:00Z').toLocaleDateString('en-US', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
             year: 'numeric',
+            timeZone: 'UTC',
           })}
       </div>
 
@@ -128,8 +129,8 @@ export function ServiceStackedBarChart({ byDate, isLoading }: ServiceStackedBarC
             stroke="#9ca3af"
             tick={{ fill: '#9ca3af' }}
             tickFormatter={(value: string) => {
-              const date = new Date(value)
-              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              const date = new Date(value + 'T12:00:00Z')
+              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
             }}
           />
           <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} tickFormatter={value => `$${value.toLocaleString()}`} />

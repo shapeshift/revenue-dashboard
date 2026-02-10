@@ -1,4 +1,3 @@
-import { subDays, format } from 'date-fns'
 import { useState } from 'react'
 
 import { AssetBreakdown } from './components/AssetBreakdown'
@@ -10,14 +9,15 @@ import { TotalRevenue } from './components/TotalRevenue'
 import { TotalVolume } from './components/TotalVolume'
 import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
 import type { DateRange } from './types'
+import { formatUTCDate, getUTCYesterday, subtractUTCDays } from './utils/dateUtils'
 
 function getDefaultDateRange(): DateRange {
-  // Default to 30 days ending yesterday (to avoid fetching today's incomplete/slow data)
-  const yesterday = subDays(new Date(), 1)
-  const start = subDays(yesterday, 29) // 30 total days including yesterday
+  // Default to 30 days ending yesterday UTC (to avoid fetching today's incomplete/slow data)
+  const yesterday = getUTCYesterday()
+  const start = subtractUTCDays(yesterday, 29) // 30 total days including yesterday
   return {
-    startDate: format(start, 'yyyy-MM-dd'),
-    endDate: format(yesterday, 'yyyy-MM-dd'),
+    startDate: formatUTCDate(start),
+    endDate: formatUTCDate(yesterday),
   }
 }
 
