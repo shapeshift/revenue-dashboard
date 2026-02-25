@@ -10,6 +10,7 @@ import * as bebop from './bebop'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
+import { getAffiliateFeeRate } from './constants'
 import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
@@ -19,8 +20,6 @@ import * as relay from './relay'
 import * as thorchain from './thorchain'
 import { baseUnitToTokenAmount } from './utils'
 import * as zrx from './zrx'
-
-const FEE_RATE = 0.0055
 
 const providerNames: Service[] = [
   'avnu',
@@ -181,10 +180,10 @@ export class AffiliateRevenue {
       }
 
       byDate[date].totalUsd += amountUsd
-      byDate[date].totalVolumeUsd += amountUsd / FEE_RATE
+      byDate[date].totalVolumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       byDate[date].totalFeeCount += 1
       byDate[date].byService[fee.service] += amountUsd
-      byDate[date].byServiceVolume[fee.service] += amountUsd / FEE_RATE
+      byDate[date].byServiceVolume[fee.service] += amountUsd / getAffiliateFeeRate(fee.timestamp)
       byDate[date].byServiceFeeCount[fee.service] += 1
 
       const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
@@ -193,7 +192,7 @@ export class AffiliateRevenue {
       const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
       dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
       dailyAsset.amountUsd += amountUsd
-      dailyAsset.volumeUsd += amountUsd / FEE_RATE
+      dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       dailyAsset.feeCount += 1
       dailyAsset.byService[fee.service] += amountUsd
       dailyAsset.byServiceFeeCount[fee.service] += 1
@@ -202,7 +201,7 @@ export class AffiliateRevenue {
       const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
       globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
       globalAsset.amountUsd += amountUsd
-      globalAsset.volumeUsd += amountUsd / FEE_RATE
+      globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       globalAsset.feeCount += 1
       globalAsset.byService[fee.service] += amountUsd
       globalAsset.byServiceFeeCount[fee.service] += 1

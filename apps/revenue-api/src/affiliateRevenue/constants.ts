@@ -55,6 +55,21 @@ export const SLIP44 = {
   STARKNET: 9004,
 } as const
 
+// Affiliate fee BPS — changed from 55 to 60 on Feb 18 2026 (ShapeShift PR #11920)
+export const AFFILIATE_FEE_BPS = 60
+export const AFFILIATE_FEE_BPS_LEGACY = 55
+export const FEE_BPS_DENOMINATOR = 10000
+export const BPS_CHANGE_TIMESTAMP = 1771372800 // 2026-02-18T00:00:00Z
+
+export const getAffiliateBps = (timestamp?: number): number => {
+  if (timestamp === undefined) return AFFILIATE_FEE_BPS
+  return timestamp >= BPS_CHANGE_TIMESTAMP ? AFFILIATE_FEE_BPS : AFFILIATE_FEE_BPS_LEGACY
+}
+
+export const getAffiliateFeeRate = (timestamp?: number): number => {
+  return getAffiliateBps(timestamp) / FEE_BPS_DENOMINATOR
+}
+
 // Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
 export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
 

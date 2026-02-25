@@ -11,16 +11,11 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { decimalToBaseUnit, getSlip44ForChain } from '../utils'
 
-import {
-  BEBOP_API_KEY,
-  BEBOP_API_URL,
-  FEE_BPS_DENOMINATOR,
-  NANOSECONDS_PER_SECOND,
-  SHAPESHIFT_REFERRER,
-} from './constants'
+import { BEBOP_API_KEY, BEBOP_API_URL, NANOSECONDS_PER_SECOND, SHAPESHIFT_REFERRER } from './constants'
 import type { TradesResponse } from './types'
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {

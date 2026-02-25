@@ -11,10 +11,11 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { calculateFee } from '../utils'
 
-import { DAO_TREASURY_NEAR, FEE_BPS_DENOMINATOR, NEAR_INTENTS_API_KEY } from './constants'
+import { DAO_TREASURY_NEAR, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 

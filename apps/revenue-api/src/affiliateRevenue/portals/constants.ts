@@ -20,9 +20,6 @@ import {
 
 import type { ChainConfig } from './types'
 
-export const AFFILIATE_FEE_BPS = 55
-export const FEE_BPS_DENOMINATOR = 10000
-
 export const PORTAL_EVENT_SIGNATURE = '0x5915121ae705c6baa1bd6698f437ff30eb4b7dbd20e1f7d83c2f1a8be09a1f03'
 export const PORTAL_EVENT_ABI = [
   { type: 'address', name: 'inputToken' },

@@ -1,15 +1,10 @@
 import axios from 'axios'
 import { decodeAbiParameters, zeroAddress } from 'viem'
 
+import { FEE_BPS_DENOMINATOR, getAffiliateBps } from '../constants'
 import { getSlip44ForChain } from '../utils'
 
-import {
-  AFFILIATE_FEE_BPS,
-  COINGECKO_API_BASE,
-  COINGECKO_CHAINS,
-  FEE_BPS_DENOMINATOR,
-  PORTAL_EVENT_ABI,
-} from './constants'
+import { COINGECKO_API_BASE, COINGECKO_CHAINS, PORTAL_EVENT_ABI } from './constants'
 import type { DecodedPortalEvent } from './types'
 
 export const decodePortalEventData = (data: string): DecodedPortalEvent | null => {
@@ -28,9 +23,9 @@ export const decodePortalEventData = (data: string): DecodedPortalEvent | null =
   }
 }
 
-export const calculateFallbackFee = (inputAmount: string): string => {
+export const calculateFallbackFee = (inputAmount: string, timestamp?: number): string => {
   const amount = BigInt(inputAmount)
-  const fee = (amount * BigInt(AFFILIATE_FEE_BPS)) / BigInt(FEE_BPS_DENOMINATOR)
+  const fee = (amount * BigInt(getAffiliateBps(timestamp))) / BigInt(FEE_BPS_DENOMINATOR)
   return fee.toString()
 }
 
