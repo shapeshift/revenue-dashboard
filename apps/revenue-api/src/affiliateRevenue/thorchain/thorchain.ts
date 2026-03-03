@@ -11,37 +11,102 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { SLIP44, THORCHAIN_CHAIN_ID } from '../constants'
-import { enrichFeesWithUsdPrices } from '../enrichment'
+import { THORCHAIN_CHAIN_ID } from '../constants'
 
-import { MILLISECONDS_PER_SECOND, THORCHAIN_API_URL } from './constants'
-import type { FeesResponse } from './types'
+import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET_ID } from './constants'
+import type { MidgardAction, MidgardActionsResponse, RunePriceHistory } from './types'
 
-const transformFee = (fee: FeesResponse['fees'][0]): Fees => {
-  const chainId = THORCHAIN_CHAIN_ID
-  const assetId = `${chainId}/slip44:${SLIP44.THORCHAIN}`
-
-  return {
-    chainId,
-    assetId,
-    service: 'thorchain',
-    txHash: fee.txId,
-    timestamp: Math.round(fee.timestamp / 1000),
-    amount: fee.amount,
-  }
+const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
+  const seconds = endTimestamp - startTimestamp
+  if (seconds <= 1_209_600) return 'hour' // up to 2 weeks
+  if (seconds <= 34_560_000) return 'day' // up to 400 days
+  if (seconds <= 94_608_000) return 'week' // up to 3 years
+  return 'month'
 }
 
-const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const start = startTimestamp * MILLISECONDS_PER_SECOND
-  const end = endTimestamp * MILLISECONDS_PER_SECOND
+const fetchRunePriceLookup = async (
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<(timestamp: number) => number | undefined> => {
+  const interval = selectInterval(startTimestamp, endTimestamp)
 
   const { data } = await withRetry(() =>
-    axios.get<FeesResponse>(THORCHAIN_API_URL, {
-      params: { start, end },
+    axios.get<RunePriceHistory>(`${MIDGARD_BASE_URL}/history/rune`, {
+      params: { from: startTimestamp, to: endTimestamp, interval },
     })
   )
 
-  return data.fees.map(fee => transformFee(fee))
+  const intervals = (data.intervals ?? [])
+    .map(({ startTime, endTime, runePriceUSD }) => ({
+      startTime: Number(startTime),
+      endTime: Number(endTime),
+      priceUSD: Number(runePriceUSD),
+    }))
+    .filter(i => i.priceUSD > 0)
+
+  return (timestamp: number): number | undefined =>
+    (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceUSD
+}
+
+const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number): Promise<MidgardAction[]> => {
+  const actions: MidgardAction[] = []
+
+  let offset = 0
+  while (true) {
+    const { data } = await withRetry(() =>
+      axios.get<MidgardActionsResponse>(`${MIDGARD_BASE_URL}/actions`, {
+        params: {
+          affiliate: MIDGARD_AFFILIATE,
+          fromTimestamp: startTimestamp,
+          timestamp: endTimestamp,
+          limit: MIDGARD_PAGE_LIMIT,
+          offset,
+        },
+      })
+    )
+
+    const batch = data.actions ?? []
+    actions.push(...batch)
+
+    if (batch.length < MIDGARD_PAGE_LIMIT) break
+
+    offset += MIDGARD_PAGE_LIMIT
+  }
+  return actions
+}
+
+const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const [getRunePrice, allActions] = await Promise.all([
+    fetchRunePriceLookup(startTimestamp, endTimestamp),
+    fetchMidgardActions(startTimestamp, endTimestamp),
+  ])
+
+  return allActions.reduce<Fees[]>((acc, action) => {
+    const affiliateOut = action.out.find(o => o.affiliate === true)
+    if (!affiliateOut?.coins?.[0]) return acc
+
+    const inTxId = action.in[0]?.txID
+    if (!inTxId) return acc
+
+    const runeAmount = affiliateOut.coins[0].amount
+    const timestamp = Math.floor(Number(action.date) / 1_000_000_000)
+
+    const runePrice = getRunePrice(timestamp)
+    const amountUsd = runePrice !== undefined ? ((Number(runeAmount) / 1e8) * runePrice).toString() : undefined
+
+    acc.push({
+      chainId: THORCHAIN_CHAIN_ID,
+      assetId: RUNE_ASSET_ID,
+      service: 'thorchain',
+      txHash: inTxId,
+      timestamp,
+      amount: runeAmount,
+      amountUsd,
+      originalUsdValue: amountUsd,
+    })
+
+    return acc
+  }, [])
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -69,7 +134,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   if (datesToFetch.length > 0) {
     const fetchStart = getDateStartTimestamp(datesToFetch[0])
     const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
+    const fetched = await fetchFeesFromMidgard(fetchStart, fetchEnd)
 
     const feesByDate = groupFeesByDate(fetched)
     for (const date of datesToFetch) {
@@ -80,14 +145,12 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   const recentFees: Fees[] = []
   if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
+    recentFees.push(...(await fetchFeesFromMidgard(recentStart, endTimestamp)))
   }
 
   const totalFees = cachedFees.length + newFees.length + recentFees.length
   const duration = Date.now() - startTime
-
   console.log(`[thorchain] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
 
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
-  return enrichFeesWithUsdPrices(allFees)
+  return [...cachedFees, ...newFees, ...recentFees]
 }
