@@ -57,6 +57,16 @@ export const MANUAL_ASSETS: Record<string, StaticAsset> = {
     icon: 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
   },
 
+  'near:mainnet/slip44:397': {
+    assetId: 'near:mainnet/slip44:397',
+    chainId: 'near:mainnet',
+    symbol: 'NEAR',
+    name: 'NEAR Protocol',
+    precision: 24,
+    color: '#000000',
+    icon: 'https://assets.coingecko.com/coins/images/10365/large/near.jpg',
+  },
+
   'near:mainnet/nep141:wrap': {
     assetId: 'near:mainnet/nep141:wrap',
     chainId: 'near:mainnet',
