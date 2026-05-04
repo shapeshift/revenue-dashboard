@@ -214,7 +214,7 @@ The ButterSwap integration was migrated to daily granularity on **January 23, 20
 - Captures exact blockchain state
 - No precision loss in cumulative totals
 
-See `BUTTERSWAP-DIFFERENCE-ANALYSIS.md` for detailed comparison of old vs new implementations.
+See `butterswap-difference-analysis.md` for detailed comparison of old vs new implementations.
 
 ## Integration Files Reference
 
