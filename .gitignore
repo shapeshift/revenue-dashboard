@@ -34,6 +34,3 @@ apps/*/node_modules
 
 # Playwright
 .playwright-mcp
-
-# Beads issue tracker
-.beads
