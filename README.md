@@ -78,10 +78,11 @@ shapeshift-revenue-dashboard/
 # Install dependencies
 bun install
 
-# Copy environment template
-cp .env.example .env
+# Copy per-app env templates
+cp apps/revenue-api/.env.example apps/revenue-api/.env
+cp apps/revenue-dashboard/.env.example apps/revenue-dashboard/.env
 
-# Edit .env with your API keys
+# Edit apps/revenue-api/.env with your API keys
 # Required: BEBOP_API_KEY, NEAR_INTENTS_API_KEY, ZRX_API_KEY
 ```
 
@@ -133,8 +134,7 @@ bun build:frontend  # Outputs to apps/revenue-dashboard/dist/
 |----------|-------------|---------|
 | `VITE_API_BASE_URL` | Backend API URL | `https://api.proxy.shapeshift.com` |
 
-For local development, set `VITE_API_BASE_URL` in the repo-root `.env` (Vite is
-configured via `envDir` in `apps/revenue-dashboard/vite.config.ts` to load it).
+For local development, set `VITE_API_BASE_URL` in `apps/revenue-dashboard/.env`.
 In production, Vercel injects the value from the project's environment settings
 at build time.
 
