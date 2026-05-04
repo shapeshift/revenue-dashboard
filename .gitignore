@@ -10,16 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
 
 # App-specific dist directories
 apps/*/dist
 apps/*/node_modules
 
 # Environment files
-.env.local
-.env.*.local
-# Note: .env.production is committed as a template
+.env
 
 # Editor directories and files
 .vscode/*
