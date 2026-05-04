@@ -2,8 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node"],
-
+    "types": ["bun", "vite/client"],
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "Bundler",
@@ -24,7 +23,8 @@
 
     "jsx": "react-jsx"
   },
-  "files": [],
+  "include": ["*.ts", "*.mts", "*.js", "*.mjs"],
+  "exclude": ["dist", "node_modules"],
   "references": [
     { "path": "./apps/revenue-api" },
     { "path": "./apps/revenue-dashboard" }

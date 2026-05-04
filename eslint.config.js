@@ -24,9 +24,7 @@ export default [
     },
     settings: {
       'import/resolver': {
-        typescript: {
-          project: ['./tsconfig.node.json', './apps/*/tsconfig.json'],
-        },
+        typescript: true,
       },
     },
     rules: {

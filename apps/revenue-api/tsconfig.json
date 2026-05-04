@@ -2,15 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "incremental": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo",
     "types": ["bun"],
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src", "tsup.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

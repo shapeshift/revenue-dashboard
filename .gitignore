@@ -31,3 +31,9 @@ apps/*/node_modules
 
 # Playwright
 .playwright-mcp
+
+# ESLint cache
+.eslintcache
+
+# Claude Code local settings
+.claude/settings.local.json
