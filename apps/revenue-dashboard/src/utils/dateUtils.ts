@@ -1,5 +1,5 @@
 export const formatUTCDate = (date: Date): string => {
-  return date.toISOString().split('T')[0]
+  return date.toISOString().slice(0, 10)
 }
 
 export const getUTCYesterday = (): Date => {

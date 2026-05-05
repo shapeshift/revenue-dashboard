@@ -1,7 +1,29 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./apps/revenue-api" },
-    { "path": "./apps/revenue-dashboard" }
-  ]
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["bun", "vite/client"],
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": true,
+
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    "jsx": "react-jsx"
+  },
+  "include": ["*.ts", "*.mts", "*.js", "*.mjs"],
+  "exclude": ["dist", "node_modules"]
 }

@@ -4,18 +4,19 @@
     "builder": "RAILPACK",
     "buildCommand": "bun install && bun build:backend",
     "watchPatterns": [
-      "apps/revenue-api/**",
-      "railway.json",
-      "package.json",
       "bun.lock",
+      "package.json",
       "tsconfig.json",
-      "tsconfig.base.json"
+      "apps/revenue-api/**"
     ]
   },
   "deploy": {
     "startCommand": "bun apps/revenue-api/dist/server.js",
-    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyType": "ALWAYS",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 100
+    "healthcheckTimeout": 100,
+    "multiRegionConfig": {
+      "us-west2": { "numReplicas": 1 }
+    }
   }
 }

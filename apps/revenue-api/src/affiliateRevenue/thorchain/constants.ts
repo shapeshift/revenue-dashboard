@@ -1,4 +1,4 @@
-import { THORCHAIN_CHAIN_ID, SLIP44 } from "../constants"
+import { THORCHAIN_CHAIN_ID, SLIP44 } from '../constants'
 
 export const MIDGARD_BASE_URL = 'https://api.thorchain.shapeshift.com/midgard/v2'
 export const MIDGARD_AFFILIATE = 'ss'

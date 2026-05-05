@@ -30,6 +30,8 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload || !payload.length) return null
 
   const data = payload[0]
+  if (!data) return null
+
   const serviceName = data.name
   const serviceLabel = getServiceLabel(serviceName)
   const value = formatUsd(Number(data.value))
