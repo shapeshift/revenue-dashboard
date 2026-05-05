@@ -48,9 +48,9 @@ const chainMap: Record<string, string> = {
   'eip155:43114': 'Avalanche',
   'eip155:22776': 'MAP Protocol',
   'eip155:143': 'Monad',
-  'eip155:9745': 'Monad Testnet',
-  'eip155:999': 'Zora Sepolia',
-  'eip155:747474': 'Flow Testnet',
+  'eip155:9745': 'Plasma',
+  'eip155:999': 'HyperEVM',
+  'eip155:747474': 'Katana',
 
   // Bitcoin-based chains
   'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
@@ -66,7 +66,7 @@ const chainMap: Record<string, string> = {
 
   // Cosmos chains
   'cosmos:thorchain-1': 'THORChain',
-  'cosmos:mayachain-mainnet-v1': 'Maya',
+  'cosmos:mayachain-mainnet-v1': 'MAYAChain',
 }
 
 const getChainName = (chainId: string): string => chainMap[chainId] || chainId
