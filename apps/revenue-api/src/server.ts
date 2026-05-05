@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 
+import './assetData/AssetDataService' // top-level await initializes the asset DB at boot
 import { affiliateRevenueRoute } from './routes/affiliateRevenue'
 
 const app = new Hono()

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
-import { assetDataService } from '../../utils/assetDataService'
+import { assetDataService } from '../../assetData/AssetDataService'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -36,8 +36,10 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const slip44 = getSlip44ForChain(chainId)
     const assetId = `${chainId}/slip44:${slip44}`
 
-    const decimals = await assetDataService.getAssetDecimals(assetId)
-    const amount = decimalToBaseUnit(String(trade.partnerFeeNative), decimals)
+    const asset = await assetDataService.getAsset(assetId)
+    if (!asset) continue
+
+    const amount = decimalToBaseUnit(String(trade.partnerFeeNative), asset.precision)
 
     fees.push({
       chainId,

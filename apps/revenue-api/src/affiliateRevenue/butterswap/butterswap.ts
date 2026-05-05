@@ -3,7 +3,7 @@ import { createHash } from 'crypto'
 import { encodeAbiParameters, parseAbiParameters } from 'viem'
 
 import type { Fees } from '..'
-import { assetDataService } from '../../utils/assetDataService'
+import { assetDataService } from '../../assetData/AssetDataService'
 import { getDateRange, getDateStartTimestamp, getDateEndTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
@@ -84,7 +84,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   const dates = getDateRange(startTimestamp, endTimestamp)
   const assetId = `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`
-  const decimals = await assetDataService.getAssetDecimals(assetId)
+  const asset = await assetDataService.getAsset(assetId)
+  if (!asset) return []
+  const decimals = asset.precision
 
   const fees: Fees[] = []
 
