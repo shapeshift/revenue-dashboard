@@ -3,7 +3,12 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "bun install && bun build:backend",
-    "watchPatterns": ["bun.lock", "apps/revenue-api/**"]
+    "watchPatterns": [
+      "bun.lock",
+      "package.json",
+      "tsconfig.json",
+      "apps/revenue-api/**"
+    ]
   },
   "deploy": {
     "startCommand": "bun apps/revenue-api/dist/server.js",
