@@ -48,9 +48,9 @@ const chainMap: Record<string, string> = {
   'eip155:43114': 'Avalanche',
   'eip155:22776': 'MAP Protocol',
   'eip155:143': 'Monad',
-  'eip155:9745': 'Monad Testnet',
-  'eip155:999': 'Zora Sepolia',
-  'eip155:747474': 'Flow Testnet',
+  'eip155:9745': 'Plasma',
+  'eip155:999': 'HyperEVM',
+  'eip155:747474': 'Katana',
 
   // Bitcoin-based chains
   'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
@@ -66,7 +66,7 @@ const chainMap: Record<string, string> = {
 
   // Cosmos chains
   'cosmos:thorchain-1': 'THORChain',
-  'cosmos:mayachain-mainnet-v1': 'Maya',
+  'cosmos:mayachain-mainnet-v1': 'MAYAChain',
 }
 
 const getChainName = (chainId: string): string => chainMap[chainId] || chainId
@@ -185,7 +185,7 @@ export class AffiliateRevenue {
 
       // Daily asset aggregation
       const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
-      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
+      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
       dailyAsset.amountUsd += amountUsd
       dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       dailyAsset.feeCount += 1
@@ -194,7 +194,7 @@ export class AffiliateRevenue {
 
       // Global asset aggregation
       const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
-      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
+      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
       globalAsset.amountUsd += amountUsd
       globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       globalAsset.feeCount += 1
