@@ -24,6 +24,7 @@ export type RequestData = {
   appFees?: AppFee[]
   paidAppFees?: AppFee[]
   feeCurrencyObject?: CurrencyObject
+  appFeeCurrencyObject?: CurrencyObject
   inTxs?: InTx[]
   metadata?: {
     currencyIn?: {
