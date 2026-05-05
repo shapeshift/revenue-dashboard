@@ -1,5 +1,3 @@
-import BigNumber from 'bignumber.js'
-
 import { bn, bnOrZero } from '../lib/bignumber'
 
 import { SLIP44 } from './constants'
@@ -24,19 +22,19 @@ export const decimalToBaseUnit = (decimalAmount: string, decimals: number): stri
   const multiplier = bn(10).pow(decimals)
   const baseUnitAmount = amount.times(multiplier)
 
-  return baseUnitAmount.toFixed(0, BigNumber.ROUND_DOWN)
+  return baseUnitAmount.toFixed(0)
 }
 
 export const calculateFee = (amount: string, feeBps: number, bpsDenominator: number): string => {
   const amountBN = bn(amount)
   const fee = amountBN.times(feeBps).div(bpsDenominator)
 
-  return fee.toFixed(0, BigNumber.ROUND_DOWN)
+  return fee.toFixed(0)
 }
 
 export const baseUnitToTokenAmount = (amount: string, decimals: number): string => {
   const amountBN = bnOrZero(amount)
   const divisor = bn(10).pow(decimals)
 
-  return amountBN.div(divisor).toFixed(18, BigNumber.ROUND_DOWN)
+  return amountBN.div(divisor).toFixed(decimals)
 }
