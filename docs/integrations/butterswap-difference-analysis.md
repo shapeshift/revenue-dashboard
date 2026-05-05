@@ -21,6 +21,7 @@ getDateRange(Dec 24 00:00, Jan 22 00:00)
 ```
 
 **Problem:** For midnight-to-midnight queries:
+
 - Actual days of fees: **29 days** (Dec 24 through Jan 21)
 - Dates returned: **30 dates** (includes Jan 22 which has no activity)
 
@@ -43,11 +44,13 @@ reportedTotal = feesPerDay * 30n
 ```
 
 **Example with $120 total:**
+
 - Total fees: 120_000000 base units (120 USDT)
 - Per day: 120_000000 / 30 = 4_000000 (exactly divisible, no loss)
 - Reported: 4_000000 × 30 = 120_000000 ✓
 
 **Example with $120.29 total:**
+
 - Total fees: 120_290000 base units
 - Per day: 120_290000 / 30 = 4_009666 (truncated from 4_009666.666...)
 - Reported: 4_009666 × 30 = 120_289980
@@ -89,11 +92,13 @@ reportedTotal = sum(all daily fees)  // No division, no truncation
 ```
 
 **Coverage:**
+
 - Total seconds queried: 2,505,571 seconds (28.9997 days)
 - Gaps: 29 one-second gaps between days (23:59:59 → 00:00:00)
 - Last day (Jan 22): 0 seconds queried (00:00 to 00:00)
 
 **Benefits:**
+
 - ✅ No BigInt division truncation
 - ✅ Shows actual daily distribution
 - ✅ Captures exact blockchain state changes
@@ -104,6 +109,7 @@ reportedTotal = sum(all daily fees)  // No division, no truncation
 ## Why $30 Difference?
 
 The $30 (25%) difference is **too large** to be explained by:
+
 - ❌ BigInt truncation (only loses fractions of cents)
 - ❌ 1-second gaps between days (insignificant)
 - ❌ Query boundary differences (both cover 29 days)
@@ -132,21 +138,25 @@ The $30 (25%) difference is **too large** to be explained by:
 **The NEW implementation is more accurate** for these reasons:
 
 ### 1. Mathematical Precision
+
 - No division-then-multiplication cycle
 - Direct summation of actual values
 - No truncation artifacts
 
 ### 2. Blockchain Truth
+
 - Queries actual balance at each day boundary
 - Shows real distribution patterns
 - Not dependent on averaging assumptions
 
 ### 3. Transparency
+
 - Can verify each day's fees individually
 - Easier to debug discrepancies
 - Matches how other integrations work (Bebop, THORChain, etc.)
 
 ### 4. The OLD Logic Was Pragmatic, Not Precise
+
 - Designed for **performance** (2 RPC calls vs 60)
 - Traded accuracy for speed
 - Acceptable when difference is negligible
@@ -158,6 +168,7 @@ The $30 (25%) difference is **too large** to be explained by:
 ### ✅ Keep the NEW implementation
 
 **Reasons:**
+
 1. More accurate representation of blockchain state
 2. Shows actual daily patterns (valuable for analytics)
 3. Aligns with other integrations in the codebase
@@ -175,6 +186,7 @@ To confirm which is correct:
 ### 🚀 Optional Optimization (Future)
 
 If performance becomes an issue:
+
 - Implement caching for completed days (like Bebop integration)
 - Use RPC batch requests to reduce network overhead
 - Add rate limiting and retry logic

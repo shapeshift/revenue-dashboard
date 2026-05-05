@@ -51,34 +51,40 @@ Dashboard Display
 ### 1. GraphQL Query
 
 The integration queries the Chainflip reporting service at:
+
 - **Endpoint:** `https://reporting-service.chainflip.io/graphql`
 - **Operation:** `GetAffiliateSwaps`
 
 **Query Filters:**
+
 - `affiliateBroker1AccountSs58Id`: `cFMeDPtPHccVYdBSJKTtCYuy7rewFNpro3xZBKaCGbSS2xhRi` (ShapeShift broker ID)
 - `completedBlockTimestamp`: Date range (ISO 8601 format)
 - `status`: `SUCCESS` (only successful swaps)
 
 **Fields Retrieved:**
+
 - `swapRequestNativeId`: Unique swap identifier
 - `completedBlockTimestamp`: When swap completed
 - `affiliateBroker1FeeValueUsd`: Affiliate fee in USD (string)
 
 **Pagination:**
+
 - Uses offset-based pagination with `PAGE_SIZE = 100`
 - Continues fetching until `pageInfo.hasNextPage = false`
 
 ### 2. Data Conversion
 
 **USD to USDC Base Units:**
+
 ```typescript
-const usdValue = swap.affiliateBroker1FeeValueUsd // e.g., "45.712642"
-const usdcDecimals = 6
-const usdcWei = decimalToBaseUnit(usdValue, usdcDecimals)
+const usdValue = swap.affiliateBroker1FeeValueUsd; // e.g., "45.712642"
+const usdcDecimals = 6;
+const usdcWei = decimalToBaseUnit(usdValue, usdcDecimals);
 // Result: 45712642 (base units)
 ```
 
 **Key Assumptions:**
+
 - All fees are paid in USDC on Ethereum mainnet
 - USDC is pegged 1:1 to USD
 - USDC has 6 decimals (1 USDC = 1,000,000 base units)
@@ -86,6 +92,7 @@ const usdcWei = decimalToBaseUnit(usdValue, usdcDecimals)
 ### 3. Fee Record Creation
 
 Each swap creates a `Fees` object:
+
 ```typescript
 {
   chainId: "eip155:1",  // Ethereum mainnet
@@ -103,12 +110,14 @@ Each swap creates a `Fees` object:
 **Cache Key Format:** `chainflip:eip155:1:2026-01-31`
 
 **Caching Logic:**
+
 - **Historical Data** (>3 days old): Cached with 24-hour TTL
 - **Recent Data** (≤3 days old): Always fetched fresh
 - Uses LRU cache with max 5,000 entries
 - Cache size limit: 500 MB
 
 **Benefits:**
+
 - Reduces API calls for historical data
 - Ensures fresh data for recent dates
 - Speeds up dashboard loading
@@ -118,6 +127,7 @@ Each swap creates a `Fees` object:
 The `AffiliateRevenue` service aggregates fees:
 
 **By Date:**
+
 ```typescript
 byDate["2026-01-31"] = {
   totalUsd: 99.773283,
@@ -129,6 +139,7 @@ byDate["2026-01-31"] = {
 ```
 
 **Global Totals:**
+
 - Sums across all dates
 - Groups by service, asset, chain
 - Calculates implied volume using `FEE_RATE = 0.0055` (0.55%)
@@ -138,17 +149,18 @@ byDate["2026-01-31"] = {
 ## January 31, 2026 Test Results
 
 ### Query Parameters
+
 - **Start Timestamp:** 1769817600 (`2026-01-31T00:00:00.000Z`)
 - **End Timestamp:** 1769903999 (`2026-01-31T23:59:59.000Z`)
 - **Broker ID:** `cFMeDPtPHccVYdBSJKTtCYuy7rewFNpro3xZBKaCGbSS2xhRi`
 
 ### Raw Data from API
 
-| Swap ID | Timestamp | Time (UTC) | USD Fee | USDC Wei | USDC Tokens |
-|---------|-----------|------------|---------|----------|-------------|
-| 1269759 | 1769845110 | 2026-01-31 07:38:30 | $45.712642 | 45,712,641 | 45.712641 |
-| 1271525 | 1769876580 | 2026-01-31 16:23:00 | $53.788787 | 53,788,787 | 53.788787 |
-| 1274106 | 1769891646 | 2026-01-31 20:34:06 | $0.271853 | 271,853 | 0.271853 |
+| Swap ID | Timestamp  | Time (UTC)          | USD Fee    | USDC Wei   | USDC Tokens |
+| ------- | ---------- | ------------------- | ---------- | ---------- | ----------- |
+| 1269759 | 1769845110 | 2026-01-31 07:38:30 | $45.712642 | 45,712,641 | 45.712641   |
+| 1271525 | 1769876580 | 2026-01-31 16:23:00 | $53.788787 | 53,788,787 | 53.788787   |
+| 1274106 | 1769891646 | 2026-01-31 20:34:06 | $0.271853  | 271,853    | 0.271853    |
 
 ### Revenue Calculation
 
@@ -158,6 +170,7 @@ byDate["2026-01-31"] = {
 (Calculated as: $99.773283 ÷ 0.0055)
 
 **Expected Dashboard Display:**
+
 - **Revenue:** $99.77
 - **Service:** Chainflip
 - **Asset:** USDC on Ethereum
@@ -167,6 +180,7 @@ byDate["2026-01-31"] = {
 ### Verification
 
 **Sample Calculation (Swap #1):**
+
 ```
 API Value: $45.712642
 → Convert to wei: 45.712642 × 10^6 = 45,712,642
@@ -179,32 +193,38 @@ API Value: $45.712642
 ## Key Features
 
 ### 1. Direct USD Values
+
 - **Advantage:** Chainflip API returns fees directly in USD, simplifying calculations
 - **No Need For:** Token price lookups, blockchain queries, or complex conversions
 - **Limitation:** Cannot verify actual on-chain transactions
 
 ### 2. USDC Stablecoin Assumption
+
 - **Rationale:** USDC pegged 1:1 to USD
 - **Conversion:** Straightforward multiplication by 10^6
 - **Risk:** If Chainflip starts paying in other assets, integration would need updates
 
 ### 3. Missing Transaction Hashes
+
 - **Impact:** Cannot link to Ethereum transactions
 - **Reason:** Chainflip uses internal `swapRequestNativeId` instead
 - **Consequence:** No blockchain verification possible from dashboard
 
 ### 4. Efficient Pagination
+
 - **Page Size:** 100 swaps per request
 - **Method:** Offset-based pagination
 - **Performance:** Single API call for typical daily volumes
 
 ### 5. Smart Caching
+
 - **Historical Data:** Cached for 24 hours
 - **Recent Data:** Always fresh
 - **Threshold:** 3 days from current date
 - **Performance:** Reduces API load by ~90% for historical queries
 
 ### 6. Error Handling
+
 - **GraphQL Errors:** Checked and thrown with details
 - **Invalid Responses:** Validates structure before processing
 - **Missing Fees:** Skips swaps without `affiliateBroker1FeeValueUsd`
@@ -227,6 +247,7 @@ volumeUsd = $45.712642 / 0.0055 = $8,311.39
 ```
 
 **Total Volume for Jan 31:**
+
 ```
 $99.773283 ÷ 0.0055 = $18,140.60
 ```
@@ -266,22 +287,24 @@ This represents the total USD value of swaps that generated these affiliate fees
 
 ## Comparison with Other Integrations
 
-| Feature | Chainflip | THORChain | 0x | Portals |
-|---------|-----------|-----------|-----|---------|
-| Data Source | GraphQL API | REST API | Blockchain | Blockchain |
-| Fee Format | USD values | Native tokens | Native tokens | Native tokens |
-| Tx Verification | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes |
-| Price Lookup | ❌ Not needed | ✅ Required | ✅ Required | ✅ Required |
-| Pagination | Offset-based | Page-based | Block range | Event logs |
-| Complexity | Low | Medium | High | Very High |
-| Reliability | High | High | Medium | Medium |
+| Feature         | Chainflip     | THORChain     | 0x            | Portals       |
+| --------------- | ------------- | ------------- | ------------- | ------------- |
+| Data Source     | GraphQL API   | REST API      | Blockchain    | Blockchain    |
+| Fee Format      | USD values    | Native tokens | Native tokens | Native tokens |
+| Tx Verification | ❌ No         | ✅ Yes        | ✅ Yes        | ✅ Yes        |
+| Price Lookup    | ❌ Not needed | ✅ Required   | ✅ Required   | ✅ Required   |
+| Pagination      | Offset-based  | Page-based    | Block range   | Event logs    |
+| Complexity      | Low           | Medium        | High          | Very High     |
+| Reliability     | High          | High          | Medium        | Medium        |
 
 **Chainflip Advantages:**
+
 - Simplest integration (no blockchain queries needed)
 - Fastest queries (no price lookups)
 - Most reliable (fewer external dependencies)
 
 **Chainflip Disadvantages:**
+
 - No on-chain verification
 - Trust Chainflip's reporting accuracy
 - Limited metadata
@@ -320,11 +343,13 @@ bun test-chainflip-full.ts
 ### Console Logging
 
 The integration logs useful metrics:
+
 ```
 [chainflip] Total: 3 fees in 156ms | Cache: 0 hits, 1 misses
 ```
 
 **Metrics:**
+
 - Total fees retrieved
 - Query duration
 - Cache hit/miss ratio
@@ -334,30 +359,33 @@ The integration logs useful metrics:
 Cache keys use format: `chainflip:eip155:1:2026-01-31`
 
 **To inspect cache:**
+
 ```typescript
-import { feeCache } from './cache'
-const cached = feeCache.get('chainflip:eip155:1:2026-01-31')
-console.log(cached) // Array of Fees objects
+import { feeCache } from "./cache";
+const cached = feeCache.get("chainflip:eip155:1:2026-01-31");
+console.log(cached); // Array of Fees objects
 ```
 
 ### Common Issues
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| No fees returned | Wrong broker ID | Verify `SHAPESHIFT_BROKER_ID` |
-| GraphQL errors | Invalid date format | Ensure ISO 8601 format |
-| Pagination failure | API changes | Check `pageInfo` structure |
-| Wrong totals | Decimal conversion | Verify USDC has 6 decimals |
-| Cache stale | TTL expired | Clear cache or reduce TTL |
+| Issue              | Cause               | Solution                      |
+| ------------------ | ------------------- | ----------------------------- |
+| No fees returned   | Wrong broker ID     | Verify `SHAPESHIFT_BROKER_ID` |
+| GraphQL errors     | Invalid date format | Ensure ISO 8601 format        |
+| Pagination failure | API changes         | Check `pageInfo` structure    |
+| Wrong totals       | Decimal conversion  | Verify USDC has 6 decimals    |
+| Cache stale        | TTL expired         | Clear cache or reduce TTL     |
 
 ---
 
 ## API Documentation
 
 ### GraphQL Endpoint
+
 `https://reporting-service.chainflip.io/graphql`
 
 ### Query Structure
+
 ```graphql
 query GetAffiliateSwaps(
   $affiliateBrokerId: String!
@@ -370,12 +398,12 @@ query GetAffiliateSwaps(
     offset: $offset
     first: $first
     filter: {
-      affiliateBroker1AccountSs58Id: {equalTo: $affiliateBrokerId}
+      affiliateBroker1AccountSs58Id: { equalTo: $affiliateBrokerId }
       completedBlockTimestamp: {
         greaterThanOrEqualTo: $startDate
         lessThanOrEqualTo: $endDate
       }
-      status: {equalTo: SUCCESS}
+      status: { equalTo: SUCCESS }
     }
   ) {
     pageInfo {
@@ -394,6 +422,7 @@ query GetAffiliateSwaps(
 ```
 
 ### Response Format
+
 ```typescript
 {
   data: {
@@ -419,6 +448,7 @@ query GetAffiliateSwaps(
 The Chainflip integration is **well-designed, efficient, and reliable**. It leverages Chainflip's reporting API to provide simple, accurate affiliate revenue tracking without the complexity of blockchain queries or price lookups.
 
 **Key Metrics (Jan 31, 2026):**
+
 - ✅ 3 swaps processed successfully
 - ✅ $99.77 revenue collected
 - ✅ $18,140.60 volume facilitated
@@ -432,44 +462,49 @@ The integration is production-ready and performs as expected.
 ## Appendix: Code References
 
 ### Main Integration Code
+
 **File:** `/apps/revenue-api/src/affiliateRevenue/chainflip/chainflip.ts`
 
 **Key Functions:**
+
 - `fetchFeesFromAPI(startTimestamp, endTimestamp)` - Queries Chainflip API
 - `getFees(startTimestamp, endTimestamp)` - Public API with caching
 
 ### Constants
+
 **File:** `/apps/revenue-api/src/affiliateRevenue/chainflip/constants.ts`
 
 ```typescript
-CHAINFLIP_API_URL = 'https://reporting-service.chainflip.io/graphql'
-SHAPESHIFT_BROKER_ID = 'cFMeDPtPHccVYdBSJKTtCYuy7rewFNpro3xZBKaCGbSS2xhRi'
-PAGE_SIZE = 100
+CHAINFLIP_API_URL = "https://reporting-service.chainflip.io/graphql";
+SHAPESHIFT_BROKER_ID = "cFMeDPtPHccVYdBSJKTtCYuy7rewFNpro3xZBKaCGbSS2xhRi";
+PAGE_SIZE = 100;
 ```
 
 ### Type Definitions
+
 **File:** `/apps/revenue-api/src/affiliateRevenue/chainflip/types.ts`
 
 ```typescript
 type GraphQLResponse = {
   data: {
     allSwapRequests: {
-      pageInfo: { hasNextPage: boolean }
+      pageInfo: { hasNextPage: boolean };
       edges: Array<{
         node: {
-          swapRequestNativeId: string
-          completedBlockTimestamp: string
-          affiliateBroker1FeeValueUsd?: string
-        }
-      }>
-      totalCount: number
-    }
-  }
-  errors?: Array<{ message: string }>
-}
+          swapRequestNativeId: string;
+          completedBlockTimestamp: string;
+          affiliateBroker1FeeValueUsd?: string;
+        };
+      }>;
+      totalCount: number;
+    };
+  };
+  errors?: Array<{ message: string }>;
+};
 ```
 
 ### Utility Functions
+
 **File:** `/apps/revenue-api/src/affiliateRevenue/utils.ts`
 
 ```typescript

@@ -54,6 +54,7 @@ shapeshift-revenue-dashboard/
 ## Tech Stack
 
 ### Backend
+
 - Bun runtime
 - Hono (HTTP framework)
 - TypeScript
@@ -61,6 +62,7 @@ shapeshift-revenue-dashboard/
 - LRU Cache (90-day TTL)
 
 ### Frontend
+
 - React 19 + TypeScript
 - Vite
 - Tailwind CSS v4
@@ -70,6 +72,7 @@ shapeshift-revenue-dashboard/
 ## Local Development
 
 ### Prerequisites
+
 - Bun >= 1.3.2
 
 ### Setup
@@ -121,17 +124,17 @@ bun build:frontend  # Outputs to apps/revenue-dashboard/dist/
 
 ### Backend (Railway)
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `BEBOP_API_KEY` | API key for Bebop trades data | Yes |
-| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer | Yes |
-| `ZRX_API_KEY` | API key for 0x Trade Analytics | Yes |
-| `PORT` | Server port | No (default: 4200) |
+| Variable               | Description                       | Required           |
+| ---------------------- | --------------------------------- | ------------------ |
+| `BEBOP_API_KEY`        | API key for Bebop trades data     | Yes                |
+| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer | Yes                |
+| `ZRX_API_KEY`          | API key for 0x Trade Analytics    | Yes                |
+| `PORT`                 | Server port                       | No (default: 4200) |
 
 ### Frontend (Vercel)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+| Variable            | Description     | Default                            |
+| ------------------- | --------------- | ---------------------------------- |
 | `VITE_API_BASE_URL` | Backend API URL | `https://api.proxy.shapeshift.com` |
 
 For local development, set `VITE_API_BASE_URL` in `apps/revenue-dashboard/.env`.
@@ -143,10 +146,12 @@ at build time.
 ### GET /api/v1/affiliate/revenue
 
 Query parameters:
+
 - `startDate` (required): Start date in YYYY-MM-DD format
 - `endDate` (required): End date in YYYY-MM-DD format
 
 Response format:
+
 ```json
 {
   "totalUsd": 4667.55,
@@ -169,7 +174,7 @@ Response format:
         "mayachain": 12.34,
         "chainflip": 23.45,
         "zrx": 15.67,
-        "bebop": 8.90,
+        "bebop": 8.9,
         "portals": 10.11,
         "relay": 7.89,
         "butterswap": 3.45,
@@ -186,6 +191,7 @@ Response format:
 Health check endpoint for Railway.
 
 Response:
+
 ```json
 {
   "status": "ok",
@@ -208,6 +214,7 @@ Response:
 6. Deploy
 
 Railway configuration (in `railway.json`):
+
 - Build command: `bun install && bun build:backend`
 - Start command: `bun apps/revenue-api/dist/server.js`
 - Health check: `/health`
@@ -222,6 +229,7 @@ Railway configuration (in `railway.json`):
 5. Deploy
 
 Vercel configuration (in `vercel.json`):
+
 - Build command: `bun build:frontend`
 - Output directory: `apps/revenue-dashboard/dist`
 - Framework: Vite

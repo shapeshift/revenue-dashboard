@@ -5,6 +5,7 @@
 The Portals integration tracks affiliate revenue from Portals.fi swaps across 8 EVM chains. Based on live testing, the integration is **functional but has low activity** - only 2 events found in the last 7 days, both on Ethereum.
 
 **Test Results (Feb 3-10, 2026):**
+
 - **Total Events Found**: 2 (both on Ethereum)
 - **Revenue Generated**: ~$0.62 USD (0.000384 USDC + 0.000231 WETH)
 - **Other Chains**: 0 events on Arbitrum, Optimism, Base, Polygon, Gnosis, BSC, Avalanche
@@ -54,6 +55,7 @@ The integration monitors Portal router contracts for a specific event signature:
 - **Event Data**: Contains inputToken, inputAmount, outputToken, outputAmount, recipient
 
 **API Call Structure**:
+
 ```javascript
 GET {explorerUrl}/api
 params: {
@@ -76,6 +78,7 @@ To efficiently query events by timestamp, the integration converts timestamps to
 2. **Fallback**: RPC binary search (for chains with deprecated APIs like BSC)
 
 **RPC Binary Search Algorithm**:
+
 - Fetches latest block
 - Performs binary search with max 20 iterations
 - Returns closest block before target timestamp
@@ -85,15 +88,18 @@ To efficiently query events by timestamp, the integration converts timestamps to
 The integration uses a **dual approach** for calculating fees:
 
 **Method 1: Actual Transfer (Preferred)**
+
 - Queries transaction's token transfers via Blockscout API v2
 - Finds ERC-20 transfer to treasury address
 - Uses actual transferred amount
 
 **Method 2: Fallback Calculation**
+
 - If no transfer found, calculates: `inputAmount * 55 / 10000`
 - 55 bps (0.55%) affiliate fee rate
 
 **Example from Live Testing**:
+
 ```
 Event 1:
   Input: 3000000000000000 wei Native ETH (0.003 ETH)
@@ -112,16 +118,16 @@ Event 2:
 
 **Supported Chains (8 total)**:
 
-| Chain     | Router Address | Treasury Address | API Type | RPC Fallback |
-|-----------|----------------|------------------|----------|--------------|
-| Ethereum  | 0xbf5a7f3629fb325e2a8453d595ab103465f75e62 | 0x90a48d5cf7343b08da12e067680b4c6dbfe551be | Blockscout | No |
-| Arbitrum  | 0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d | 0x38276553F8fbf2A027D901F8be45f00373d8Dd48 | Blockscout | No |
-| Optimism  | 0x43838f0c0d499f5c3101589f0f452b1fc7515178 | 0x6268d07327f4fb7380732dc6d63d95F88c0E083b | Blockscout | No |
-| Base      | 0xb0324286b3ef7dddc93fb2ff7c8b7b8a3524803c | 0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502 | Blockscout | No |
-| Polygon   | 0xC74063fdb47fe6dCE6d029A489BAb37b167Da57f | 0xB5F944600785724e31Edb90F9DFa16dBF01Af000 | Blockscout | No |
-| Gnosis    | 0x8e74454b2cf2f6cc2a06083ef122187551cf391c | 0xb0E3175341794D1dc8E5F02a02F9D26989EbedB3 | Blockscout | No |
-| BSC       | 0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d | 0x8b92b1698b57bEDF2142297e9397875ADBb2297E | Etherscan (deprecated) | **Yes** |
-| Avalanche | 0xbf5A7F3629fB325E2a8453D595AB103465F75E62 | 0x74d63F31C2335b5b3BA7ad2812357672b2624cEd | Etherscan | **Yes** |
+| Chain     | Router Address                             | Treasury Address                           | API Type               | RPC Fallback |
+| --------- | ------------------------------------------ | ------------------------------------------ | ---------------------- | ------------ |
+| Ethereum  | 0xbf5a7f3629fb325e2a8453d595ab103465f75e62 | 0x90a48d5cf7343b08da12e067680b4c6dbfe551be | Blockscout             | No           |
+| Arbitrum  | 0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d | 0x38276553F8fbf2A027D901F8be45f00373d8Dd48 | Blockscout             | No           |
+| Optimism  | 0x43838f0c0d499f5c3101589f0f452b1fc7515178 | 0x6268d07327f4fb7380732dc6d63d95F88c0E083b | Blockscout             | No           |
+| Base      | 0xb0324286b3ef7dddc93fb2ff7c8b7b8a3524803c | 0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502 | Blockscout             | No           |
+| Polygon   | 0xC74063fdb47fe6dCE6d029A489BAb37b167Da57f | 0xB5F944600785724e31Edb90F9DFa16dBF01Af000 | Blockscout             | No           |
+| Gnosis    | 0x8e74454b2cf2f6cc2a06083ef122187551cf391c | 0xb0E3175341794D1dc8E5F02a02F9D26989EbedB3 | Blockscout             | No           |
+| BSC       | 0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d | 0x8b92b1698b57bEDF2142297e9397875ADBb2297E | Etherscan (deprecated) | **Yes**      |
+| Avalanche | 0xbf5A7F3629fB325E2a8453D595AB103465F75E62 | 0x74d63F31C2335b5b3BA7ad2812357672b2624cEd | Etherscan              | **Yes**      |
 
 **Note**: BSC and Avalanche require RPC fallback due to deprecated/unreliable Etherscan APIs.
 
@@ -130,12 +136,14 @@ Event 2:
 The integration implements **aggressive caching** to minimize API calls:
 
 **Cache Types**:
+
 1. **Block Number Cache**: Timestamp → Block number mappings (permanent)
 2. **Token Transfer Cache**: TxHash → Fee transfer data (permanent)
 3. **Fee Cache**: Service + ChainId + Date → Fee array (permanent for past dates)
 4. **Price Cache**: AssetId → USD price (5-minute TTL)
 
 **Cache Logic**:
+
 - Splits date ranges into "cacheable" (>24h old) and "recent" (<24h)
 - Cacheable dates are stored permanently and never refetched
 - Recent dates are always fetched live
@@ -180,6 +188,7 @@ Avalanche     | 76910446 → 76986919      | 0      | ⚠️  No activity
 ### Detailed Event Analysis
 
 **Event 1** (Ethereum):
+
 - **TX**: 0x6e931b7c2f5a02ea3efcbc3ba0dec0b1b7263e0a276129949d529a28e32ae430
 - **Time**: 2026-02-03 08:43:59 UTC
 - **Input**: 0.003 ETH (native)
@@ -188,6 +197,7 @@ Avalanche     | 76910446 → 76986919      | 0      | ⚠️  No activity
 - **Revenue**: ~$0.38 USD
 
 **Event 2** (Ethereum):
+
 - **TX**: 0xe520c5b5f1945faec43a107d0e4c78df0bb7f6679e814aaedc2e19980d2fd337
 - **Time**: 2026-02-05 17:43:59 UTC
 - **Input**: 8.17 tokens (0x470e8de2eBaef52014A47Cb5E6aF86884947F08c)
@@ -204,6 +214,7 @@ Avalanche     | 76910446 → 76986919      | 0      | ⚠️  No activity
 ### Test Query Results
 
 **Query Parameters**:
+
 - **Start**: 1769817600 (2026-01-31 00:00:00 UTC)
 - **End**: 1769903999 (2026-01-31 23:59:59 UTC)
 
@@ -214,6 +225,7 @@ Avalanche     | 76910446 → 76986919      | 0      | ⚠️  No activity
 Based on the test query results, the **expected revenue for January 31, 2026 is $0.00 USD** as no Portal swap events occurred on that date across any supported chain.
 
 **Why No Events?**:
+
 - Date is in the future relative to integration deployment
 - Low overall Portals.fi usage through ShapeShift affiliate
 - Volume concentrated on other DEXs (THORChain, Jupiter, etc.)
@@ -255,31 +267,37 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### Key Functions
 
 **`getFees(startTimestamp, endTimestamp)`** - Main entry point
+
 - Splits date range into cacheable and recent periods
 - Queries all chains in parallel
 - Returns enriched fee array
 
 **`fetchFeesForChain(config, start, end)`** - Per-chain logic
+
 - Gets block range for timestamp
 - Queries Portal events from explorer
 - Constructs fee records with transfers
 
 **`getPortalEventsFromExplorer(config, start, end)`** - Event fetching
+
 - Converts timestamps to blocks
 - Queries logs with topic filtering
 - Validates and decodes event data
 
 **`getFeeTransferFromExplorer(config, txHash)`** - Transfer lookup
+
 - Queries transaction's token transfers
 - Finds transfer to treasury address
 - Returns token, amount, decimals, symbol
 
 **`constructFeeFromEvent(config, event)`** - Fee construction
+
 - Fetches fee transfer (with caching)
 - Builds asset ID from chain + token
 - Uses transfer or fallback calculation
 
 **`enrichFeesWithUsdPrices(fees)`** - Price enrichment
+
 - Batch fetches current prices
 - Recalculates USD values
 - Preserves original values
@@ -291,6 +309,7 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### 1. **Low Activity / Integration Underutilization**
 
 **Issue**: Only 2 events in 7 days across all 8 chains
+
 - Suggests Portals integration is not widely used by ShapeShift users
 - Most volume likely on THORChain, Jupiter, or other providers
 
@@ -299,6 +318,7 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### 2. **BSC API Deprecated**
 
 **Issue**: BscScan v1 API no longer works
+
 - `explorerUrl` is empty string in config
 - Must use RPC binary search fallback
 
@@ -307,6 +327,7 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### 3. **API Rate Limiting Risk**
 
 **Issue**: No explicit rate limiting or retry logic
+
 - Blockscout APIs have rate limits
 - Parallel queries across 8 chains could hit limits
 
@@ -314,7 +335,8 @@ apps/revenue-api/src/affiliateRevenue/portals/
 
 ### 4. **Price Data Freshness**
 
-**Issue**: Uses *current* prices for historical fees
+**Issue**: Uses _current_ prices for historical fees
+
 - Enrichment fetches live prices, not historical
 - `originalUsdValue` preserved but overwritten with current calculation
 
@@ -325,6 +347,7 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### 5. **No Native Token Transfer Detection**
 
 **Issue**: Only detects ERC-20 token transfers to treasury
+
 - If fee is paid in native ETH/MATIC/etc, won't be detected
 - Falls back to 55 bps calculation
 
@@ -333,6 +356,7 @@ apps/revenue-api/src/affiliateRevenue/portals/
 ### 6. **Polygon/Gnosis API Errors**
 
 **Issue**: Recent tests showed "No logs found" errors
+
 - Could be temporary API issues
 - Could indicate incorrect router addresses
 
@@ -364,6 +388,7 @@ Example log output:
 ### API Dependency
 
 **Critical dependencies**:
+
 1. Blockscout API (6 chains) - stable, public
 2. Snowtrace API (Avalanche) - rate limited
 3. RPC nodes (BSC, Avalanche fallback) - public, variable reliability
@@ -415,12 +440,14 @@ Example log output:
 ## Conclusion
 
 The Portals integration is **technically sound and well-implemented** with:
+
 - ✅ Robust multi-chain support
 - ✅ Efficient caching strategy
 - ✅ Graceful error handling
 - ✅ Dual fee calculation methods (actual + fallback)
 
 However, it shows **very low activity** (2 events/week, $0.62 revenue), suggesting:
+
 - Portals.fi is not a primary swap route for ShapeShift users
 - May be candidate for deprecation or reduced maintenance priority
 - Other integrations (THORChain, Jupiter, etc.) likely generate more revenue
@@ -432,11 +459,13 @@ However, it shows **very low activity** (2 events/week, $0.62 revenue), suggesti
 ## Appendix: Test Scripts
 
 All test scripts created during this analysis are located in:
+
 - `/home/sean/Repos/shapeshift-revenue-dashboard/apps/revenue-api/test-portals-jan31.ts`
 - `/home/sean/Repos/shapeshift-revenue-dashboard/apps/revenue-api/test-portals-jan31-2025.ts`
 - `/home/sean/Repos/shapeshift-revenue-dashboard/apps/revenue-api/test-portals-recent.ts`
 
 To run tests:
+
 ```bash
 bun run apps/revenue-api/test-portals-recent.ts
 ```

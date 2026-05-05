@@ -8,32 +8,36 @@
 
 ## Quick Facts
 
-| Metric | Value |
-|--------|-------|
-| **Revenue (Jan 31, 2026)** | **$20.30** |
-| **Trades Processed** | 5 |
-| **Total Volume** | $3,963.78 |
-| **Effective Fee Rate** | 0.512% |
-| **Chains Supported** | Ethereum, Polygon (all EVM chains) |
-| **Integration Health** | 🟢 Excellent (100% accuracy) |
+| Metric                     | Value                              |
+| -------------------------- | ---------------------------------- |
+| **Revenue (Jan 31, 2026)** | **$20.30**                         |
+| **Trades Processed**       | 5                                  |
+| **Total Volume**           | $3,963.78                          |
+| **Effective Fee Rate**     | 0.512%                             |
+| **Chains Supported**       | Ethereum, Polygon (all EVM chains) |
+| **Integration Health**     | 🟢 Excellent (100% accuracy)       |
 
 ---
 
 ## How It Works
 
 ### 1. API Queries
+
 The integration queries the 0x Trade Analytics API v2 at `https://api.0x.org/trade-analytics`:
 
 **Endpoints:**
+
 - `/swap` - Regular swap transactions
 - `/gasless` - Meta-transactions (gasless swaps)
 
 **Parameters:**
+
 - `startTimestamp` / `endTimestamp` - Unix timestamps
 - `cursor` - Pagination token
 - Headers: `0x-api-key`, `0x-version: v2`
 
 ### 2. Data Processing
+
 ```
 Raw API Data (decimal amounts)
     ↓
@@ -57,6 +61,7 @@ Return aggregated fees
 **USD Values**: Uses 0x's calculated USD values as the source of truth. The enrichment layer adds live prices without overwriting originals.
 
 **Asset IDs**: Uses CAIP-2 format:
+
 - Native tokens: `eip155:1/slip44:60`
 - ERC-20 tokens: `eip155:1/erc20:0x...`
 
@@ -69,20 +74,24 @@ Return aggregated fees
 ### Revenue Breakdown
 
 **By Token:**
+
 - FOX: $17.46 (86%) - 2119.71 tokens @ $0.008237
 - FET: $2.84 (14%) - 15.09 tokens @ $0.188166
 
 **By Chain:**
+
 - Ethereum: $20.30 (100%)
 - Polygon: $0.00 (dust amounts)
 
 **By Service:**
+
 - Swap: $20.30 (100%)
 - Gasless: $0.00
 
 ### Sample Transactions
 
 **Largest Fee**: FOX Token
+
 - TX: `0x4afe1f2bb6...95f440d45fc4a6`
 - Volume: $3,464.21
 - Fee: 2119.71 FOX = $17.46
@@ -90,6 +99,7 @@ Return aggregated fees
 - Time: 2026-01-31 07:42:59 UTC
 
 **Second Largest**: FET Token
+
 - TX: `0x154eb4a6bb...eac6d6256072ca`
 - Volume: $499.49
 - Fee: 15.09 FET = $2.84
@@ -102,15 +112,15 @@ Return aggregated fees
 
 ### Accuracy Tests
 
-| Test | Result | Notes |
-|------|--------|-------|
-| Decimal → Wei Conversion | ✅ Pass | Accurate to 18 decimals |
-| USD Value Consistency | ✅ Pass | Matches API exactly |
-| Asset ID Format | ✅ Pass | CAIP-2 compliant |
-| Pagination | ✅ Pass | Cursor-based |
-| Multi-chain Support | ✅ Pass | Ethereum & Polygon tested |
-| Caching Logic | ✅ Pass | Proper date splitting |
-| Error Handling | ✅ Pass | Retry logic present |
+| Test                     | Result  | Notes                     |
+| ------------------------ | ------- | ------------------------- |
+| Decimal → Wei Conversion | ✅ Pass | Accurate to 18 decimals   |
+| USD Value Consistency    | ✅ Pass | Matches API exactly       |
+| Asset ID Format          | ✅ Pass | CAIP-2 compliant          |
+| Pagination               | ✅ Pass | Cursor-based              |
+| Multi-chain Support      | ✅ Pass | Ethereum & Polygon tested |
+| Caching Logic            | ✅ Pass | Proper date splitting     |
+| Error Handling           | ✅ Pass | Retry logic present       |
 
 **Overall Score**: 8/8 (100%)
 
@@ -150,6 +160,7 @@ Return aggregated fees
 **Location**: `/home/sean/Repos/shapeshift-revenue-dashboard/apps/revenue-api/src/affiliateRevenue/zrx/`
 
 **Key Files**:
+
 - `zrx.ts` - Main logic (118 lines)
 - `types.ts` - Type definitions
 - `constants.ts` - API config
@@ -177,7 +188,7 @@ Note: Fee rate varies by trade. The 0.55% is an average, not fixed.
 Based on FEE_RATE = 0.0055 (0.55%), the integration calculates:
 
 ```typescript
-volumeUsd = amountUsd / FEE_RATE
+volumeUsd = amountUsd / FEE_RATE;
 // $20.30 / 0.0055 = $3,690.91
 ```
 
@@ -188,10 +199,12 @@ Actual volume reported by 0x: $3,963.78 (slightly higher, as expected with varia
 ## Detailed Analysis
 
 For complete technical details, see:
+
 - **Full Report**: `/home/sean/Repos/shapeshift-revenue-dashboard/zrx-integration-analysis.md`
 - **Test Scripts**: `/home/sean/Repos/shapeshift-revenue-dashboard/apps/revenue-api/test-zrx-*.ts`
 
 The full report includes:
+
 - Complete API documentation
 - Code flow diagrams
 - Decimal conversion examples

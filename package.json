@@ -20,8 +20,8 @@
     "dev:frontend": "bun run --filter @shapeshiftoss/revenue-dashboard dev",
     "lint": "eslint --cache .",
     "lint:fix": "bun run lint --fix",
-    "format": "prettier --write '**/*.json'",
-    "format:check": "prettier --check '**/*.json'",
+    "format": "prettier --write '**/*.{json,md,yml,yaml}'",
+    "format:check": "prettier --check '**/*.{json,md,yml,yaml}'",
     "type-check": "bun run --filter './apps/*' type-check"
   },
   "devDependencies": {

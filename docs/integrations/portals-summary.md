@@ -29,21 +29,23 @@ Timestamp → Block Number → Query Portal Events → Get Fee Transfer → Calc
 ## Fee Calculation
 
 **Method 1: Actual Transfer (Preferred)**
+
 - Queries ERC-20 token transfers to treasury address
 - Uses exact amount sent to ShapeShift
 
 **Method 2: Fallback**
+
 - If no transfer found: `fee = inputAmount * 0.0055`
 - 55 basis points (0.55%)
 
 ## Test Results (Feb 3-10, 2026)
 
-| Metric | Value |
-|--------|-------|
-| **Total Events** | 2 (both Ethereum) |
-| **Revenue** | ~$0.62 USD |
-| **Active Chains** | 1 of 8 |
-| **Event Rate** | 0.29/day |
+| Metric            | Value             |
+| ----------------- | ----------------- |
+| **Total Events**  | 2 (both Ethereum) |
+| **Revenue**       | ~$0.62 USD        |
+| **Active Chains** | 1 of 8            |
+| **Event Rate**    | 0.29/day          |
 
 ### Event Details
 

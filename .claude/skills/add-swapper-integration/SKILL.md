@@ -24,12 +24,14 @@ The revenue dashboard tracks affiliate fees from various DEX providers. Each int
 **Location:** `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/[SwapperName]Swapper/`
 
 **Files to investigate:**
+
 1. **Main swapper file:** `[SwapperName]Swapper.ts`
 2. **Quote generation:** `getTradeQuote/get[SwapperName]TradeQuote.ts`
 3. **Endpoints:** `endpoints.ts`
 4. **Utils:** `utils/*.ts`
 
 **What to find:**
+
 - ✅ **Affiliate identifier** - What does ShapeShift use to identify itself?
   - Affiliate code/ID (e.g., "shapeshift", "ss-partner-123")
   - Referrer parameter (e.g., `referrer=`, `source=`, `affiliate=`)
@@ -45,6 +47,7 @@ The revenue dashboard tracks affiliate fees from various DEX providers. Each int
   - Is there a fee BPS we configure?
 
 **Search patterns to use:**
+
 ```typescript
 // In /home/sean/Repos/shapeshift/packages/swapper/src/swappers/[SwapperName]Swapper/
 grep -r "affiliate" .
@@ -61,48 +64,61 @@ grep -r "SHAPESHIFT" .
 <summary>THORChain/Maya - Treasury Address</summary>
 
 Location: `swappers/ThorchainSwapper/utils/constants.ts`
+
 ```typescript
-export const DEFAULT_AFFILIATE_FEE_BPS = '55'
-export const DAO_TREASURY_THORCHAIN = 'thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l'
+export const DEFAULT_AFFILIATE_FEE_BPS = "55";
+export const DAO_TREASURY_THORCHAIN =
+  "thor1xmaggkcln5m5fnha2780xrdrulmplvfrz6wj3l";
 ```
+
 → **Conclusion:** THORChain swaps specify a treasury address to receive fees
+
 </details>
 
 <details>
 <summary>ZRX (0x) - API Key</summary>
 
 Location: `swappers/ZrxSwapper/endpoints.ts`
+
 ```typescript
 '0x-api-key': getConfig().VITE_ZRX_API_KEY
 ```
+
 → **Conclusion:** 0x uses an API key that identifies ShapeShift as the integrator
+
 </details>
 
 <details>
 <summary>Relay - Referrer Parameter</summary>
 
 Location: `swappers/RelaySwapper/getTradeQuote.ts`
+
 ```typescript
-referrer: '0xSHAPESHIFT_ADDRESS'
+referrer: "0xSHAPESHIFT_ADDRESS";
 ```
+
 → **Conclusion:** Relay uses a referrer address parameter
+
 </details>
 
 <details>
 <summary>Chainflip - Broker ID</summary>
 
 Location: `swappers/ChainflipSwapper/utils/constants.ts`
+
 ```typescript
-export const CHAINFLIP_BROKER_ID = 'shapeshift'
+export const CHAINFLIP_BROKER_ID = "shapeshift";
 ```
+
 → **Conclusion:** Chainflip uses a broker ID string
+
 </details>
 
 **Output from Step 0:**
 
 Document your findings before proceeding:
 
-```markdown
+````markdown
 ## ShapeShift Integration Analysis for [Swapper Name]
 
 **Affiliate Identifier Type:** [Treasury Address / API Key / Referrer Param / Broker ID / Other]
@@ -116,12 +132,15 @@ Document your findings before proceeding:
 **Fee Configuration:** [Any fee BPS or parameters configured]
 
 **Key Code Snippet:**
+
 ```typescript
 // Paste relevant code here
 ```
+````
 
 **Conclusion:** [How this affects our revenue tracking approach]
-```
+
+````
 
 ---
 
@@ -239,14 +258,16 @@ const fees = data.fees.map(fee => ({
   // No amountUsd - let enrichment handle it
 }))
 return enrichFeesWithUsdPrices(fees)
-```
+````
 
 ---
 
 #### **Approach 2: Transaction API with Fee Calculation** ⭐⭐⭐⭐
+
 **Examples:** Bebop, 0x (ZRX)
 
 **Characteristics:**
+
 - Trade/transaction history API
 - May include fee BPS or calculated fees
 - Sometimes provides historical USD values
@@ -254,19 +275,22 @@ return enrichFeesWithUsdPrices(fees)
 - **Often returns amounts in DECIMAL format** (needs conversion)
 
 **Strengths:**
+
 - Good data availability
 - Usually has volume data
 - Can verify fee calculations
 - **Good performance** - batch queries with pagination
 
 **Drawbacks:**
-- May need to calculate fees ourselves (volume * BPS)
+
+- May need to calculate fees ourselves (volume \* BPS)
 - Historical USD values (if provided) are less accurate
 - **Requires decimal-to-base-unit conversion**
 
 **Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days with pagination)
 
 **USD Enrichment:** ✅ **Use `enrichFeesWithUsdPrices()`**
+
 - Integration returns crypto `amount` (primary)
 - May optionally include `amountUsd` (historical) as backup
 - Enrichment recalculates using **CURRENT** prices
@@ -275,49 +299,56 @@ return enrichFeesWithUsdPrices(fees)
 **Amount Format:** ⚠️ **Usually DECIMAL - requires conversion**
 
 **Example Structure:**
+
 ```typescript
 // API returns: { trades: [{ volume: 1000, partnerFeeBps: 55, partnerFeeNative: "2.5", token: "0x...", ... }] }
 
 for (const trade of data.trades) {
-  const chainId = `eip155:${trade.chainId}`
-  const assetId = `${chainId}/erc20:${trade.token}`
+  const chainId = `eip155:${trade.chainId}`;
+  const assetId = `${chainId}/erc20:${trade.token}`;
 
   // ⚠️ CRITICAL: API returns DECIMAL amount ("2.5" USDC)
   // Must convert to base units (wei): "2.5" → "2500000" (for 6 decimals)
-  const decimals = await assetDataService.getAssetDecimals(assetId)
-  const amountInWei = decimalToBaseUnit(trade.partnerFeeNative, decimals)
+  const decimals = await assetDataService.getAssetDecimals(assetId);
+  const amountInWei = decimalToBaseUnit(trade.partnerFeeNative, decimals);
 
   fees.push({
     chainId,
     assetId,
-    service: 'swappername',
+    service: "swappername",
     txHash: trade.txHash,
     timestamp: trade.timestamp,
     amount: amountInWei, // Now in base units (wei)
-    amountUsd: trade.volumeUsd ? String(trade.volumeUsd * (trade.partnerFeeBps / 10000)) : undefined,
-  })
+    amountUsd: trade.volumeUsd
+      ? String(trade.volumeUsd * (trade.partnerFeeBps / 10000))
+      : undefined,
+  });
 }
 
-return enrichFeesWithUsdPrices(fees)
+return enrichFeesWithUsdPrices(fees);
 ```
 
 ---
 
 #### **Approach 3: API with Current USD Pricing** ⭐⭐⭐⭐
+
 **Examples:** Relay
 
 **Characteristics:**
+
 - API already calculates USD using current/live prices
 - Returns `amountUsdCurrent` (not historical)
 - Also includes crypto amounts (may be decimal or base units)
 
 **Strengths:**
+
 - USD values already accurate
 - No need for price enrichment
 - Reduces API calls
 - **Good performance** - batch queries
 
 **Drawbacks:**
+
 - Must verify API actually uses current prices (not historical)
 - Less common pattern
 - May still need decimal conversion for amounts
@@ -325,6 +356,7 @@ return enrichFeesWithUsdPrices(fees)
 **Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days)
 
 **USD Enrichment:** ❌ **Do NOT use `enrichFeesWithUsdPrices()`**
+
 - Integration returns both `amount` AND `amountUsd`
 - The `amountUsd` is already using **CURRENT** prices from their API
 - Return fees as-is without enrichment
@@ -332,6 +364,7 @@ return enrichFeesWithUsdPrices(fees)
 **Amount Format:** Check API - may need conversion
 
 **Example Structure:**
+
 ```typescript
 // API returns: { fees: [{ amount: "123456789", amountUsdCurrent: "100.50", ... }] }
 const fees = data.fees.map(fee => ({
@@ -347,25 +380,30 @@ return fees // No enrichment!
 ```
 
 **⚠️ CRITICAL:** You must **TEST** the API to confirm:
+
 1. It provides current USD values (not historical)
 2. The amount format (decimal vs base units)
 
 ---
 
 #### **Approach 4: USD-Only Data** ⭐⭐⭐
+
 **Examples:** Chainflip
 
 **Characteristics:**
+
 - API only provides USD values
 - No crypto amount available
 - Must reverse-engineer crypto amount (for stablecoins, use 1:1 ratio)
 
 **Strengths:**
+
 - Simple USD tracking
 - Works when crypto amounts unavailable
 - **Good performance** - batch queries
 
 **Drawbacks:**
+
 - Less accurate (historical USD values)
 - Can't verify with on-chain data
 - Loses native token information
@@ -373,6 +411,7 @@ return fees // No enrichment!
 **Performance:** ⚡⚡⚡ Excellent (typically <3 seconds for 30 days)
 
 **USD Enrichment:** ❌ **Do NOT use `enrichFeesWithUsdPrices()`**
+
 - Integration returns synthesized `amount` (calculated from USD) AND `amountUsd`
 - The `amountUsd` is historical (from when swap occurred)
 - No enrichment possible - we don't have real crypto amounts
@@ -380,48 +419,53 @@ return fees // No enrichment!
 **Amount Format:** Synthesized in base units
 
 **Example Structure:**
+
 ```typescript
 // API returns: { swaps: [{ affiliateFeeValueUsd: "10.50", ... }] }
 // Chainflip only provides USD - must synthesize crypto amount
 
-const fees = data.swaps.map(swap => {
+const fees = data.swaps.map((swap) => {
   // Synthesize USDC amount from USD value (1:1 ratio for stablecoins)
   // $10.50 USD = 10.50 USDC = 10,500,000 wei (6 decimals)
-  const usdValue = swap.affiliateFeeValueUsd
-  const usdcDecimals = 6
-  const usdcWei = decimalToBaseUnit(usdValue, usdcDecimals)
+  const usdValue = swap.affiliateFeeValueUsd;
+  const usdcDecimals = 6;
+  const usdcWei = decimalToBaseUnit(usdValue, usdcDecimals);
 
   return {
-    chainId: 'eip155:1',
-    assetId: 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-    service: 'swappername',
-    txHash: '',
+    chainId: "eip155:1",
+    assetId: "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", // USDC
+    service: "swappername",
+    txHash: "",
     timestamp: swap.timestamp,
     amount: usdcWei, // Synthesized from USD
     amountUsd: usdValue, // Historical USD value
-  }
-})
+  };
+});
 
-return fees // No enrichment - we don't have real amounts
+return fees; // No enrichment - we don't have real amounts
 ```
 
 ---
 
 #### **Approach 5: On-Chain Analysis** ⭐⭐
+
 **Examples:** Portals
 
 **Characteristics:**
+
 - No suitable API available
 - Scrape blockchain explorers for events/logs
 - Filter transfers to treasury address
 - Complex event decoding
 
 **Strengths:**
+
 - Works when no API exists
 - Most trustless/verifiable
 - Direct on-chain data
 
 **Drawbacks:**
+
 - Most complex implementation
 - **Slower performance** - multiple API calls per transaction
 - Requires block number lookups
@@ -429,49 +473,58 @@ return fees // No enrichment - we don't have real amounts
 - Fallback fee calculations needed
 
 **Performance:** ⚡⚡ Moderate (typically 5-10 seconds for 30 days, can be slower)
+
 - **WARNING:** If approach requires looking up individual tx details, it can be too slow
 - Per-tx lookups: 150 txs × 100ms = 15 seconds (borderline)
 - Must implement carefully with batching/caching to stay under 15s limit
 - **TIP:** Use ShapeShift's private RPC proxies (see `/home/sean/Repos/shapeshift/.env`) for better performance than public RPCs
 
 **USD Enrichment:** ✅ **Use `enrichFeesWithUsdPrices()`**
+
 - Integration returns crypto `amount` from on-chain transfers
 - Enrichment calculates USD value using **CURRENT** prices
 
 **Amount Format:** On-chain data is always in base units (wei)
 
 **Example Structure:**
+
 ```typescript
 // Scrape explorer for Portal events
-const events = await getPortalEventsFromExplorer(config, startTimestamp, endTimestamp)
+const events = await getPortalEventsFromExplorer(
+  config,
+  startTimestamp,
+  endTimestamp,
+);
 
 // For each event, look up the actual token transfer to treasury
-const fees = await Promise.all(events.map(async event => {
-  const transfer = await getFeeTransferFromExplorer(config, event.txHash)
+const fees = await Promise.all(
+  events.map(async (event) => {
+    const transfer = await getFeeTransferFromExplorer(config, event.txHash);
 
-  if (transfer) {
-    return {
-      chainId: config.chainId,
-      assetId: buildAssetId(config.chainId, transfer.token),
-      service: 'swappername',
-      txHash: event.txHash,
-      timestamp: event.timestamp,
-      amount: transfer.amount, // Already in base units (from blockchain)
+    if (transfer) {
+      return {
+        chainId: config.chainId,
+        assetId: buildAssetId(config.chainId, transfer.token),
+        service: "swappername",
+        txHash: event.txHash,
+        timestamp: event.timestamp,
+        amount: transfer.amount, // Already in base units (from blockchain)
+      };
+    } else {
+      // Fallback: calculate from input amount
+      return {
+        chainId: config.chainId,
+        assetId: buildAssetId(config.chainId, event.inputToken),
+        service: "swappername",
+        txHash: event.txHash,
+        timestamp: event.timestamp,
+        amount: calculateFallbackFee(event.inputAmount), // 55 BPS of input
+      };
     }
-  } else {
-    // Fallback: calculate from input amount
-    return {
-      chainId: config.chainId,
-      assetId: buildAssetId(config.chainId, event.inputToken),
-      service: 'swappername',
-      txHash: event.txHash,
-      timestamp: event.timestamp,
-      amount: calculateFallbackFee(event.inputAmount), // 55 BPS of input
-    }
-  }
-}))
+  }),
+);
 
-return enrichFeesWithUsdPrices(fees)
+return enrichFeesWithUsdPrices(fees);
 ```
 
 ---
@@ -517,17 +570,20 @@ After completing your research, provide a summary report:
 **Recommended Approach:** Option X - [Approach Name]
 
 **Reasoning:**
+
 - [Why this is best for our use case]
 - [Alignment with our requirements]
 - [Accuracy considerations]
 
 **Performance:** [Estimated time to fetch 30 days] ⚡⚡⚡ / ⚡⚡ / ⚡
+
 - [Brief justification - batch queries, pagination, per-tx, etc.]
 - ✅ Meets 15-second requirement / ⚠️ Borderline / ❌ Too slow
 
 **Amount Format:** [Decimal/Base Units] - [Conversion needed: Yes/No]
 
 **USD Enrichment Strategy:**
+
 - ✅ Use enrichFeesWithUsdPrices() / ❌ Return as-is
 - **Rationale:** [Explain based on data available]
 
@@ -547,6 +603,7 @@ Once the user approves your recommended approach, proceed with implementation.
 **Location:** `apps/revenue-api/src/affiliateRevenue/[swappername]/`
 
 **Required Files:**
+
 - `index.ts` - Export `getFees` function
 - `[swappername].ts` - Main implementation
 - `types.ts` - TypeScript types for API responses
@@ -554,18 +611,19 @@ Once the user approves your recommended approach, proceed with implementation.
 - `utils.ts` - Helper functions (if needed)
 
 **In `constants.ts`, define the affiliate identifier you found in Step 0:**
+
 ```typescript
 // Example: Treasury address (THORChain/Maya)
-export const DAO_TREASURY = '0x...' // or 'thor1x...'
+export const DAO_TREASURY = "0x..."; // or 'thor1x...'
 
 // Example: Broker ID (Chainflip)
-export const SHAPESHIFT_BROKER_ID = 'shapeshift'
+export const SHAPESHIFT_BROKER_ID = "shapeshift";
 
 // Example: Referrer address (Relay)
-export const SHAPESHIFT_REFERRER = '0x...'
+export const SHAPESHIFT_REFERRER = "0x...";
 
 // Example: API key (0x)
-export const SWAPPERNAME_API_KEY = process.env.SWAPPERNAME_API_KEY ?? ''
+export const SWAPPERNAME_API_KEY = process.env.SWAPPERNAME_API_KEY ?? "";
 ```
 
 ### Step 2: Implement Core Integration
@@ -575,76 +633,86 @@ export const SWAPPERNAME_API_KEY = process.env.SWAPPERNAME_API_KEY ?? ''
 Every integration MUST follow this pattern:
 
 ```typescript
-export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
+export const getFees = async (
+  startTimestamp: number,
+  endTimestamp: number,
+): Promise<Fees[]> => {
+  const startTime = Date.now();
+  const threshold = getCacheableThreshold();
+  const { cacheableDates, recentStart } = splitDateRange(
+    startTimestamp,
+    endTimestamp,
+    threshold,
+  );
 
   // === CACHE LOOKUP ===
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
+  const cachedFees: Fees[] = [];
+  const datesToFetch: string[] = [];
+  let cacheHits = 0;
+  let cacheMisses = 0;
 
   for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('swappername', chainId, date)
+    const cached = tryGetCachedFees("swappername", chainId, date);
     if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
+      cachedFees.push(...cached);
+      cacheHits++;
     } else {
-      datesToFetch.push(date)
-      cacheMisses++
+      datesToFetch.push(date);
+      cacheMisses++;
     }
   }
 
   // === FETCH MISSING DATES ===
-  const newFees: Fees[] = []
+  const newFees: Fees[] = [];
   if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
+    const fetchStart = getDateStartTimestamp(datesToFetch[0]);
+    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1]);
+    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd);
 
-    const feesByDate = groupFeesByDate(fetched)
+    const feesByDate = groupFeesByDate(fetched);
     for (const date of datesToFetch) {
-      saveCachedFees('swappername', chainId, date, feesByDate[date] || [])
+      saveCachedFees("swappername", chainId, date, feesByDate[date] || []);
     }
-    newFees.push(...fetched)
+    newFees.push(...fetched);
   }
 
   // === FETCH RECENT (UNCACHEABLE) DATA ===
-  const recentFees: Fees[] = []
+  const recentFees: Fees[] = [];
   if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
+    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)));
   }
 
   // === LOGGING ===
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
-  console.log(`[swappername] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
+  const totalFees = cachedFees.length + newFees.length + recentFees.length;
+  const duration = Date.now() - startTime;
+  console.log(
+    `[swappername] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`,
+  );
 
   // === USD ENRICHMENT (conditional) ===
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
+  const allFees = [...cachedFees, ...newFees, ...recentFees];
 
   // ✅ If using Approach 1, 2, or 5:
-  return enrichFeesWithUsdPrices(allFees)
+  return enrichFeesWithUsdPrices(allFees);
 
   // ❌ If using Approach 3 or 4:
-  return allFees
-}
+  return allFees;
+};
 ```
 
 **Key Implementation Notes:**
 
 1. **Amount Normalization (CRITICAL!):**
+
    ```typescript
    // ⚠️ ALWAYS store amounts in smallest unit (wei, satoshis, etc.)
 
    // If API returns BASE UNITS (e.g., "2500000" for 2.5 USDC with 6 decimals):
-   const amount = fee.amount // Use directly
+   const amount = fee.amount; // Use directly
 
    // If API returns DECIMAL format (e.g., "2.5" for 2.5 USDC):
-   const decimals = await assetDataService.getAssetDecimals(assetId)
-   const amount = decimalToBaseUnit(fee.amount, decimals) // Convert to wei
+   const decimals = await assetDataService.getAssetDecimals(assetId);
+   const amount = decimalToBaseUnit(fee.amount, decimals); // Convert to wei
 
    // Example conversions:
    // - "2.5" USDC (6 decimals) → "2500000" wei
@@ -653,6 +721,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
    ```
 
    **How to test if API returns decimal or base units:**
+
    ```typescript
    // Make a test API call and check the amount
    // If you see small numbers like "0.5", "2.5" → DECIMAL format
@@ -682,6 +751,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
    - **ALWAYS use the affiliate identifier you found in Step 0**
    - Add it to `constants.ts` (see example above)
    - Use it in your API calls to filter for ShapeShift's fees
+
    ```typescript
    // Example: Filtering by referrer
    const { data } = await axios.get(API_URL, {
@@ -689,8 +759,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
        referrer: SHAPESHIFT_REFERRER, // From Step 0
        startTimestamp,
        endTimestamp,
-     }
-   })
+     },
+   });
 
    // Example: Filtering by broker ID
    const { data } = await axios.post(API_URL, {
@@ -699,15 +769,15 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
        brokerId: SHAPESHIFT_BROKER_ID, // From Step 0
        startDate,
        endDate,
-     }
-   })
+     },
+   });
 
    // Example: API key identifies us
    const { data } = await axios.get(API_URL, {
      headers: {
-       'api-key': SWAPPERNAME_API_KEY, // From Step 0
-     }
-   })
+       "api-key": SWAPPERNAME_API_KEY, // From Step 0
+     },
+   });
    ```
 
 6. **Error Handling:**
@@ -721,14 +791,16 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 If API key required:
 
 1. **Add to `apps/revenue-api/.env.example`:**
+
    ```bash
    SWAPPERNAME_API_KEY=your_key_here
    ```
 
 2. **Add to server setup:**
+
    ```typescript
    // In constants.ts
-   export const SWAPPERNAME_API_KEY = process.env.SWAPPERNAME_API_KEY ?? ''
+   export const SWAPPERNAME_API_KEY = process.env.SWAPPERNAME_API_KEY ?? "";
    ```
 
 3. **Document in README** under Environment Variables section
@@ -738,18 +810,20 @@ If API key required:
 **File: `apps/revenue-api/src/affiliateRevenue/index.ts`**
 
 1. Import your module:
+
    ```typescript
-   import * as swappername from './swappername'
+   import * as swappername from "./swappername";
    ```
 
 2. Add to provider names array:
+
    ```typescript
    const providerNames: Service[] = [
-     'bebop',
-     'butterswap',
+     "bebop",
+     "butterswap",
      // ... existing providers
-     'swappername', // Add here (alphabetical order preferred)
-   ]
+     "swappername", // Add here (alphabetical order preferred)
+   ];
    ```
 
 3. Add to Promise.allSettled:
@@ -758,18 +832,19 @@ If API key required:
      bebop.getFees(startTimestamp, endTimestamp),
      // ... existing providers
      swappername.getFees(startTimestamp, endTimestamp), // Add here
-   ])
+   ]);
    ```
 
 **File: `apps/revenue-api/src/types.ts`**
 
 Add to services array:
+
 ```typescript
 export const services = [
-  'bebop',
+  "bebop",
   // ... existing
-  'swappername', // Add in alphabetical order
-] as const
+  "swappername", // Add in alphabetical order
+] as const;
 ```
 
 ### Step 5: Frontend Integration
@@ -777,31 +852,34 @@ export const services = [
 **File: `apps/revenue-dashboard/src/constants/services.ts`**
 
 1. **Add display label:**
+
    ```typescript
    export const SERVICE_LABELS: Record<string, string> = {
      // ... existing
-     swappername: 'Swapper Display Name',
-   }
+     swappername: "Swapper Display Name",
+   };
    ```
 
 2. **Add color (use a color not already taken):**
+
    ```typescript
    export const SERVICE_COLORS: Record<string, string> = {
      // ... existing
-     swappername: '#3b82f6', // Choose unique color
-   }
+     swappername: "#3b82f6", // Choose unique color
+   };
    ```
 
 3. **Add to stack order (determines chart order):**
    ```typescript
    export const SERVICE_STACK_ORDER = [
-     'thorchain',
+     "thorchain",
      // ... existing
-     'swappername', // Add in desired display order
-   ]
+     "swappername", // Add in desired display order
+   ];
    ```
 
 **Available Colors (TailwindCSS):**
+
 - `#3b82f6` - blue-500
 - `#a855f7` - purple-500
 - `#ef4444` - red-500
@@ -818,18 +896,21 @@ export const services = [
 ### Step 6: Testing
 
 1. **Test API calls locally:**
+
    ```bash
    bun dev:backend
    ```
 
 2. **Test amount conversion (if using decimal format):**
+
    ```typescript
    // Verify your conversion is correct
    // Example: "2.5" USDC → "2500000" (6 decimals)
-   console.log(decimalToBaseUnit("2.5", 6)) // Should output "2500000"
+   console.log(decimalToBaseUnit("2.5", 6)); // Should output "2500000"
    ```
 
 3. **Test full stack:**
+
    ```bash
    bun dev
    ```
@@ -865,6 +946,7 @@ grep -r "switch.*service" apps/revenue-dashboard/src/
 ```
 
 **Common locations to check:**
+
 - Type definitions
 - Chart components
 - Table components
@@ -910,13 +992,14 @@ What format does the API return amounts in?
 ```
 
 **Example Test:**
+
 ```typescript
 // If you see: { amount: "2.5", token: "0xUSDC..." }
 // And USDC has 6 decimals
 // Then 2.5 USDC should be stored as "2500000" (2.5 × 10^6)
 
-const decimals = await assetDataService.getAssetDecimals(assetId)
-const baseUnits = decimalToBaseUnit("2.5", decimals)
+const decimals = await assetDataService.getAssetDecimals(assetId);
+const baseUnits = decimalToBaseUnit("2.5", decimals);
 // baseUnits = "2500000" ✅
 ```
 
@@ -938,28 +1021,27 @@ Do you have crypto amounts from the API?
 ### Fee Calculation
 
 If you need to calculate fees from volume:
-```typescript
-const FEE_BPS = 55
-const FEE_BPS_DENOMINATOR = 10000
 
-const feeAmount = volume * (FEE_BPS / FEE_BPS_DENOMINATOR) // = volume * 0.0055
+```typescript
+const FEE_BPS = 55;
+const FEE_BPS_DENOMINATOR = 10000;
+
+const feeAmount = volume * (FEE_BPS / FEE_BPS_DENOMINATOR); // = volume * 0.0055
 ```
 
 ### Asset ID Format
 
 Always use CAIP format:
+
 ```typescript
 // EVM native
 `eip155:${chainId}/slip44:${slip44}`
-
 // EVM ERC20
 `eip155:${chainId}/erc20:${address.toLowerCase()}`
-
 // Cosmos native
 `cosmos:${chainName}/slip44:${slip44}`
-
 // Solana native
-`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`
+`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`;
 ```
 
 ### Caching Rules
@@ -1000,6 +1082,7 @@ Before marking the integration complete:
 Key files to reference during implementation:
 
 **ShapeShift Swapper Implementations (for Step 0):**
+
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/` - All swapper implementations
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/ThorchainSwapper/` - Treasury address example
 - `/home/sean/Repos/shapeshift/packages/swapper/src/swappers/ZrxSwapper/` - API key example
@@ -1008,6 +1091,7 @@ Key files to reference during implementation:
 - `/home/sean/Repos/shapeshift/.env` - **RPC proxy endpoints** for on-chain queries
 
 **Backend (Revenue Dashboard):**
+
 - `apps/revenue-api/src/affiliateRevenue/thorchain/thorchain.ts` - Simple API (base units)
 - `apps/revenue-api/src/affiliateRevenue/bebop/bebop.ts` - **Decimal conversion example** ⭐
 - `apps/revenue-api/src/affiliateRevenue/zrx/zrx.ts` - **Decimal conversion example** ⭐
@@ -1019,8 +1103,10 @@ Key files to reference during implementation:
 - `apps/revenue-api/src/affiliateRevenue/utils.ts` - **`decimalToBaseUnit()` utility** ⭐
 
 **Frontend:**
+
 - `apps/revenue-dashboard/src/constants/services.ts` - Service display configuration
 - `apps/revenue-dashboard/src/types/index.ts` - TypeScript types
 
 **Documentation:**
+
 - `README.md` - Environment variables, architecture
