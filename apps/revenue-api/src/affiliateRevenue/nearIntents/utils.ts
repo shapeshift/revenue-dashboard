@@ -92,12 +92,13 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
 
   // NEP245 format: nep245:VERSION.CONTRACT:CHAIN_SUFFIX
   // Example: nep245:v2_1.omni.hot.tg:56_2CMMyVTGZkeyNZTSvS5sarzfir6g
-  const nep245Pattern = new RegExp(`^nep245:(v\\d+_\\d+)\\.${NEP245_CONTRACT_IDENTIFIER}:(\\d+)_(.+)$`)
+  // Native tokens may use an empty suffix (`:1117_`) or an all-1s suffix (`:56_111...`).
+  const nep245Pattern = new RegExp(`^nep245:(v\\d+_\\d+)\\.${NEP245_CONTRACT_IDENTIFIER}:(\\d+)_(.*)$`)
   const nep245Match = asset.match(nep245Pattern)
   if (nep245Match) {
     const version = nep245Match[1]
     const chainId = `eip155:${nep245Match[2]}`
-    const suffix = nep245Match[3]
+    const suffix = nep245Match[3] ?? ''
 
     // Warn if we see a version we haven't tested
     if (version !== SUPPORTED_NEP245_VERSION) {
@@ -106,10 +107,9 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
       )
     }
 
-    // Native token convention: suffix is all 1's (e.g., "11111111111111111111")
-    // This follows the pattern used by Solana (32 ones) and other blockchains
-    // to represent native/gas tokens without a contract address
-    const isNativeToken = /^1+$/.test(suffix)
+    // Native token conventions: empty suffix (`:1117_`) or all-1s (`:56_111...`).
+    // The all-1s pattern follows Solana (32 ones) and other blockchains' native-token convention.
+    const isNativeToken = suffix === '' || /^1+$/.test(suffix)
 
     if (isNativeToken) {
       const slip44 = getSlip44ForChain(chainId)

@@ -15,7 +15,7 @@ import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
 
 import {
   BLOCK_ESTIMATION_BUFFER,
-  SHAPESHIFT_TREASURY,
+  DAO_STARKNET_TREASURY_ADDRESSES,
   STARKNET_BLOCK_TIME_SECONDS,
   STARKNET_CHAIN_ID,
   TRANSFER_SELECTOR,
@@ -49,7 +49,7 @@ const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Prom
         keys: [
           [TRANSFER_SELECTOR], // Transfer events only
           [], // from: any (empty array is wildcard)
-          [SHAPESHIFT_TREASURY], // to: treasury only
+          DAO_STARKNET_TREASURY_ADDRESSES, // to: treasury (Starknet OR-matches inside the inner array)
         ],
         chunk_size: 1000,
         continuation_token: continuationToken,

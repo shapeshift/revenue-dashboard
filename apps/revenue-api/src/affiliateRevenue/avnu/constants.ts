@@ -1,7 +1,9 @@
 import { STARKNET_CHAIN_ID } from '../constants'
 
-// ShapeShift treasury on Starknet (receives affiliate fees) - pre-normalized
-export const SHAPESHIFT_TREASURY = '0x052a1132ea4db81bde863afb18a4d4ce5de9d3efdfda6b3daa6484e26425d467'
+export const DAO_STARKNET_TREASURY_ADDRESSES = [
+  '0x052a1132ea4db81bde863afb18a4d4ce5de9d3efdfda6b3daa6484e26425d467',
+  '0x07ac2252f2da7cbf085e7a5ddc1318243aa818607cdd430dd2e17dd5d487606a',
+]
 
 // AVNU Exchange contract (sends affiliate fees) - pre-normalized
 export const AVNU_EXCHANGE = '0x04270219d365d6b017231b52e92b3fb5d7c8378b05e9abc97724537a80e93b0f'
