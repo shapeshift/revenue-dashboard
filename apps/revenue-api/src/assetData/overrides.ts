@@ -18,4 +18,15 @@ export const ASSET_OVERRIDES: Record<string, Asset> = {
     color: '',
     icon: '',
   },
+
+  // Expanse native EXP
+  'eip155:2/slip44:60': {
+    assetId: 'eip155:2/slip44:60',
+    chainId: 'eip155:2',
+    symbol: 'EXP',
+    precision: 18,
+    name: 'Expanse',
+    color: '',
+    icon: '',
+  },
 }

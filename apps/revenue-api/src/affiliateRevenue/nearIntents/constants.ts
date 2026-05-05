@@ -3,10 +3,12 @@ import {
   AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
   BITCOIN_CHAIN_ID,
+  BITCOINCASH_CHAIN_ID,
   BSC_CHAIN_ID,
   DOGECOIN_CHAIN_ID,
   ETHEREUM_CHAIN_ID,
   GNOSIS_CHAIN_ID,
+  MONAD_CHAIN_ID,
   NEAR_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
   POLYGON_CHAIN_ID,
@@ -19,9 +21,12 @@ import {
 } from '../constants'
 
 export const NEAR_INTENTS_API_KEY = process.env.NEAR_INTENTS_API_KEY
-export const DAO_TREASURY_NEAR = 'f471d0b0f90593d85125f38aaf5458748d6f23fd5b437b844d293d8e87557070'
-
 if (!NEAR_INTENTS_API_KEY) throw new Error('NEAR_INTENTS_API_KEY env var not set')
+
+export const DAO_NEAR_TREASURY_ADDRESSES = [
+  'f471d0b0f90593d85125f38aaf5458748d6f23fd5b437b844d293d8e87557070',
+  'shapeshifttokenomics.sputnik-dao.near',
+]
 
 export const NEAR_INTENTS_TO_CHAIN_ID: Record<string, string> = {
   eth: ETHEREUM_CHAIN_ID,
@@ -33,6 +38,7 @@ export const NEAR_INTENTS_TO_CHAIN_ID: Record<string, string> = {
   avax: AVALANCHE_CHAIN_ID,
   op: OPTIMISM_CHAIN_ID,
   btc: BITCOIN_CHAIN_ID,
+  bch: BITCOINCASH_CHAIN_ID,
   doge: DOGECOIN_CHAIN_ID,
   zec: ZCASH_CHAIN_ID,
   sol: SOLANA_CHAIN_ID,
@@ -40,11 +46,12 @@ export const NEAR_INTENTS_TO_CHAIN_ID: Record<string, string> = {
   sui: SUI_CHAIN_ID,
   near: NEAR_CHAIN_ID,
   starknet: STARKNET_CHAIN_ID,
-  monad: 'eip155:143',
+  monad: MONAD_CHAIN_ID,
 }
 
 export const SLIP44_BY_NETWORK: Record<string, number> = {
   btc: SLIP44.BITCOIN,
+  bch: SLIP44.BITCOINCASH,
   doge: SLIP44.DOGECOIN,
   zec: SLIP44.ZCASH,
   near: SLIP44.NEAR,

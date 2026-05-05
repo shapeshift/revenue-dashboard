@@ -10,6 +10,7 @@ export const DAO_TREASURY_BASE = '0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502'
 
 // CAIP-2 Chain IDs (non-EVM chains that need explicit mapping)
 export const BITCOIN_CHAIN_ID = 'bip122:000000000019d6689c085ae165831e93'
+export const BITCOINCASH_CHAIN_ID = 'bip122:000000000000000000651ef99cb9fcbe'
 export const DOGECOIN_CHAIN_ID = 'bip122:00000000001a91e3dace36e2be3bf030'
 export const ZCASH_CHAIN_ID = 'bip122:00040fe8ec8471911baa1db1266ea15d'
 export const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'
@@ -18,7 +19,7 @@ export const SUI_CHAIN_ID = 'sui:35834a8a'
 export const THORCHAIN_CHAIN_ID = 'cosmos:thorchain-1'
 export const MAYACHAIN_CHAIN_ID = 'cosmos:mayachain-mainnet-v1'
 export const NEAR_CHAIN_ID = 'near:mainnet'
-export const STARKNET_CHAIN_ID = 'starknet:sn_main'
+export const STARKNET_CHAIN_ID = 'starknet:SN_MAIN'
 
 // EVM Chain IDs (CAIP-2 format)
 export const ETHEREUM_CHAIN_ID = 'eip155:1'
@@ -30,6 +31,7 @@ export const BASE_CHAIN_ID = 'eip155:8453'
 export const MAP_CHAIN_ID = 'eip155:22776'
 export const ARBITRUM_CHAIN_ID = 'eip155:42161'
 export const AVALANCHE_CHAIN_ID = 'eip155:43114'
+export const MONAD_CHAIN_ID = 'eip155:143'
 
 // ButterSwap on MAP Protocol
 export const BUTTERSWAP_CONTRACT = '0x4De2ADb9cB88c10Bf200F76c18035cbB8906b6bC'
@@ -40,6 +42,7 @@ export const BUTTERSWAP_AFFILIATE_ID = 26
 // Slip44 coin type values for native assets
 export const SLIP44 = {
   BITCOIN: 0,
+  BITCOINCASH: 145,
   DOGECOIN: 3,
   ETHEREUM: 60,
   ZCASH: 133,

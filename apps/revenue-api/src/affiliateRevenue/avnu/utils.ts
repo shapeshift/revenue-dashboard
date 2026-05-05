@@ -1,6 +1,6 @@
 import { createRpcCaller } from '../utils/rpcCall'
 
-import { AVNU_EXCHANGE, SHAPESHIFT_TREASURY, STARKNET_CHAIN_ID, STARKNET_RPC_URL } from './constants'
+import { AVNU_EXCHANGE, DAO_STARKNET_TREASURY_ADDRESSES, STARKNET_CHAIN_ID, STARKNET_RPC_URL } from './constants'
 import type { StarknetEvent } from './types'
 
 export const rpcCall = createRpcCaller(STARKNET_RPC_URL, 30000)
@@ -27,11 +27,11 @@ export const buildAssetId = (tokenAddress: string): string => {
 export const isAvnuTransfer = (event: StarknetEvent): boolean => {
   // keys[0] = Transfer selector (checked by query)
   // keys[1] = from (should be AVNU Exchange)
-  // keys[2] = to (should be ShapeShift Treasury)
+  // keys[2] = to (should be one of treasury addresses)
   // Constants are pre-normalized, only need to normalize event keys
   return (
     event.keys.length >= 3 &&
     normalizeStarknetAddress(event.keys[1]) === AVNU_EXCHANGE &&
-    normalizeStarknetAddress(event.keys[2]) === SHAPESHIFT_TREASURY
+    DAO_STARKNET_TREASURY_ADDRESSES.includes(normalizeStarknetAddress(event.keys[2]))
   )
 }

@@ -15,7 +15,7 @@ import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { calculateFee } from '../utils'
 
-import { DAO_TREASURY_NEAR, NEAR_INTENTS_API_KEY } from './constants'
+import { DAO_NEAR_TREASURY_ADDRESSES, NEAR_INTENTS_API_KEY } from './constants'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 
@@ -56,7 +56,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       const txHash = transaction.originChainTxHashes[0] || transaction.nearTxHashes[0] || transaction.intentHashes || ''
 
       for (const appFee of transaction.appFees) {
-        if (appFee.recipient !== DAO_TREASURY_NEAR) {
+        if (!DAO_NEAR_TREASURY_ADDRESSES.includes(appFee.recipient)) {
           continue
         }
 
