@@ -1,190 +1,40 @@
-import { LRUCache } from 'lru-cache'
+import { ASSET_OVERRIDES } from './overrides'
+import type { Asset } from './types'
+import { fetchAssetData, fetchCoingeckoAsset } from './utils'
 
-import { COINGECKO_CHAINS } from '../affiliateRevenue/constants'
+export class AssetDataService {
+  private assetData = new Map<string, Asset>()
 
-import { DiskCache } from './cache'
-import { decodeAssetData } from './decodeAssetData'
-import { fetchAssetData } from './fetcher'
-import { MANUAL_ASSETS } from './manualAssets'
-import type { StaticAsset } from './types'
+  static async initialize(): Promise<AssetDataService> {
+    const service = new AssetDataService()
 
-type LoadState = 'uninitialized' | 'loading' | 'loaded' | 'failed'
-
-// Module-level state
-let loadState: LoadState = 'uninitialized'
-let assetData: Map<string, StaticAsset> | null = null
-let loadPromise: Promise<void> | null = null
-
-const cache = new DiskCache()
-const coingeckoDecimalsCache = new LRUCache<string, { decimals: number | null }>({
-  max: 1000,
-  ttl: 1000 * 60 * 60 * 24,
-})
-
-// Runtime validation helper for CoinGecko API response
-const isValidCoinGeckoResponse = (
-  data: unknown
-): data is {
-  detail_platforms?: Record<string, { decimal_place?: number }>
-} => {
-  if (typeof data !== 'object' || data === null) return false
-  if (!('detail_platforms' in data)) return true // detail_platforms is optional
-
-  const platforms = (data as { detail_platforms?: unknown }).detail_platforms
-  if (typeof platforms !== 'object' || platforms === null) return false
-
-  return true
-}
-
-export async function ensureLoadedAsync(): Promise<void> {
-  if (loadState === 'loaded') return
-
-  if (loadState === 'loading') {
-    await loadPromise
-    return
-  }
-
-  loadState = 'loading'
-  loadPromise = load()
-
-  try {
-    await loadPromise
-    loadState = 'loaded'
-  } catch (error) {
-    console.warn('[AssetDataService] Load failed, using fallback data:', error)
-    loadState = 'failed'
-    loadFromFallback()
-  }
-}
-
-export function getAsset(assetId: string): StaticAsset | undefined {
-  const asset = assetData?.get(assetId)
-  if (asset) return asset
-
-  return MANUAL_ASSETS[assetId.toLowerCase()]
-}
-
-export async function getAssetDecimals(assetId: string, useCoinGeckoFallback = true): Promise<number> {
-  // Check MANUAL_ASSETS first to allow overriding incorrect data from main database
-  const manualAsset = MANUAL_ASSETS[assetId.toLowerCase()]
-  if (manualAsset) {
-    return manualAsset.precision
-  }
-
-  const mainAsset = assetData?.get(assetId)
-  if (mainAsset) return mainAsset.precision
-
-  if (useCoinGeckoFallback) {
-    const cgDecimals = await fetchDecimalsFromCoingecko(assetId)
-    if (cgDecimals !== null) {
-      console.log(`[AssetDataService] Got decimals from CoinGecko for ${assetId}: ${cgDecimals}`)
-      return cgDecimals
-    }
-  }
-
-  return 18
-}
-
-async function fetchDecimalsFromCoingecko(assetId: string): Promise<number | null> {
-  const cached = coingeckoDecimalsCache.get(assetId)
-  if (cached !== undefined) return cached.decimals
-
-  try {
-    const [chainPart, tokenPart] = assetId.split('/')
-    if (!tokenPart?.startsWith('erc20:')) return null
-
-    const address = tokenPart.replace('erc20:', '')
-    const chainId = chainPart.split(':')[1]
-
-    const chainInfo = COINGECKO_CHAINS[chainId]
-    if (!chainInfo) return null
-
-    const platform = chainInfo.platform
-
-    const url = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${address}`
-    const response = await fetch(url)
-
-    if (!response.ok) {
-      // Only cache 404 (asset not found) - don't cache 5xx or other errors
-      if (response.status === 404) {
-        coingeckoDecimalsCache.set(assetId, { decimals: null })
-      }
-      return null
+    try {
+      const assetData = await fetchAssetData()
+      service.assetData = new Map(Object.entries(assetData))
+      console.log(`[AssetDataService] Initialization succeeded (${service.assetData.size} assets)`)
+    } catch (error) {
+      console.warn(`[AssetDataService] Initialization failed: ${error}`)
     }
 
-    const rawData = await response.json()
-
-    if (!isValidCoinGeckoResponse(rawData)) {
-      console.warn('[AssetDataService] Invalid response from CoinGecko API')
-      return null
+    for (const [assetId, asset] of Object.entries(ASSET_OVERRIDES)) {
+      service.assetData.set(assetId, asset)
     }
 
-    const decimals = rawData.detail_platforms?.[platform]?.decimal_place
+    return service
+  }
 
-    if (typeof decimals === 'number') {
-      console.log(`[AssetDataService] Got decimals from CoinGecko for ${assetId}: ${decimals}`)
-      coingeckoDecimalsCache.set(assetId, { decimals })
-      return decimals
+  async getAsset(assetId: string): Promise<Asset | undefined> {
+    const existing = this.assetData.get(assetId)
+    if (existing) return existing
+
+    const asset = await fetchCoingeckoAsset(assetId)
+    if (asset) {
+      this.assetData.set(assetId, asset)
+      return asset
     }
 
-    coingeckoDecimalsCache.set(assetId, { decimals: null })
-    return null
-  } catch (error) {
-    // Don't cache network errors - let them retry
-    console.warn('[AssetDataService] Network error fetching decimals:', error)
-    return null
+    console.warn(`[AssetDataService] Asset not found: ${assetId}`)
   }
 }
 
-export function isLoaded(): boolean {
-  return loadState === 'loaded'
-}
-
-export async function reload(): Promise<void> {
-  loadState = 'uninitialized'
-  assetData = null
-  loadPromise = null
-  await ensureLoadedAsync()
-}
-
-async function load(): Promise<void> {
-  if (await loadFromCache()) {
-    console.log('[AssetDataService] Loaded from cache')
-    return
-  }
-
-  if (await loadFromNetwork()) {
-    console.log('[AssetDataService] Loaded from network')
-    return
-  }
-
-  console.warn('[AssetDataService] Using fallback defaults')
-  loadFromFallback()
-}
-
-async function loadFromCache(): Promise<boolean> {
-  const cachedData = await cache.get()
-  if (!cachedData) return false
-
-  const { assetData: decodedAssets } = decodeAssetData(cachedData)
-  assetData = new Map(Object.entries(decodedAssets))
-  return true
-}
-
-async function loadFromNetwork(): Promise<boolean> {
-  try {
-    const encodedData = await fetchAssetData()
-    const { assetData: decodedAssets } = decodeAssetData(encodedData)
-    assetData = new Map(Object.entries(decodedAssets))
-
-    await cache.set(encodedData)
-    return true
-  } catch (error) {
-    console.warn('[AssetDataService] Network fetch failed:', error)
-    return false
-  }
-}
-
-function loadFromFallback(): void {
-  assetData = new Map()
-}
+export const assetDataService = await AssetDataService.initialize()

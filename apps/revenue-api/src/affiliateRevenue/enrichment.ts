@@ -1,4 +1,4 @@
-import { assetDataService } from '../utils/assetDataService'
+import { assetDataService } from '../assetData/AssetDataService'
 
 import { getBulkAssetPrices } from './priceCache'
 
@@ -43,21 +43,15 @@ export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> => 
         fee.originalUsdValue = fee.amountUsd
       }
 
-      // Calculate NEW amountUsd from live prices
-      if (price !== null && price !== undefined) {
-        const decimals = await assetDataService.getAssetDecimals(fee.assetId)
-        const amountDecimal = Number(fee.amount) / 10 ** decimals
-        const calculatedUsd = (amountDecimal * price).toString()
+      const asset = await assetDataService.getAsset(fee.assetId)
 
-        fee.amountUsd = calculatedUsd
+      // Calculate NEW amountUsd from live prices when we know the asset's decimals
+      if (price !== null && price !== undefined && asset) {
+        const amountDecimal = Number(fee.amount) / 10 ** asset.precision
+        fee.amountUsd = (amountDecimal * price).toString()
       } else {
-        // Fallback to originalUsdValue (what integration calculated)
-        if (fee.originalUsdValue) {
-          fee.amountUsd = fee.originalUsdValue
-        } else {
-          // No price AND no original value - set undefined
-          fee.amountUsd = undefined
-        }
+        // No price or unknown asset - fall back to what the integration calculated
+        fee.amountUsd = fee.originalUsdValue
       }
 
       return fee

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 import type { Fees } from '..'
-import { assetDataService } from '../../utils/assetDataService'
+import { assetDataService } from '../../assetData/AssetDataService'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -47,10 +47,12 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
             ? `${chainId}/slip44:${getSlip44ForChain(chainId)}`
             : `${chainId}/erc20:${token}`
 
+        const asset = await assetDataService.getAsset(assetId)
+        if (!asset) continue
+
         // 0x API returns amounts in DECIMAL format (e.g., "2.5" USDC, not "2500000" wei)
         // Convert to wei (smallest units) for consistency with other integrations
-        const decimals = await assetDataService.getAssetDecimals(assetId)
-        const amountInWei = decimalToBaseUnit(rawAmount, decimals)
+        const amountInWei = decimalToBaseUnit(rawAmount, asset.precision)
 
         fees.push({
           chainId,

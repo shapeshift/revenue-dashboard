@@ -1,9 +1,9 @@
 import axios from 'axios'
 
+import { assetDataService } from '../assetData/AssetDataService'
 import { bnOrZero } from '../lib/bignumber'
 import type { AffiliateRevenueResponse, AssetRevenue, Service } from '../types'
 import { services } from '../types'
-import { assetDataService } from '../utils/assetDataService'
 
 import * as avnu from './avnu'
 import * as bebop from './bebop'
@@ -121,8 +121,6 @@ const getOrCreateAssetRevenue = (
 
 export class AffiliateRevenue {
   async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
-    await assetDataService.ensureLoadedAsync()
-
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 
@@ -157,13 +155,10 @@ export class AffiliateRevenue {
     for (const fee of fees) {
       const date = timestampToDate(fee.timestamp)
       const amountUsd = parseFloat(fee.amountUsd || '0')
-      const asset = assetDataService.getAsset(fee.assetId)
+      const asset = await assetDataService.getAsset(fee.assetId)
 
       const symbol = asset?.symbol || 'UNKNOWN'
-
-      // Use the same getAssetDecimals() that providers use to ensure consistency
-      // IMPORTANT: Must use same parameters as providers (useCoinGeckoFallback = true by default)
-      const decimals = await assetDataService.getAssetDecimals(fee.assetId)
+      const decimals = asset?.precision ?? 18
 
       const chainName = getChainName(fee.chainId)
 
