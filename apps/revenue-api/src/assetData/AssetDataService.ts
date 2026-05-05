@@ -1,3 +1,4 @@
+import { ASSET_OVERRIDES } from './overrides'
 import type { Asset } from './types'
 import { fetchAssetData, fetchCoingeckoAsset } from './utils'
 
@@ -13,6 +14,10 @@ export class AssetDataService {
       console.log(`[AssetDataService] Initialization succeeded (${service.assetData.size} assets)`)
     } catch (error) {
       console.warn(`[AssetDataService] Initialization failed: ${error}`)
+    }
+
+    for (const [assetId, asset] of Object.entries(ASSET_OVERRIDES)) {
+      service.assetData.set(assetId, asset)
     }
 
     return service

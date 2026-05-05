@@ -84,4 +84,5 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   '8453': { platform: 'base', nativeCoinId: 'ethereum' },
   '42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
   '43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
+  '22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
 }
