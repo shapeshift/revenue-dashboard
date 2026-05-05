@@ -9,7 +9,8 @@ logs
 *.log
 
 # Environment
-.env
+.env*
+!.env.example
 
 # Editor / IDE
 .vscode/*

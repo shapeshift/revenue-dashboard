@@ -20,13 +20,10 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "skipLibCheck": true,
+    "noEmit": true,
 
     "jsx": "react-jsx"
   },
   "include": ["*.ts", "*.mts", "*.js", "*.mjs"],
-  "exclude": ["dist", "node_modules"],
-  "references": [
-    { "path": "./apps/revenue-api" },
-    { "path": "./apps/revenue-dashboard" }
-  ]
+  "exclude": ["dist", "node_modules"]
 }

@@ -1,8 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo",
     "types": ["vite/client"]
   },
   "include": ["src", "vite.config.ts"],

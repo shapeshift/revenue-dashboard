@@ -1,8 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo",
     "types": ["bun"],
     "noUncheckedIndexedAccess": false
   },
