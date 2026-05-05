@@ -185,7 +185,7 @@ export class AffiliateRevenue {
 
       // Daily asset aggregation
       const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
-      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
+      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
       dailyAsset.amountUsd += amountUsd
       dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       dailyAsset.feeCount += 1
@@ -194,7 +194,7 @@ export class AffiliateRevenue {
 
       // Global asset aggregation
       const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
-      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(18)
+      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
       globalAsset.amountUsd += amountUsd
       globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
       globalAsset.feeCount += 1
