@@ -53,7 +53,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
         const currencyObject = request.data?.appFeeCurrencyObject
         if (!currencyObject) {
-          console.warn(`[relay] Skipped fee - missing currencyIn`, { requestId: request.id })
+          console.warn(`[relay] Skipped fee - missing appFeeCurrencyObject`, { requestId: request.id })
           continue
         }
 
