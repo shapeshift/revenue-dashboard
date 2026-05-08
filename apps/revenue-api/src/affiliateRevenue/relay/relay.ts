@@ -18,7 +18,7 @@ import type { RelayResponse } from './types'
 import { buildAssetId, getChainConfig } from './utils'
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  return withRetry(async () => {
+  return withRetry('relay', async () => {
     const fees: Fees[] = []
     let continuation: string | undefined
     const chainConfigCache = new Map<number, ReturnType<typeof getChainConfig>>()

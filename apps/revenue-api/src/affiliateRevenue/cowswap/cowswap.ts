@@ -27,7 +27,7 @@ import type { BlockscoutInternalTxResponse } from './types'
  * Filters for transactions FROM CoW payout Safe TO ShapeShift treasury
  */
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  return withRetry(async () => {
+  return withRetry('cowswap', async () => {
     const fees: Fees[] = []
     let nextPageParams: Record<string, unknown> | null = null
     let pageCount = 0

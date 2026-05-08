@@ -20,7 +20,7 @@ import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 
 const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {
-  return withRetry(async () => {
+  return withRetry('nearIntents', async () => {
     const { data } = await axios.get<TransactionsResponse>(
       'https://explorer.near-intents.org/api/v0/transactions-pages',
       {
