@@ -42,7 +42,7 @@ export const fetchCoingeckoAsset = async (assetId: string): Promise<Asset | unde
 
     const chain = COINGECKO_CHAINS[chainId.split(':')[1]]
     if (!chain) {
-      console.log(`[AssetDataService] No CoinGecko chain found: ${chain} - add to COINGECKO_CHAINS`)
+      console.log(`[AssetDataService] No CoinGecko chain found: ${chainId} - add to COINGECKO_CHAINS`)
       return
     }
 

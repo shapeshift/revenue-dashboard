@@ -1,3 +1,5 @@
+import { IGNORED_CHAIN_IDS } from '../affiliateRevenue/constants'
+
 import { ASSET_OVERRIDES } from './overrides'
 import type { Asset } from './types'
 import { fetchAssetData, fetchCoingeckoAsset } from './utils'
@@ -26,6 +28,9 @@ export class AssetDataService {
   async getAsset(assetId: string): Promise<Asset | undefined> {
     const existing = this.assetData.get(assetId)
     if (existing) return existing
+
+    const chainId = assetId.split('/')[0] ?? ''
+    if (IGNORED_CHAIN_IDS.has(chainId)) return
 
     const asset = await fetchCoingeckoAsset(assetId)
     if (asset) {

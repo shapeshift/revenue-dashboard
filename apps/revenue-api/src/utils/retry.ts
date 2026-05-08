@@ -59,7 +59,7 @@ function calculateDelay(
   return cappedDelay
 }
 
-export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+export async function withRetry<T>(context: string, fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
   let lastError: unknown
 
@@ -84,7 +84,9 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions =
           ? error.message
           : String(error)
 
-      console.warn(`[retry] Attempt ${attempt + 1} failed (${errorMsg}), retrying after ${Math.round(delay)}ms`)
+      console.warn(
+        `[retry][${context}] Attempt ${attempt + 1} failed (${errorMsg}), retrying after ${Math.round(delay)}ms`
+      )
 
       await new Promise(resolve => setTimeout(resolve, delay))
     }

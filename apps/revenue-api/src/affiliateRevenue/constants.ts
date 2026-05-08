@@ -76,6 +76,14 @@ export const getAffiliateFeeRate = (timestamp?: number): number => {
 // Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
 export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
 
+// Chains we don't actively support — assets on these chains are silently skipped
+// for asset/price lookups (no warning logged). Used to suppress noise from
+// fringe chains advertised by bridges (e.g. NearIntents/HOT) where we don't
+// expect meaningful affiliate revenue.
+export const IGNORED_CHAIN_IDS: ReadonlySet<string> = new Set([
+  'eip155:1117', // Dogcoin Mainnet (DOGS) — surfaced via NearIntents NEP-245
+])
+
 // CoinGecko platform IDs and native coin IDs for each chain
 // Used for price lookups and token metadata
 export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {
@@ -84,6 +92,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   '56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
   '100': { platform: 'xdai', nativeCoinId: 'xdai' },
   '137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
+  '4217': { platform: 'tempo', nativeCoinId: '' },
   '8453': { platform: 'base', nativeCoinId: 'ethereum' },
   '42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
   '43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },

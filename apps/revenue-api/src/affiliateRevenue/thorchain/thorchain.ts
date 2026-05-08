@@ -30,7 +30,7 @@ const fetchRunePriceLookup = async (
 ): Promise<(timestamp: number) => number | undefined> => {
   const interval = selectInterval(startTimestamp, endTimestamp)
 
-  const { data } = await withRetry(() =>
+  const { data } = await withRetry('thorchain/midgard-runePrice', () =>
     axios.get<RunePriceHistory>(`${MIDGARD_BASE_URL}/history/rune`, {
       params: { from: startTimestamp, to: endTimestamp, interval },
     })
@@ -53,7 +53,7 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
 
   let offset = 0
   while (true) {
-    const { data } = await withRetry(() =>
+    const { data } = await withRetry('thorchain/midgard-actions', () =>
       axios.get<MidgardActionsResponse>(`${MIDGARD_BASE_URL}/actions`, {
         params: {
           affiliate: MIDGARD_AFFILIATE,

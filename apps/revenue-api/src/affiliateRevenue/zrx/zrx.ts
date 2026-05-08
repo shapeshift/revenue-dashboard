@@ -25,7 +25,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     let cursor: string | undefined
 
     do {
-      const { data } = await withRetry(() =>
+      const { data } = await withRetry(`zrx/${service}`, () =>
         axios.get<TradesResponse>(`${ZRX_API_URL}/${service}`, {
           params: { cursor, startTimestamp, endTimestamp },
           headers: {

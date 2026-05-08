@@ -83,11 +83,11 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
     return { chainId, assetId: buildAssetId(chainId, network) }
   }
 
-  const nep141NativeMatch = asset.match(/^nep141:(.+)\.near$/)
+  const nep141NativeMatch = asset.match(/^nep141:(.+\.near)$/)
   if (nep141NativeMatch) {
-    const tokenAddress = nep141NativeMatch[1]
+    const contractId = nep141NativeMatch[1]
     const chainId = resolveChainId('near') ?? 'near:mainnet'
-    return { chainId, assetId: `${chainId}/nep141:${tokenAddress}` }
+    return { chainId, assetId: `${chainId}/nep141:${contractId}` }
   }
 
   // NEP245 format: nep245:VERSION.CONTRACT:CHAIN_SUFFIX
@@ -126,6 +126,15 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
       console.warn(`[nearIntents] Could not decode token suffix: ${suffix}`)
       return { chainId, assetId: `${chainId}/unknown:${suffix}` }
     }
+  }
+
+  // 1CS (1-Click Swap) v1 native format: 1cs_v1:NETWORK:native:coin
+  // Example: 1cs_v1:btc:native:coin
+  const oneClickSwapNativeMatch = asset.match(/^1cs_v\d+:([a-z0-9]+):native:coin$/i)
+  if (oneClickSwapNativeMatch) {
+    const network = oneClickSwapNativeMatch[1]
+    const chainId = resolveChainId(network) ?? `unknown:${network}`
+    return { chainId, assetId: buildAssetId(chainId, network) }
   }
 
   const prefix = asset.split(':')[0] ?? 'unknown'
