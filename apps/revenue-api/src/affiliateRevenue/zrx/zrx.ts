@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import type { Fees } from '..'
 import { assetDataService } from '../../assetData/AssetDataService'
+import { bn } from '../../lib/bignumber'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -12,11 +13,92 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
+import { getAffiliateFeeRate } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
-import { decimalToBaseUnit, getSlip44ForChain, safeAmountToString } from '../utils'
+import { getAssetPriceUsd } from '../priceCache'
+import { baseUnitToTokenAmount, decimalToBaseUnit, getSlip44ForChain, safeAmountToString } from '../utils'
 
 import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
+
+type Trade = TradesResponse['trades'][number]
+
+const toAssetId = (chainId: string, token: string): string => {
+  return token.toLowerCase() === NATIVE_TOKEN_ADDRESS
+    ? `${chainId}/slip44:${getSlip44ForChain(chainId)}`
+    : `${chainId}/erc20:${token}`
+}
+
+// Decimal-format amounts virtually always carry a fractional part, while raw base-unit
+// amounts are whole numbers. Normalize through BigNumber first so scientific notation
+// classifies by its value (e.g. "1.74e-7" -> decimal, "1.4e+22" -> bare integer)
+const isBareInteger = (amount: string): boolean => !bn(amount).toFixed().includes('.')
+
+const getTradeVolumeUsd = async (trade: Trade): Promise<number | null> => {
+  const volumeUsd = parseFloat(safeAmountToString(trade.volumeUsd))
+  if (isFinite(volumeUsd) && volumeUsd > 0) return volumeUsd
+
+  // 0x didn't price the trade - derive volume from the sell side (the user's input, before
+  // fees and slippage) using our own price data. The sell amount can suffer the same format
+  // ambiguity as the fee amount, so apply the same bare-integer check.
+  const sellAmount = safeAmountToString(trade.sellAmount)
+  if (!sellAmount) return null
+
+  const sellAssetId = toAssetId(`eip155:${trade.chainId}`, trade.sellToken)
+  const sellAsset = await assetDataService.getAsset(sellAssetId)
+  const sellPrice = await getAssetPriceUsd(sellAssetId)
+
+  if (!sellAsset || sellPrice === null) return null
+
+  const sellTokenAmount = isBareInteger(sellAmount)
+    ? bn(baseUnitToTokenAmount(sellAmount, sellAsset.precision))
+    : bn(sellAmount)
+
+  const sellValueUsd = sellTokenAmount.times(sellPrice).toNumber()
+  return isFinite(sellValueUsd) && sellValueUsd > 0 ? sellValueUsd : null
+}
+
+// 0x returns integratorFee.amount in raw base units (instead of its usual decimal format)
+// for tokens it lacks metadata for. Work out which format we got by valuing the amount both
+// ways and keeping the interpretation closest to the expected fee (volume x affiliate bps).
+// The two readings differ by 10^precision, so the comparison is never a close call.
+// Returns the amount in base units, or null when there's no price/volume anchor to compare with.
+const resolveBareIntegerAmountToBaseUnits = async (
+  trade: Trade,
+  amount: string,
+  assetId: string,
+  precision: number
+): Promise<string | null> => {
+  const [price, volumeUsd] = await Promise.all([getAssetPriceUsd(assetId), getTradeVolumeUsd(trade)])
+
+  if (price === null || volumeUsd === null) {
+    console.warn(`[zrx] Skipped fee - bare-integer amount with no price/volume anchor to disambiguate`, {
+      txHash: trade.transactionHash,
+      assetId,
+      amount: amount,
+    })
+    return null
+  }
+
+  const expectedFeeUsd = volumeUsd * getAffiliateFeeRate(trade.timestamp)
+  const usdIfDecimal = bn(amount).times(price).toNumber()
+  const usdIfBaseUnits = bn(baseUnitToTokenAmount(amount, precision)).times(price).toNumber()
+
+  const isBaseUnits =
+    Math.abs(Math.log10(usdIfBaseUnits / expectedFeeUsd)) < Math.abs(Math.log10(usdIfDecimal / expectedFeeUsd))
+
+  console.warn(`[zrx] Disambiguated bare-integer integratorFee.amount`, {
+    txHash: trade.transactionHash,
+    assetId,
+    amount,
+    interpretation: isBaseUnits ? 'baseUnits' : 'decimal',
+    expectedFeeUsd,
+    usdIfDecimal,
+    usdIfBaseUnits,
+  })
+
+  return isBaseUnits ? amount : decimalToBaseUnit(amount, precision)
+}
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
@@ -42,17 +124,20 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         if (!rawAmount || !token) continue
 
         const chainId = `eip155:${trade.chainId}`
-        const assetId =
-          token.toLowerCase() === NATIVE_TOKEN_ADDRESS
-            ? `${chainId}/slip44:${getSlip44ForChain(chainId)}`
-            : `${chainId}/erc20:${token}`
+        const assetId = toAssetId(chainId, token)
 
         const asset = await assetDataService.getAsset(assetId)
         if (!asset) continue
 
-        // 0x API returns amounts in DECIMAL format (e.g., "2.5" USDC, not "2500000" wei)
-        // Convert to wei (smallest units) for consistency with other integrations
-        const amountInWei = decimalToBaseUnit(rawAmount, asset.precision)
+        // 0x normally returns amounts in decimal format (e.g., "2.5" USDC, not "2500000" wei),
+        // which we convert to base units for consistency with other integrations. But an
+        // unpriced, bare-integer amount may already be in base units and needs resolving first
+        const isSuspectBaseUnits = trade.fees.integratorFee?.amountUsd == null && isBareInteger(rawAmount)
+        const amountBaseUnits = isSuspectBaseUnits
+          ? await resolveBareIntegerAmountToBaseUnits(trade, rawAmount, assetId, asset.precision)
+          : decimalToBaseUnit(rawAmount, asset.precision)
+
+        if (!amountBaseUnits) continue
 
         fees.push({
           chainId,
@@ -60,7 +145,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
           service: 'zrx',
           txHash: trade.transactionHash,
           timestamp: trade.timestamp,
-          amount: amountInWei,
+          amount: amountBaseUnits,
           amountUsd: trade.fees.integratorFee?.amountUsd,
         })
       }
