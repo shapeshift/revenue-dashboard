@@ -84,6 +84,19 @@ const resolveBareIntegerAmountToBaseUnits = async (
   const usdIfDecimal = bn(amount).times(price).toNumber()
   const usdIfBaseUnits = bn(baseUnitToTokenAmount(amount, precision)).times(price).toNumber()
 
+  // a zero price (or garbage amount) leaves nothing to compare - log10(0) is -Infinity
+  if (!isFinite(usdIfDecimal) || !isFinite(usdIfBaseUnits) || usdIfDecimal <= 0 || usdIfBaseUnits <= 0) {
+    console.warn(`[zrx] Skipped fee - candidate USD values unusable for disambiguation`, {
+      txHash: trade.transactionHash,
+      assetId,
+      amount,
+      price,
+      usdIfDecimal,
+      usdIfBaseUnits,
+    })
+    return null
+  }
+
   const isBaseUnits =
     Math.abs(Math.log10(usdIfBaseUnits / expectedFeeUsd)) < Math.abs(Math.log10(usdIfDecimal / expectedFeeUsd))
 
