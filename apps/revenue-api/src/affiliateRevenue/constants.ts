@@ -20,6 +20,8 @@ export const THORCHAIN_CHAIN_ID = 'cosmos:thorchain-1'
 export const MAYACHAIN_CHAIN_ID = 'cosmos:mayachain-mainnet-v1'
 export const NEAR_CHAIN_ID = 'near:mainnet'
 export const STARKNET_CHAIN_ID = 'starknet:SN_MAIN'
+export const TON_CHAIN_ID = 'ton:mainnet'
+export const APTOS_CHAIN_ID = 'aptos:1'
 
 // EVM Chain IDs (CAIP-2 format)
 export const ETHEREUM_CHAIN_ID = 'eip155:1'
@@ -32,6 +34,7 @@ export const MAP_CHAIN_ID = 'eip155:22776'
 export const ARBITRUM_CHAIN_ID = 'eip155:42161'
 export const AVALANCHE_CHAIN_ID = 'eip155:43114'
 export const MONAD_CHAIN_ID = 'eip155:143'
+export const PLASMA_CHAIN_ID = 'eip155:9745'
 
 // ButterSwap on MAP Protocol
 export const BUTTERSWAP_CONTRACT = '0x4De2ADb9cB88c10Bf200F76c18035cbB8906b6bC'
@@ -56,6 +59,8 @@ export const SLIP44 = {
   MATIC: 966,
   AVAX: 9000,
   STARKNET: 9004,
+  TON: 607,
+  APTOS: 637,
 } as const
 
 // Affiliate fee BPS — changed from 55 to 60 on Feb 18 2026 (ShapeShift PR #11920)
@@ -76,25 +81,19 @@ export const getAffiliateFeeRate = (timestamp?: number): number => {
 // Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
 export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
 
-// Chains we don't actively support — assets on these chains are silently skipped
-// for asset/price lookups (no warning logged). Used to suppress noise from
-// fringe chains advertised by bridges (e.g. NearIntents/HOT) where we don't
-// expect meaningful affiliate revenue.
-export const IGNORED_CHAIN_IDS: ReadonlySet<string> = new Set([
-  'eip155:1117', // Dogcoin Mainnet (DOGS) — surfaced via NearIntents NEP-245
-])
-
-// CoinGecko platform IDs and native coin IDs for each chain
+// CoinGecko platform IDs and native coin IDs by CAIP-2 chain id
 // Used for price lookups and token metadata
 export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {
-  '1': { platform: 'ethereum', nativeCoinId: 'ethereum' },
-  '10': { platform: 'optimistic-ethereum', nativeCoinId: 'ethereum' },
-  '56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
-  '100': { platform: 'xdai', nativeCoinId: 'xdai' },
-  '137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
-  '4217': { platform: 'tempo', nativeCoinId: '' },
-  '8453': { platform: 'base', nativeCoinId: 'ethereum' },
-  '42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
-  '43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
-  '22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
+  'eip155:1': { platform: 'ethereum', nativeCoinId: 'ethereum' },
+  'eip155:10': { platform: 'optimistic-ethereum', nativeCoinId: 'ethereum' },
+  'eip155:56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
+  'eip155:100': { platform: 'xdai', nativeCoinId: 'xdai' },
+  'eip155:137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
+  'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
+  'eip155:4217': { platform: 'tempo', nativeCoinId: '' },
+  'eip155:8453': { platform: 'base', nativeCoinId: 'ethereum' },
+  'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },
+  'eip155:42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
+  'eip155:43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
+  'eip155:22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
 }

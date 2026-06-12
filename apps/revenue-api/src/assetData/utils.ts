@@ -34,38 +34,39 @@ export const fetchAssetData = async (): Promise<Record<string, Asset>> => {
 }
 
 export const fetchCoingeckoAsset = async (assetId: string): Promise<Asset | undefined> => {
-  try {
-    const [chainId, tokenPart] = assetId.split('/')
-    if (!chainId || !tokenPart?.startsWith('erc20:')) return
+  const [chainId, tokenPart] = assetId.split('/')
+  if (!chainId || !tokenPart?.startsWith('erc20:')) return
 
-    const address = tokenPart.replace('erc20:', '')
+  const address = tokenPart.replace('erc20:', '')
 
-    const chain = COINGECKO_CHAINS[chainId.split(':')[1]]
-    if (!chain) {
-      console.log(`[AssetDataService] No CoinGecko chain found: ${chainId} - add to COINGECKO_CHAINS`)
-      return
-    }
-
-    const platform = chain.platform
-
-    const url = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${address}`
-    const { data } = await axios.get<CoinGeckoCoinResponse>(url, { timeout: 30_000 })
-
-    const precision = data.detail_platforms?.[platform]?.decimal_place
-    if (typeof precision !== 'number') {
-      console.log(`[AssetDataService] No precision return from CoinGecko for: ${assetId}`)
-      return
-    }
-
-    const symbol = data.symbol?.toUpperCase() ?? ''
-
-    console.log(
-      `[AssetDataService] Asset fetched from CoinGecko: ${assetId} (symbol: ${symbol}, decimals: ${precision})`
-    )
-
-    return { assetId, chainId, symbol, precision, name: '', color: '', icon: '' }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn(`[AssetDataService] Asset not fetched from CoinGecko: ${assetId} (${message})`)
+  const chain = COINGECKO_CHAINS[chainId]
+  if (!chain) {
+    console.log(`[AssetDataService] No CoinGecko chain found: ${chainId} - add to COINGECKO_CHAINS`)
+    return
   }
+
+  const platform = chain.platform
+  const url = `https://api.proxy.shapeshift.com/api/v1/markets/coins/${platform}/contract/${address}`
+
+  let data: CoinGeckoCoinResponse
+  try {
+    ;({ data } = await axios.get<CoinGeckoCoinResponse>(url, {
+      timeout: 30_000,
+    }))
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return
+    throw error
+  }
+
+  const precision = data.detail_platforms?.[platform]?.decimal_place
+  if (typeof precision !== 'number') {
+    console.log(`[AssetDataService] No precision return from CoinGecko for: ${assetId}`)
+    return
+  }
+
+  const symbol = data.symbol?.toUpperCase() ?? ''
+
+  console.log(`[AssetDataService] Asset fetched from CoinGecko: ${assetId} (symbol: ${symbol}, decimals: ${precision})`)
+
+  return { assetId, chainId, symbol, precision, name: '', color: '', icon: '' }
 }

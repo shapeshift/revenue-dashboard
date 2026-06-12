@@ -2,9 +2,6 @@ import axios from 'axios'
 import { LRUCache } from 'lru-cache'
 
 import * as coingeckoMappingService from './coingeckoMappingService'
-import { IGNORED_CHAIN_IDS } from './constants'
-
-const isIgnoredAssetId = (assetId: string): boolean => IGNORED_CHAIN_IDS.has(assetId.split('/')[0] ?? '')
 
 const PRICE_CACHE_TTL = 1000 * 60 * 10 // 10 minutes
 const PRICE_API_URL = 'https://api.proxy.shapeshift.com/api/v1/markets/simple/price'
@@ -42,9 +39,7 @@ export const getBulkAssetPrices = async (assetIds: string[]): Promise<Map<string
       coingeckoIds.add(coingeckoId)
       assetIdToCoingeckoId.set(assetId, coingeckoId)
     } else {
-      if (!isIgnoredAssetId(assetId)) {
-        console.warn(`[PriceCache] No CoinGecko mapping for ${assetId} - add to MANUAL_COINGECKO_MAPPINGS`)
-      }
+      console.warn(`[PriceCache] No CoinGecko mapping for ${assetId} - add to MANUAL_COINGECKO_MAPPINGS`)
       result.set(assetId, null)
     }
   }
@@ -67,7 +62,7 @@ export const getBulkAssetPrices = async (assetIds: string[]): Promise<Map<string
       result.set(assetId, price)
       if (price !== null) {
         priceCache.set(assetId, price)
-      } else if (!isIgnoredAssetId(assetId)) {
+      } else {
         console.warn(`[PriceCache] CoinGecko returned no USD price for ${assetId} (coingeckoId: ${coingeckoId})`)
       }
     }

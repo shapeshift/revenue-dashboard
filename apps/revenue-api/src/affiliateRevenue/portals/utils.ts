@@ -47,8 +47,7 @@ export const getTokenPrice = async (chainId: string, tokenAddress: string): Prom
   }
 
   try {
-    const networkId = chainId.split(':')[1]
-    const chainConfig = COINGECKO_CHAINS[networkId]
+    const chainConfig = COINGECKO_CHAINS[chainId]
     if (!chainConfig) return null
 
     const tokenLower = tokenAddress.toLowerCase()
@@ -63,9 +62,9 @@ export const getTokenPrice = async (chainId: string, tokenAddress: string): Prom
       return price
     }
 
-    const { data } = await axios.get<{ market_data?: { current_price?: { usd?: number } } }>(
-      `${COINGECKO_API_BASE}/coins/${chainConfig.platform}/contract/${tokenLower}`
-    )
+    const { data } = await axios.get<{
+      market_data?: { current_price?: { usd?: number } }
+    }>(`${COINGECKO_API_BASE}/coins/${chainConfig.platform}/contract/${tokenLower}`)
     const price = data.market_data?.current_price?.usd ?? null
     priceCache[cacheKey] = { price, timestamp: Date.now() }
     return price
