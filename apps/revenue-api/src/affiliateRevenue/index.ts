@@ -63,6 +63,8 @@ const chainMap: Record<string, string> = {
   'sui:35834a8a': 'Sui',
   'near:mainnet': 'Near',
   'starknet:SN_MAIN': 'Starknet',
+  'ton:mainnet': 'TON',
+  'aptos:1': 'Aptos',
 
   // Cosmos chains
   'cosmos:thorchain-1': 'THORChain',
@@ -121,6 +123,8 @@ const getOrCreateAssetRevenue = (
 
 export class AffiliateRevenue {
   async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
+    assetDataService.resetMissLog()
+
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 

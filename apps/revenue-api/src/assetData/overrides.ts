@@ -51,4 +51,38 @@ export const ASSET_OVERRIDES: Record<string, Asset> = {
     color: '',
     icon: '',
   },
+
+  // StarkGate: STRK Token
+  'starknet:SN_MAIN/token:0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d': {
+    assetId: 'starknet:SN_MAIN/token:0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d',
+    chainId: 'starknet:SN_MAIN',
+    symbol: 'STRK',
+    precision: 18,
+    name: 'Starknet Token',
+    color: '',
+    icon: '',
+  },
+
+  // Native APT on Aptos
+  'aptos:1/slip44:637': {
+    assetId: 'aptos:1/slip44:637',
+    chainId: 'aptos:1',
+    symbol: 'APT',
+    precision: 8,
+    name: 'Aptos',
+    color: '',
+    icon: '',
+  },
+
+  // DOT on Ethereum — 10 decimals on-chain; the CoinGecko fallback would
+  // wrongly report 18 (the decimals of polkadot's canonical contract)
+  'eip155:1/erc20:0x196c20da81fbc324ecdf55501e95ce9f0bd84d14': {
+    assetId: 'eip155:1/erc20:0x196c20da81fbc324ecdf55501e95ce9f0bd84d14',
+    chainId: 'eip155:1',
+    symbol: 'DOT',
+    precision: 10,
+    name: 'Polkadot',
+    color: '',
+    icon: '',
+  },
 }

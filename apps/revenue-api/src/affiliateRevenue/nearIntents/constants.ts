@@ -1,4 +1,5 @@
 import {
+  APTOS_CHAIN_ID,
   ARBITRUM_CHAIN_ID,
   AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
@@ -11,11 +12,13 @@ import {
   MONAD_CHAIN_ID,
   NEAR_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
+  PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
   SLIP44,
   SOLANA_CHAIN_ID,
   STARKNET_CHAIN_ID,
   SUI_CHAIN_ID,
+  TON_CHAIN_ID,
   TRON_CHAIN_ID,
   ZCASH_CHAIN_ID,
 } from '../constants'
@@ -47,6 +50,9 @@ export const NEAR_INTENTS_TO_CHAIN_ID: Record<string, string> = {
   near: NEAR_CHAIN_ID,
   starknet: STARKNET_CHAIN_ID,
   monad: MONAD_CHAIN_ID,
+  aptos: APTOS_CHAIN_ID,
+  ton: TON_CHAIN_ID,
+  plasma: PLASMA_CHAIN_ID,
 }
 
 export const SLIP44_BY_NETWORK: Record<string, number> = {
@@ -59,4 +65,30 @@ export const SLIP44_BY_NETWORK: Record<string, number> = {
   tron: SLIP44.TRON,
   sui: SLIP44.SUI,
   starknet: SLIP44.STARKNET,
+  aptos: SLIP44.APTOS,
+  ton: SLIP44.TON,
+}
+
+// HOT bridge (omni.hot.tg) chain numbers → chain ids and slip44
+export const HOT_BRIDGE_CHAINS: Record<string, { chainId: string; slip44: number }> = {
+  '1': { chainId: ETHEREUM_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '10': { chainId: OPTIMISM_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '56': { chainId: BSC_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '100': { chainId: GNOSIS_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '137': { chainId: POLYGON_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '143': { chainId: MONAD_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '8453': { chainId: BASE_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '9745': { chainId: PLASMA_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '42161': { chainId: ARBITRUM_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '43114': { chainId: AVALANCHE_CHAIN_ID, slip44: SLIP44.ETHEREUM },
+  '1117': { chainId: TON_CHAIN_ID, slip44: SLIP44.TON },
+}
+
+// Known HOT bridge token ids (`<chainNumber>_<suffix>`) → assetIds. Non-EVM
+// suffixes encode chain-specific values that can't be decoded to canonical token
+// ids offline (e.g. TON suffixes decode to the bridge's jetton *wallet*, not the
+// jetton master) — map known ones explicitly
+export const HOT_BRIDGE_TOKENS: Record<string, string> = {
+  // USD₮ on TON
+  '1117_3tsdfyziyc7EJbP2aULWSKU4toBaAcN4FdTgfm5W1mC4ouR': `${TON_CHAIN_ID}/jetton:EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs`,
 }

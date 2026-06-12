@@ -2,9 +2,18 @@
 // Use this for tokens that are 1:1 pegged to other assets or need manual price overrides
 
 export const MANUAL_COINGECKO_MAPPINGS: Record<string, string> = {
+  // Ethereum
+  'eip155:1/erc20:0x196c20da81fbc324ecdf55501e95ce9f0bd84d14': 'polkadot',
+
+  // Aptos
+  'aptos:1/slip44:637': 'aptos',
+
   // Near
   'near:mainnet/slip44:397': 'near',
   'near:mainnet/nep141:wrap.near': 'near',
+
+  // Pudgy Penguins (PENGU) bridged from Solana via Omni Deposit
+  'near:mainnet/nep141:sol-0xaad74c68eecfc9f8c5bdcea614f6167048c795ef.omdep.near': 'pudgy-penguins',
 
   // Expanse
   'eip155:2/slip44:60': 'marcopolo',

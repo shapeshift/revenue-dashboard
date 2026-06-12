@@ -2,7 +2,8 @@ import bs58 from 'bs58'
 
 import { getSlip44ForChain } from '../utils'
 
-import { NEAR_INTENTS_TO_CHAIN_ID, SLIP44_BY_NETWORK } from './constants'
+import { HOT_BRIDGE_CHAINS, HOT_BRIDGE_TOKENS, NEAR_INTENTS_TO_CHAIN_ID, SLIP44_BY_NETWORK } from './constants'
+import { getRegistryToken } from './tokenRegistry'
 import type { ParseResult } from './types'
 
 // NEP245 parsing constants
@@ -23,15 +24,28 @@ export const buildAssetId = (chainId: string, network: string, tokenAddress?: st
     return tokenAddress ? `${chainId}/unknown:${tokenAddress}` : `${chainId}/native`
   }
 
-  if (chainId.startsWith('eip155:')) {
-    if (tokenAddress) {
-      return `${chainId}/erc20:${tokenAddress}`
+  if (tokenAddress) {
+    switch (chainId.split(':')[0]) {
+      case 'eip155':
+        return `${chainId}/erc20:${tokenAddress.toLowerCase()}`
+      case 'solana':
+      case 'starknet':
+        return `${chainId}/token:${tokenAddress}`
+      case 'tron':
+        return `${chainId}/trc20:${tokenAddress}`
+      case 'ton':
+        return `${chainId}/jetton:${tokenAddress}`
+      case 'sui':
+        return `${chainId}/coin:${tokenAddress}`
+      case 'near':
+        return `${chainId}/nep141:${tokenAddress}`
+      default:
+        console.warn(`[nearIntents] No asset namespace for ${chainId} - using unknown for token ${tokenAddress}`)
+        return `${chainId}/unknown:${tokenAddress}`
     }
-    const slip44 = getSlip44ForChain(chainId)
-    return `${chainId}/slip44:${slip44}`
   }
 
-  const slip44 = SLIP44_BY_NETWORK[network] ?? 0
+  const slip44 = chainId.startsWith('eip155:') ? getSlip44ForChain(chainId) : (SLIP44_BY_NETWORK[network] ?? 0)
   return `${chainId}/slip44:${slip44}`
 }
 
@@ -66,6 +80,19 @@ const decodeNEP245TokenSuffix = (suffix: string): string | null => {
 }
 
 export const parseNearIntentsAsset = (asset: string): ParseResult => {
+  // The official token registry is the source of truth — it resolves the asset to
+  // its underlying blockchain and canonical contract address. The heuristics below
+  // only run for assets missing from the registry (e.g. delisted tokens)
+  const registryToken = getRegistryToken(asset)
+  if (registryToken) {
+    const { blockchain, contractAddress } = registryToken
+    const chainId = resolveChainId(blockchain) ?? `unknown:${blockchain}`
+    // Natives have no contractAddress, except 1cs ids which use a 'native' standard
+    // segment with the placeholder address 'coin'
+    const isNative = !contractAddress || /^1cs_v\d+:[^:]+:native:/.test(asset)
+    return { chainId, assetId: buildAssetId(chainId, blockchain, isNative ? undefined : contractAddress) }
+  }
+
   const nep141Match = asset.match(/^nep141:(.+)\.omft\.near$/)
   if (nep141Match) {
     const assetPart = nep141Match[1]
@@ -97,7 +124,7 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
   const nep245Match = asset.match(nep245Pattern)
   if (nep245Match) {
     const version = nep245Match[1]
-    const chainId = `eip155:${nep245Match[2]}`
+    const hotChainNumber = nep245Match[2]
     const suffix = nep245Match[3] ?? ''
 
     // Warn if we see a version we haven't tested
@@ -111,21 +138,42 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
     // The all-1s pattern follows Solana (32 ones) and other blockchains' native-token convention.
     const isNativeToken = suffix === '' || /^1+$/.test(suffix)
 
+    const hotChain = HOT_BRIDGE_CHAINS[hotChainNumber]
+    if (!hotChain) {
+      console.warn(`[nearIntents] Unknown HOT bridge chain '${hotChainNumber}' - add to HOT_BRIDGE_CHAINS`)
+      const chainId = `unknown:${hotChainNumber}`
+      return {
+        chainId,
+        assetId: isNativeToken ? `${chainId}/native` : `${chainId}/unknown:${suffix}`,
+      }
+    }
+
+    const { chainId, slip44 } = hotChain
+
     if (isNativeToken) {
-      const slip44 = getSlip44ForChain(chainId)
       return { chainId, assetId: `${chainId}/slip44:${slip44}` }
     }
 
-    // Decode suffix to get ERC20 token address
-    const tokenAddress = decodeNEP245TokenSuffix(suffix)
+    // EVM suffixes are base58-encoded ERC20 addresses
+    if (chainId.startsWith('eip155:')) {
+      const tokenAddress = decodeNEP245TokenSuffix(suffix)
 
-    if (tokenAddress) {
-      return { chainId, assetId: `${chainId}/erc20:${tokenAddress}` }
-    } else {
-      // Fallback to unknown if decoding fails
+      if (tokenAddress) {
+        return { chainId, assetId: `${chainId}/erc20:${tokenAddress}` }
+      }
+
       console.warn(`[nearIntents] Could not decode token suffix: ${suffix}`)
       return { chainId, assetId: `${chainId}/unknown:${suffix}` }
     }
+
+    // Non-EVM chains use chain-specific suffix encodings — resolve via explicit mapping
+    const assetId = HOT_BRIDGE_TOKENS[`${hotChainNumber}_${suffix}`]
+    if (assetId) return { chainId, assetId }
+
+    console.warn(
+      `[nearIntents] Unknown HOT bridge token '${hotChainNumber}_${suffix}' on ${chainId} - add to HOT_BRIDGE_TOKENS`
+    )
+    return { chainId, assetId: `${chainId}/unknown:${suffix}` }
   }
 
   // 1CS (1-Click Swap) v1 native format: 1cs_v1:NETWORK:native:coin

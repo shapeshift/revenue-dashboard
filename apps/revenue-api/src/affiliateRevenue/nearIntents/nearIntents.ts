@@ -16,6 +16,7 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import { calculateFee } from '../utils'
 
 import { DAO_NEAR_TREASURY_ADDRESSES, NEAR_INTENTS_API_KEY } from './constants'
+import * as tokenRegistry from './tokenRegistry'
 import type { TransactionsResponse } from './types'
 import { parseNearIntentsAsset, sleep } from './utils'
 
@@ -99,6 +100,9 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
+
+  // parseNearIntentsAsset resolves assets via the token registry — load it up front
+  await tokenRegistry.ensureLoadedAsync()
   const threshold = getCacheableThreshold()
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
