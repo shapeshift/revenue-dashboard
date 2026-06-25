@@ -6,7 +6,7 @@ import type { Fees } from '..'
 import { assetDataService } from '../../assetData/AssetDataService'
 import { getDateRange, getDateStartTimestamp, getDateEndTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
-import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
+import { buildAssetId, estimateBlockFromTimestamp } from '../utils'
 
 import {
   API_SUCCESS_CODE,
@@ -83,7 +83,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const now = Math.floor(Date.now() / 1000)
 
   const dates = getDateRange(startTimestamp, endTimestamp)
-  const assetId = `${MAP_CHAIN_ID}/erc20:${MAP_USDT_ADDRESS}`
+  const assetId = buildAssetId(MAP_CHAIN_ID, MAP_USDT_ADDRESS)
   const asset = await assetDataService.getAsset(assetId)
   if (!asset) return []
   const decimals = asset.precision

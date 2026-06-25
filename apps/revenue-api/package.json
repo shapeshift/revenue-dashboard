@@ -9,6 +9,7 @@
     "build": "tsup",
     "dev": "bun --env-file=.env --watch src/server.ts",
     "start": "bun dist/server.js",
+    "test": "bun test",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

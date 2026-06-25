@@ -16,18 +16,12 @@ import {
 import { getAffiliateFeeRate } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { getAssetPriceUsd } from '../priceCache'
-import { baseUnitToTokenAmount, decimalToBaseUnit, getSlip44ForChain, safeAmountToString } from '../utils'
+import { baseUnitToTokenAmount, buildAssetId, decimalToBaseUnit, safeAmountToString } from '../utils'
 
-import { NATIVE_TOKEN_ADDRESS, SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
+import { SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
 
 type Trade = TradesResponse['trades'][number]
-
-const toAssetId = (chainId: string, token: string): string => {
-  return token.toLowerCase() === NATIVE_TOKEN_ADDRESS
-    ? `${chainId}/slip44:${getSlip44ForChain(chainId)}`
-    : `${chainId}/erc20:${token}`
-}
 
 // Decimal-format amounts virtually always carry a fractional part, while raw base-unit
 // amounts are whole numbers. Normalize through BigNumber first so scientific notation
@@ -44,7 +38,7 @@ const getTradeVolumeUsd = async (trade: Trade): Promise<number | null> => {
   const sellAmount = safeAmountToString(trade.sellAmount)
   if (!sellAmount) return null
 
-  const sellAssetId = toAssetId(`eip155:${trade.chainId}`, trade.sellToken)
+  const sellAssetId = buildAssetId(`eip155:${trade.chainId}`, trade.sellToken)
   const sellAsset = await assetDataService.getAsset(sellAssetId)
   const sellPrice = await getAssetPriceUsd(sellAssetId)
 
@@ -137,7 +131,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         if (!rawAmount || !token) continue
 
         const chainId = `eip155:${trade.chainId}`
-        const assetId = toAssetId(chainId, token)
+        const assetId = buildAssetId(chainId, token)
 
         const asset = await assetDataService.getAsset(assetId)
         if (!asset) continue

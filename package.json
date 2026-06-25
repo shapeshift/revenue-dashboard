@@ -22,7 +22,8 @@
     "lint:fix": "bun run lint --fix",
     "format": "prettier --write '**/*.{json,md,yml,yaml}'",
     "format:check": "prettier --check '**/*.{json,md,yml,yaml}'",
-    "type-check": "bun run --filter './apps/*' type-check"
+    "type-check": "bun run --filter './apps/*' type-check",
+    "test": "bun run --filter @shapeshiftoss/revenue-api test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

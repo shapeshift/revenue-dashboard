@@ -2,7 +2,6 @@ import axios from 'axios'
 import { decodeAbiParameters, zeroAddress } from 'viem'
 
 import { FEE_BPS_DENOMINATOR, getAffiliateBps } from '../constants'
-import { getSlip44ForChain } from '../utils'
 
 import { COINGECKO_API_BASE, COINGECKO_CHAINS, PORTAL_EVENT_ABI } from './constants'
 import type { DecodedPortalEvent } from './types'
@@ -29,12 +28,7 @@ export const calculateFallbackFee = (inputAmount: string, timestamp?: number): s
   return fee.toString()
 }
 
-export const buildAssetId = (chainId: string, tokenAddress: string): string => {
-  const tokenLower = tokenAddress.toLowerCase()
-  const isNative = tokenLower === zeroAddress
-  const slip44 = isNative ? getSlip44ForChain(chainId) : undefined
-  return isNative ? `${chainId}/slip44:${slip44}` : `${chainId}/erc20:${tokenLower}`
-}
+export { buildAssetId } from '../utils'
 
 const priceCache: Record<string, { price: number | null; timestamp: number }> = {}
 const PRICE_CACHE_TTL = 1000 * 60 * 5 // 5 minutes
