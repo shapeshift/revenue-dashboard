@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   checks:
-    name: Lint, Type-check, Format
+    name: Lint, Type-check, Test, Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,9 @@ jobs:
 
       - name: Type-check
         run: bun run type-check
+
+      - name: Test
+        run: bun run test
 
       - name: Format check
         run: bun run format:check

@@ -11,7 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { ETHEREUM_CHAIN_ID } from '../constants'
-import { decimalToBaseUnit } from '../utils'
+import { buildAssetId, decimalToBaseUnit } from '../utils'
 
 import { CHAINFLIP_API_URL, GET_AFFILIATE_SWAPS_QUERY, PAGE_SIZE, SHAPESHIFT_BROKER_ID } from './constants'
 import type { GraphQLResponse } from './types'
@@ -58,7 +58,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       if (!swap.affiliateBroker1FeeValueUsd) continue
 
       const chainId = ETHEREUM_CHAIN_ID
-      const assetId = `${chainId}/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`
+      const assetId = buildAssetId(chainId, '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
 
       // Chainflip API only provides USD values, not native USDC amounts
       // Since USDC is a stablecoin pegged to $1, we calculate: usdcWei = usdValue * 10^6

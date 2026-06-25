@@ -10,15 +10,16 @@ import {
   splitDateRange,
   tryGetCachedFees,
 } from '../cache'
-import { MAYACHAIN_CHAIN_ID, SLIP44 } from '../constants'
+import { MAYACHAIN_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import { buildAssetId } from '../utils'
 
 import { MAYACHAIN_API_URL, MILLISECONDS_PER_SECOND } from './constants'
 import type { FeesResponse } from './types'
 
 const transformFee = (fee: FeesResponse['fees'][0]): Fees => {
   const chainId = MAYACHAIN_CHAIN_ID
-  const assetId = `${chainId}/slip44:${SLIP44.MAYACHAIN}`
+  const assetId = buildAssetId(chainId)
 
   return {
     chainId,
