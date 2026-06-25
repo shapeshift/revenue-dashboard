@@ -1,6 +1,7 @@
 export const services = [
   'avnu',
   'bebop',
+  'bobgateway',
   'butterswap',
   'chainflip',
   'cowswap',

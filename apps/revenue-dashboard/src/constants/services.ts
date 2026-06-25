@@ -1,5 +1,6 @@
 export const SERVICE_LABELS: Record<string, string> = {
   avnu: 'AVNU',
+  bobgateway: 'BOB Gateway',
   nearintents: 'Near Intents',
   butterswap: 'Butter Swap',
   thorchain: 'THORChain',
@@ -15,6 +16,7 @@ export const SERVICE_LABELS: Record<string, string> = {
 
 export const SERVICE_COLORS: Record<string, string> = {
   avnu: '#8b5cf6',
+  bobgateway: '#ef4444',
   thorchain: '#0095FF',
   mayachain: '#6366f1',
   chainflip: '#22c55e',
@@ -45,4 +47,5 @@ export const SERVICE_STACK_ORDER = [
   'relay',
   'butterswap',
   'nearintents',
+  'bobgateway',
 ]
