@@ -1,4 +1,5 @@
 export * from './amount'
 export * from './asset'
 export * from './blockEstimation'
+export * from './dateToBlock'
 export * from './rpcCall'

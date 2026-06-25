@@ -7,6 +7,7 @@ import { services } from '../types'
 
 import * as avnu from './avnu'
 import * as bebop from './bebop'
+import * as bobgateway from './bobgateway'
 import * as butterswap from './butterswap'
 import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
@@ -24,6 +25,7 @@ import * as zrx from './zrx'
 const providerNames: Service[] = [
   'avnu',
   'bebop',
+  'bobgateway',
   'butterswap',
   'chainflip',
   'cowswap',
@@ -131,6 +133,7 @@ export class AffiliateRevenue {
     const results = await Promise.allSettled([
       avnu.getFees(startTimestamp, endTimestamp),
       bebop.getFees(startTimestamp, endTimestamp),
+      bobgateway.getFees(startTimestamp, endTimestamp),
       butterswap.getFees(startTimestamp, endTimestamp),
       chainflip.getFees(startTimestamp, endTimestamp),
       cowswap.getFees(startTimestamp, endTimestamp),
