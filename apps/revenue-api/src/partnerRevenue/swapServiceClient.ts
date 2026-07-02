@@ -1,7 +1,13 @@
 import type { PartnerSwapRow } from './types'
 
-const BASE = process.env.SWAP_SERVICE_URL ?? 'http://localhost:3001'
-const API_KEY = process.env.SERVICE_API_KEY ?? ''
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Required environment variable ${name} is not set`)
+  return value
+}
+
+const BASE = requireEnv('SWAP_SERVICE_URL')
+const API_KEY = requireEnv('SERVICE_API_KEY')
 
 type RawPartnerSwap = {
   partnerCode: string
