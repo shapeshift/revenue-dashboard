@@ -54,16 +54,16 @@ Historical backfill, if wanted, is a separate task.
 ## Architecture
 
 ```
-microservices/swap-service  (develop)
-  ├── GET /v1/affiliate/registry                 (new) all affiliates
-  └── GET /v1/affiliate/partner-swaps            (new) per-swap partner rows, date-ranged, paginated
-        filters: partnerCode NOT NULL, status='SUCCESS', isAffiliateVerified=true
-        row: { partnerCode, swapperName, sellTxHash, buyTxHash,
-               partnerBps, shapeshiftBps, affiliateBps, feeUsd, partnerFeeUsd, date }
+microservices/swap-service  (develop; all routes behind global ApiKeyGuard)
+  ├── GET /v1/affiliate                          (new) list all affiliates (registry)
+  └── GET /v1/affiliate/swaps                     (extended) partnerCode now OPTIONAL
+        omitted  → all partner swaps (partnerCode NOT NULL)
+        provided → that partner's swaps (existing behavior, unchanged)
+        rows enriched (additive) with: affiliateBps, feeUsd, partnerFeeUsd
 
-revenue-dashboard/apps/revenue-api
+revenue-dashboard/apps/revenue-api  (sends x-api-key: SERVICE_API_KEY to swap-service)
   ├── partnerSettlement service  (new, shared)
-  │     fetches registry + partner-swaps, indexes swaps by normalized txHash,
+  │     fetches registry + partner swaps, indexes swaps by normalized txHash,
   │     walks existing provider fee events, splits matched events by bps,
   │     produces { shapeshiftNet: {...}, byPartner: {...}, unreconciled: {...} }
   ├── GET /api/v1/affiliate/revenue   (existing) → ShapeShift-net only (no byPartner)
@@ -77,39 +77,40 @@ revenue-dashboard/apps/revenue-dashboard (frontend)
 
 ## Component 1 — swap-service endpoints
 
-Added to `apps/swap-service/src/affiliate/affiliate.controller.ts` + `affiliate.service.ts`.
+Changes in `apps/swap-service/src/affiliate/{affiliate.controller.ts,affiliate.service.ts,types.ts}`.
+The whole service is behind the global `ApiKeyGuard` (`APP_GUARD` in `app.module.ts`), so both
+routes below are already authed — no per-route guard needed. Callers send `x-api-key: SERVICE_API_KEY`.
 
-**`GET /v1/affiliate/registry`** — returns all affiliates:
-`{ partnerCode, bps, isActive }[]`. Lets the Partners page list every registered partner (including
-those with zero swaps in a range).
+### Why reuse `affiliate/swaps` instead of a new endpoint
 
-**`GET /v1/affiliate/partner-swaps?startDate=&endDate=&cursor=&limit=`** — per-swap partner rows.
+`/v1/affiliate/*` is the owner/reporting surface for affiliate entities (`swaps`, `stats`, CRUD);
+`/v1/partner/:code` is a narrow outward resolver (code → fee split at quote time). Listing all
+affiliates and all their swaps is reporting over affiliate entities → it belongs under
+`/v1/affiliate`. So we generalize the existing endpoints rather than add parallel ones. (The
+affiliate/partner naming overlap is pre-existing; unifying the namespaces is out of scope.)
 
-- Filters mirror `getAffiliateStats` plus `partnerCode: { not: null }`: `status='SUCCESS'`,
-  `isAffiliateVerified=true`, `createdAt` within range. No `origin` filter (consistency with the
-  partner-facing stats numbers).
-- Per swap: `fee = calculateFeeForSwap(swap)` (skip if null),
-  `partnerFeeUsd = fee.feeUsd * getPartnerFeeRate(fee.verifiedBps, partnerBps)`.
-- Cursor pagination (reuse `swapCursorArgs` / `getNextCursor`).
+**`GET /v1/affiliate`** (new) — list all affiliates: `{ partnerCode, bps, isActive }[]`. Lets the
+Partners page show every registered partner (including zero-activity ones). Coexists with the
+existing `GET /v1/affiliate/:address`.
 
-```ts
-type PartnerSwapRow = {
-  partnerCode: string
-  swapperName: string          // raw SwapperName, e.g. "THORChain", "0x"
-  sellTxHash: string | null
-  buyTxHash: string | null
-  partnerBps: number
-  shapeshiftBps: number
-  affiliateBps: number         // verified affiliate bps for the swap
-  feeUsd: number               // full affiliate fee (swap-service pricing) — fallback only
-  partnerFeeUsd: number        // partner slice (swap-service pricing) — fallback only
-  date: string                 // YYYY-MM-DD (UTC)
-}
-type PartnerSwapsResponse = { rows: PartnerSwapRow[]; nextCursor: string | null }
-```
+**`GET /v1/affiliate/swaps?partnerCode?=&startDate=&endDate=&cursor=&limit=`** (extended) — make
+`partnerCode` **optional** in `AffiliateSwapsQueryDto` (`@IsOptional()` + keep the format `@Matches`
+when present):
 
-`feeUsd`/`partnerFeeUsd` are swap-service's own valuation, used only for the unmatched fallback and
-for the Partners view where a swap has no provider counterpart; matched swaps use provider USD.
+- `partnerCode` provided → unchanged single-partner behavior.
+- `partnerCode` omitted → `where: { partnerCode: { not: null }, status:'SUCCESS',
+  isAffiliateVerified:true, …dateRange }` (all partner swaps). No `origin` filter (consistency with
+  the partner-facing stats numbers). Same cursor pagination (`swapCursorArgs` / `getNextCursor`).
+- **Enrich each returned row** (additive — existing single-partner UI consumer ignores extras) with
+  the computed split, keeping fee math in swap-service: `affiliateBps` (verified),
+  `feeUsd = calculateFeeForSwap(swap).feeUsd`, and
+  `partnerFeeUsd = feeUsd * getPartnerFeeRate(verifiedBps, partnerBps)`.
+
+The response stays `{ swaps, nextCursor }`; each swap gains `{ affiliateBps, feeUsd, partnerFeeUsd }`.
+revenue-api reads `swapperName`, `sellTxHash`, `buyTxHash`, `partnerBps`, `shapeshiftBps`,
+`affiliateBps`, `partnerCode`, `createdAt` for the join/split; `feeUsd`/`partnerFeeUsd` (swap-service
+valuation) are used only for the unmatched fallback and Partners-view rows with no provider match.
+Matched swaps use the provider's USD.
 
 ## Component 2 — revenue-api settlement
 
@@ -117,8 +118,9 @@ New shared module `apps/revenue-api/src/affiliateRevenue/partnerSettlement/`, in
 endpoints. `swapperName → service` map (raw `SwapperName` → dashboard `Service` id) lives here.
 
 **Inputs:** the existing per-provider fee events (already produced in
-`AffiliateRevenue.getAffiliateRevenue`), plus registry + partner-swap rows fetched from swap-service
-(paginated to completion, cached per date with daily TTL).
+`AffiliateRevenue.getAffiliateRevenue`), plus the affiliate registry (`GET /v1/affiliate`) and all
+partner swaps (`GET /v1/affiliate/swaps` with no `partnerCode`, paginated to completion) fetched from
+swap-service with the `x-api-key: SERVICE_API_KEY` header. Cached per date with daily TTL.
 
 **Settlement algorithm:**
 
@@ -178,8 +180,9 @@ Route wiring is Hono (`apps/revenue-api/src/routes/`), mirroring the existing
 
 ## Testing
 
-- **swap-service:** `partner-swaps` filters (`partnerCode NOT NULL`, SUCCESS, verified); per-swap
-  `partnerFeeUsd` math; pagination; `registry` returns all affiliates.
+- **swap-service:** `affiliate/swaps` with `partnerCode` omitted returns all partner swaps
+  (`partnerCode NOT NULL`, SUCCESS, verified) and with it provided is unchanged; enriched
+  `affiliateBps`/`feeUsd`/`partnerFeeUsd` math; pagination; `GET /v1/affiliate` returns all affiliates.
 - **revenue-api settlement:** matched fee event splits by bps (provider USD, not swap-service USD);
   `shapeshiftShare + partnerShare == amountUsd` (no double count / no loss); unmatched swap →
   `partnerFeeUsd` fallback + `unreconciled` accounting; `swapperName → service` mapping (unmapped
@@ -196,6 +199,11 @@ Route wiring is Hono (`apps/revenue-api/src/routes/`), mirroring the existing
   splitting by `partnerBps / affiliateBps` is exact.
 - `affiliateBps = shapeshiftBps + partnerBps`.
 - EVM tx hashes may differ in case/prefix between sources → normalize (lowercase) before joining.
+- swap-service is globally API-key authed (`ApiKeyGuard`, header `x-api-key`, env `SERVICE_API_KEY`);
+  revenue-api needs `SERVICE_API_KEY` configured and must send the header. No new per-route auth.
+- **swap-service work happens in a separate git worktree off `develop`** (the user is concurrently
+  editing this repo for a payout script). revenue-dashboard work stays on
+  `feat/partner-revenue-breakout` in the main checkout.
 
 ## Out of scope (YAGNI)
 
