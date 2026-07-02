@@ -1,36 +1,36 @@
 import { getDateStartTimestamp } from '../affiliateRevenue/cache'
 import type { Fees } from '../affiliateRevenue/index'
+import type { Service } from '../types'
 
-import { mapSwapperNameToService } from './swapperServiceMap'
-import type { PartnerRevenue, PartnerSwapRow, SettlementResult } from './types'
+import type { PartnerSwapRow, SettlementResult } from './types'
+
+const SWAPPER_TO_SERVICE: Record<string, Service> = {
+  AVNU: 'avnu',
+  Bebop: 'bebop',
+  ButterSwap: 'butterswap',
+  Chainflip: 'chainflip',
+  'CoW Swap': 'cowswap',
+  MAYAChain: 'mayachain',
+  'NEAR Intents': 'nearintents',
+  Portals: 'portals',
+  Relay: 'relay',
+  THORChain: 'thorchain',
+  '0x': 'zrx',
+}
 
 const norm = (h: string | null | undefined): string | null => (h ? h.toLowerCase() : null)
 
+// Peel partner cuts out of the gross provider fee events so the revenue view reports
+// ShapeShift-net. A fee matched to a partner swap by txHash is reduced by that swap's bps
+// share; a partner swap with no matching fee event falls back to a synthetic negative fee on
+// its mapped service and is counted as `unreconciled`. Partner revenue itself is reported
+// separately, straight from the swaps (see aggregatePartnerRevenue).
 export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): SettlementResult {
   const byTxHash = new Map<string, PartnerSwapRow>()
   for (const s of partnerSwaps) {
     for (const h of [norm(s.sellTxHash), norm(s.buyTxHash)]) {
       if (h) byTxHash.set(h, s)
     }
-  }
-
-  const byPartner: Record<string, PartnerRevenue> = {}
-  const ensure = (code: string): PartnerRevenue =>
-    (byPartner[code] ??= {
-      partnerCode: code,
-      totalUsd: 0,
-      totalVolumeUsd: 0,
-      swapCount: 0,
-      byService: {},
-      byDate: {},
-    })
-  const credit = (s: PartnerSwapRow, usd: number) => {
-    const p = ensure(s.partnerCode)
-    p.totalUsd += usd
-    p.swapCount += 1
-    p.totalVolumeUsd += s.volumeUsd ?? 0
-    p.byService[s.swapperName] = (p.byService[s.swapperName] ?? 0) + usd
-    p.byDate[s.date] = (p.byDate[s.date] ?? 0) + usd
   }
 
   const matched = new Set<PartnerSwapRow>()
@@ -43,9 +43,8 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
       netFees.push(fee)
       continue
     }
-    // A matched swap is fully accounted for here (split or left intact) — it must
-    // never fall through to the unmatched-fallback loop below, or it would be
-    // credited/synthesized a second time (double accounting).
+    // A matched swap is fully accounted for here (split or left intact) — it must never fall
+    // through to the unmatched-fallback loop below, or it would be peeled a second time.
     matched.add(s)
     if (!s.affiliateBps || s.affiliateBps <= 0) {
       netFees.push(fee)
@@ -55,7 +54,6 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
     const partnerRate = Math.min(s.partnerBps / s.affiliateBps, 1)
     const partnerShare = amountUsd * partnerRate
     netFees.push({ ...fee, amountUsd: (amountUsd - partnerShare).toString() })
-    credit(s, partnerShare)
   }
 
   let unrCount = 0
@@ -63,7 +61,7 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
   for (const s of partnerSwaps) {
     if (matched.has(s)) continue
     const partnerFeeUsd = s.partnerFeeUsd ?? 0
-    const service = mapSwapperNameToService(s.swapperName)
+    const service = SWAPPER_TO_SERVICE[s.swapperName]
     if (service && partnerFeeUsd > 0) {
       netFees.push({
         synthetic: true,
@@ -76,11 +74,9 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
         txHash: '',
       })
     }
-    credit(s, partnerFeeUsd)
     unrCount += 1
     unrUsd += partnerFeeUsd
   }
 
-  const partnerTotalUsd = Object.values(byPartner).reduce((sum, p) => sum + p.totalUsd, 0)
-  return { netFees, byPartner, partnerTotalUsd, unreconciled: { count: unrCount, usd: unrUsd } }
+  return { netFees, unreconciled: { count: unrCount, usd: unrUsd } }
 }

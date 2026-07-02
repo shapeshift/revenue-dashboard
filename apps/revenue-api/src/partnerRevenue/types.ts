@@ -18,13 +18,11 @@ export type PartnerRevenue = {
   totalUsd: number
   totalVolumeUsd: number
   swapCount: number
-  byService: Record<string, number> // raw swapperName -> usd
-  byDate: Record<string, number> // date -> usd
+  byService: Record<string, number>
+  byDate: Record<string, number>
 }
 
 export type SettlementResult = {
   netFees: Fees[]
-  byPartner: Record<string, PartnerRevenue>
-  partnerTotalUsd: number
   unreconciled: { count: number; usd: number }
 }

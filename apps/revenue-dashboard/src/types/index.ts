@@ -46,7 +46,6 @@ export type PartnerRevenue = {
 export type PartnerRevenueResponse = {
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
-  unreconciled: { count: number; usd: number }
   affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }
 

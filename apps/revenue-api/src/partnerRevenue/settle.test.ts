@@ -31,36 +31,27 @@ const swap = (over: Partial<PartnerSwapRow>): PartnerSwapRow => ({
 })
 
 describe('buildSettlement — matched fee event', () => {
-  test('splits a matched fee by partnerBps/affiliateBps (provider USD is source of truth)', () => {
+  test('peels the partner bps share from a matched fee (provider USD is source of truth)', () => {
     const fees = [fee({ txHash: '0xABC', amountUsd: '6' })] // note case differs from swap.sellTxHash
     const res = buildSettlement(fees, [swap({})])
 
-    // partner share = 6 * 50/60 = 5; shapeshift keeps 1
+    // partner share = 6 * min(50/60, 1) = 5; ShapeShift keeps 1
     expect(Number(res.netFees[0].amountUsd)).toBeCloseTo(1, 6)
-    expect(res.byPartner.alpha.totalUsd).toBeCloseTo(5, 6)
-    expect(res.byPartner.alpha.byService.THORChain).toBeCloseTo(5, 6)
-    expect(res.byPartner.alpha.byDate['2026-06-01']).toBeCloseTo(5, 6)
-    expect(res.byPartner.alpha.totalVolumeUsd).toBeCloseTo(1000, 6)
-    expect(res.byPartner.alpha.swapCount).toBe(1)
-    expect(res.partnerTotalUsd).toBeCloseTo(5, 6)
     expect(res.unreconciled).toEqual({ count: 0, usd: 0 })
-    // conservation: net + partner == gross
-    expect(Number(res.netFees[0].amountUsd) + res.partnerTotalUsd).toBeCloseTo(6, 6)
   })
 
-  test('does not split when affiliateBps <= 0', () => {
+  test('does not peel when affiliateBps <= 0', () => {
     const fees = [fee({ txHash: '0xABC', amountUsd: '6' })]
     const res = buildSettlement(fees, [swap({ affiliateBps: 0 })])
     expect(Number(res.netFees[0].amountUsd)).toBeCloseTo(6, 6)
-    expect(res.partnerTotalUsd).toBe(0)
+    expect(res.unreconciled).toEqual({ count: 0, usd: 0 })
   })
 
-  test('clamps the partner ratio to 1 when partnerBps > affiliateBps', () => {
+  test('clamps the partner ratio to 1 when partnerBps > affiliateBps (net never negative)', () => {
     const fees = [fee({ txHash: '0xABC', amountUsd: '6' })]
     const res = buildSettlement(fees, [swap({ partnerBps: 80, affiliateBps: 60 })])
 
-    // rate = min(80/60, 1) = 1, so partner share is the full 6, net is 0 (not negative)
-    expect(res.byPartner.alpha.totalUsd).toBeCloseTo(6, 6)
+    // rate = min(80/60, 1) = 1, so the full 6 is peeled and net is 0 (not negative)
     expect(Number(res.netFees[0].amountUsd)).toBe(0)
   })
 })
@@ -76,15 +67,13 @@ describe('buildSettlement — unmatched fallback', () => {
     expect(synthetic).toBeDefined()
     expect(synthetic!.service).toBe('chainflip')
     expect(Number(synthetic!.amountUsd)).toBeCloseTo(-4, 6)
-    expect(res.byPartner.alpha.totalUsd).toBeCloseTo(4, 6)
     expect(res.unreconciled).toEqual({ count: 1, usd: 4 })
   })
 
-  test('unmapped swapper: no synthetic fee, still reported in byPartner', () => {
+  test('unmapped swapper: no synthetic fee, still counted as unreconciled', () => {
     const s = swap({ swapperName: 'Across', sellTxHash: null, buyTxHash: null, partnerFeeUsd: 3 })
     const res = buildSettlement([], [s])
     expect(res.netFees.find(f => f.synthetic)).toBeUndefined()
-    expect(res.byPartner.alpha.totalUsd).toBeCloseTo(3, 6)
     expect(res.unreconciled).toEqual({ count: 1, usd: 3 })
   })
 })

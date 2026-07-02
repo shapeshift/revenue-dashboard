@@ -54,11 +54,6 @@ export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
         <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Revenue by Partner</h2>
         <div className="text-sm text-zinc-400">
           Partner payouts: <span className="text-zinc-200 font-mono">{formatUsd(data.partnerTotalUsd)}</span>
-          {data.unreconciled.count > 0 && (
-            <span className="ml-2 text-amber-400">
-              ({data.unreconciled.count} unreconciled, {formatUsd(data.unreconciled.usd)})
-            </span>
-          )}
         </div>
       </div>
       <div className="overflow-auto">

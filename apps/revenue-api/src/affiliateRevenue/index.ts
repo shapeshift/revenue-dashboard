@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import { assetDataService } from '../assetData/AssetDataService'
 import { bnOrZero } from '../lib/bignumber'
+import { aggregatePartnerRevenue } from '../partnerRevenue/aggregate'
 import { buildSettlement } from '../partnerRevenue/settle'
 import { fetchAffiliateRegistry, fetchPartnerSwaps } from '../partnerRevenue/swapServiceClient'
 import type { SettlementResult } from '../partnerRevenue/types'
@@ -172,8 +173,8 @@ export class AffiliateRevenue {
       return buildSettlement(fees, partnerSwaps)
     } catch (error) {
       console.error(`[AffiliateRevenue] partner settlement failed: ${formatError(error)}`)
-      // graceful: no peeling, empty partner ledger
-      return { netFees: fees, byPartner: {}, partnerTotalUsd: 0, unreconciled: { count: 0, usd: 0 } }
+      // graceful: no peeling
+      return { netFees: fees, unreconciled: { count: 0, usd: 0 } }
     }
   }
 
@@ -271,9 +272,20 @@ export class AffiliateRevenue {
     }
   }
 
+  // Partner revenue is a straight roll-up of the affiliate swaps — it does not depend on
+  // affiliate provider revenue or the netting settlement (that's only for the ShapeShift-net view).
   async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
-    const { fees } = await this.collectFees(startTimestamp, endTimestamp)
-    const settlement = await this.settle(fees, startTimestamp, endTimestamp)
+    const startDate = timestampToDate(startTimestamp)
+    const endDate = timestampToDate(endTimestamp)
+
+    let byPartner: PartnerRevenueResponse['byPartner'] = {}
+    let partnerTotalUsd = 0
+    try {
+      const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
+      ;({ byPartner, partnerTotalUsd } = aggregatePartnerRevenue(partnerSwaps))
+    } catch (error) {
+      console.error(`[PartnerRevenue] partner swaps fetch failed: ${formatError(error)}`)
+    }
 
     let affiliates: PartnerRevenueResponse['affiliates'] = []
     try {
@@ -282,11 +294,6 @@ export class AffiliateRevenue {
       console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
     }
 
-    return {
-      byPartner: settlement.byPartner,
-      partnerTotalUsd: settlement.partnerTotalUsd,
-      unreconciled: settlement.unreconciled,
-      affiliates,
-    }
+    return { byPartner, partnerTotalUsd, affiliates }
   }
 }
