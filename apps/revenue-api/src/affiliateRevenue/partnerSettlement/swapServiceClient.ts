@@ -7,12 +7,25 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
 type Opts = { fetchImpl?: FetchLike }
 
+type RawPartnerSwap = {
+  partnerCode: string
+  swapperName: string
+  sellTxHash: string | null
+  buyTxHash: string | null
+  partnerBps: number
+  affiliateBps: number | null
+  feeUsd: number | null
+  partnerFeeUsd: number | null
+  volumeUsd: number | null
+  createdAt: string
+}
+
 const toDate = (iso: string): string => iso.slice(0, 10)
 
 export async function fetchPartnerSwaps(
   startDate: string,
   endDate: string,
-  opts: Opts = {},
+  opts: Opts = {}
 ): Promise<PartnerSwapRow[]> {
   const doFetch = opts.fetchImpl ?? fetch
   const rows: PartnerSwapRow[] = []
@@ -27,7 +40,7 @@ export async function fetchPartnerSwaps(
 
     const res = await doFetch(url.toString(), { headers: { 'x-api-key': API_KEY } })
     if (!res.ok) throw new Error(`swap-service /v1/affiliate/swaps ${res.status}`)
-    const body = (await res.json()) as { swaps: any[]; nextCursor: string | null }
+    const body = (await res.json()) as { swaps: RawPartnerSwap[]; nextCursor: string | null }
 
     for (const s of body.swaps) {
       rows.push({
@@ -50,7 +63,7 @@ export async function fetchPartnerSwaps(
 }
 
 export async function fetchAffiliateRegistry(
-  opts: Opts = {},
+  opts: Opts = {}
 ): Promise<{ partnerCode: string; bps: number; isActive: boolean }[]> {
   const doFetch = opts.fetchImpl ?? fetch
   const res = await doFetch(new URL('/v1/affiliate', BASE).toString(), { headers: { 'x-api-key': API_KEY } })

@@ -1,3 +1,5 @@
+import type { Fees } from '../index'
+
 export type PartnerSwapRow = {
   partnerCode: string
   swapperName: string
@@ -21,7 +23,7 @@ export type PartnerRevenue = {
 }
 
 export type SettlementResult = {
-  netFees: import('../index').Fees[]
+  netFees: Fees[]
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
   unreconciled: { count: number; usd: number }

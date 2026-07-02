@@ -1,5 +1,6 @@
 import { getDateStartTimestamp } from '../cache'
 import type { Fees } from '../index'
+
 import { mapSwapperNameToService } from './swapperServiceMap'
 import type { PartnerRevenue, PartnerSwapRow, SettlementResult } from './types'
 
@@ -16,7 +17,12 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
   const byPartner: Record<string, PartnerRevenue> = {}
   const ensure = (code: string): PartnerRevenue =>
     (byPartner[code] ??= {
-      partnerCode: code, totalUsd: 0, totalVolumeUsd: 0, swapCount: 0, byService: {}, byDate: {},
+      partnerCode: code,
+      totalUsd: 0,
+      totalVolumeUsd: 0,
+      swapCount: 0,
+      byService: {},
+      byDate: {},
     })
   const credit = (s: PartnerSwapRow, usd: number) => {
     const p = ensure(s.partnerCode)
@@ -60,8 +66,14 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
     const service = mapSwapperNameToService(s.swapperName)
     if (service && partnerFeeUsd > 0) {
       netFees.push({
-        synthetic: true, amount: '0', amountUsd: (-partnerFeeUsd).toString(),
-        assetId: '', chainId: '', service, timestamp: getDateStartTimestamp(s.date), txHash: '',
+        synthetic: true,
+        amount: '0',
+        amountUsd: (-partnerFeeUsd).toString(),
+        assetId: '',
+        chainId: '',
+        service,
+        timestamp: getDateStartTimestamp(s.date),
+        txHash: '',
       })
     }
     credit(s, partnerFeeUsd)

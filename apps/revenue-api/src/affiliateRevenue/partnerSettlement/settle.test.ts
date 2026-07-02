@@ -1,17 +1,33 @@
 import { describe, expect, test } from 'bun:test'
+
 import type { Fees } from '../index'
+
 import { buildSettlement } from './settle'
 import type { PartnerSwapRow } from './types'
 
 const fee = (over: Partial<Fees>): Fees => ({
-  amount: '0', amountUsd: '0', assetId: 'eip155:1/slip44:60', chainId: 'eip155:1',
-  service: 'thorchain', timestamp: 1_780_000_000, txHash: '0xabc', ...over,
+  amount: '0',
+  amountUsd: '0',
+  assetId: 'eip155:1/slip44:60',
+  chainId: 'eip155:1',
+  service: 'thorchain',
+  timestamp: 1_780_000_000,
+  txHash: '0xabc',
+  ...over,
 })
 
 const swap = (over: Partial<PartnerSwapRow>): PartnerSwapRow => ({
-  partnerCode: 'alpha', swapperName: 'THORChain', sellTxHash: '0xABC', buyTxHash: null,
-  partnerBps: 50, affiliateBps: 60, feeUsd: 6, partnerFeeUsd: 5, volumeUsd: 1000,
-  date: '2026-06-01', ...over,
+  partnerCode: 'alpha',
+  swapperName: 'THORChain',
+  sellTxHash: '0xABC',
+  buyTxHash: null,
+  partnerBps: 50,
+  affiliateBps: 60,
+  feeUsd: 6,
+  partnerFeeUsd: 5,
+  volumeUsd: 1000,
+  date: '2026-06-01',
+  ...over,
 })
 
 describe('buildSettlement — matched fee event', () => {

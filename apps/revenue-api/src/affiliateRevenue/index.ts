@@ -130,7 +130,7 @@ const getOrCreateAssetRevenue = (
 export class AffiliateRevenue {
   private async collectFees(
     startTimestamp: number,
-    endTimestamp: number,
+    endTimestamp: number
   ): Promise<{ fees: Fees[]; failedProviders: Service[] }> {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []

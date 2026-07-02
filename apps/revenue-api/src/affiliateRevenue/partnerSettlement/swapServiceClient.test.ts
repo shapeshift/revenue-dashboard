@@ -1,20 +1,30 @@
 import { describe, expect, test } from 'bun:test'
+
 import { fetchPartnerSwaps } from './swapServiceClient'
 
-const makeFetch = (pages: any[]) => {
+const makeFetch = (pages: Array<{ swaps: unknown[]; nextCursor: string | null }>) => {
   let i = 0
-  return async () => ({ ok: true, json: async () => pages[i++] }) as unknown as Response
+  return () => Promise.resolve({ ok: true, json: () => Promise.resolve(pages[i++]) } as unknown as Response)
 }
 
 describe('fetchPartnerSwaps', () => {
   test('follows the cursor and maps enriched swap rows', async () => {
     const fakeFetch = makeFetch([
       {
-        swaps: [{
-          partnerCode: 'alpha', swapperName: 'THORChain', sellTxHash: '0xA', buyTxHash: null,
-          partnerBps: 50, affiliateBps: 60, feeUsd: 6, partnerFeeUsd: 5, volumeUsd: 1000,
-          createdAt: '2026-06-01T12:00:00.000Z',
-        }],
+        swaps: [
+          {
+            partnerCode: 'alpha',
+            swapperName: 'THORChain',
+            sellTxHash: '0xA',
+            buyTxHash: null,
+            partnerBps: 50,
+            affiliateBps: 60,
+            feeUsd: 6,
+            partnerFeeUsd: 5,
+            volumeUsd: 1000,
+            createdAt: '2026-06-01T12:00:00.000Z',
+          },
+        ],
         nextCursor: 'c1',
       },
       { swaps: [], nextCursor: null },
