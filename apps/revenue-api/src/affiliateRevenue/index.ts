@@ -2,7 +2,7 @@ import axios from 'axios'
 
 import { assetDataService } from '../assetData/AssetDataService'
 import { bnOrZero } from '../lib/bignumber'
-import type { AffiliateRevenueResponse, AssetRevenue, Service } from '../types'
+import type { AffiliateRevenueResponse, AssetRevenue, PartnerRevenueResponse, Service } from '../types'
 import { services } from '../types'
 
 import * as avnu from './avnu'
@@ -17,7 +17,7 @@ import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import { buildSettlement } from './partnerSettlement/settle'
-import { fetchPartnerSwaps } from './partnerSettlement/swapServiceClient'
+import { fetchAffiliateRegistry, fetchPartnerSwaps } from './partnerSettlement/swapServiceClient'
 import type { SettlementResult } from './partnerSettlement/types'
 import * as portals from './portals'
 import * as relay from './relay'
@@ -268,6 +268,25 @@ export class AffiliateRevenue {
       byAsset,
       failedProviders,
       unreconciled: settlement.unreconciled,
+    }
+  }
+
+  async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
+    const { fees } = await this.collectFees(startTimestamp, endTimestamp)
+    const settlement = await this.settle(fees, startTimestamp, endTimestamp)
+
+    let affiliates: PartnerRevenueResponse['affiliates'] = []
+    try {
+      affiliates = await fetchAffiliateRegistry()
+    } catch (error) {
+      console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
+    }
+
+    return {
+      byPartner: settlement.byPartner,
+      partnerTotalUsd: settlement.partnerTotalUsd,
+      unreconciled: settlement.unreconciled,
+      affiliates,
     }
   }
 }

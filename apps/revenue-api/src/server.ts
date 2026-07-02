@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 
 import './assetData/AssetDataService' // top-level await initializes the asset DB at boot
 import { affiliateRevenueRoute } from './routes/affiliateRevenue'
+import { partnerRevenueRoute } from './routes/partnerRevenue'
 
 const app = new Hono()
 
@@ -16,6 +17,9 @@ app.get('/health', c => {
 
 // Affiliate revenue endpoint
 app.route('/api/v1', affiliateRevenueRoute)
+
+// Partner revenue endpoint
+app.route('/api/v1', partnerRevenueRoute)
 
 // 404 handler
 app.notFound(c => {

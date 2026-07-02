@@ -51,3 +51,10 @@ export interface AffiliateRevenueResponse {
   failedProviders: Service[]
   unreconciled: { count: number; usd: number }
 }
+
+export interface PartnerRevenueResponse {
+  byPartner: Record<string, import('./affiliateRevenue/partnerSettlement/types').PartnerRevenue>
+  partnerTotalUsd: number
+  unreconciled: { count: number; usd: number }
+  affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
+}
