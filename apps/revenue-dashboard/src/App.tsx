@@ -28,7 +28,7 @@ function App() {
   const [tab, setTab] = useState<'revenue' | 'partners'>('revenue')
 
   const { data, isLoading, isError, error } = useAffiliateRevenue(dateRange)
-  const { data: partnerData, isLoading: partnerLoading } = usePartnerRevenue(dateRange, tab === 'partners')
+  const { data: partnerData, isLoading: partnerLoading } = usePartnerRevenue(dateRange)
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100">
