@@ -31,6 +31,23 @@ export type AffiliateRevenueResponse = {
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: string[]
+  unreconciled: { count: number; usd: number }
+}
+
+export type PartnerRevenue = {
+  partnerCode: string
+  totalUsd: number
+  totalVolumeUsd: number
+  swapCount: number
+  byService: Record<string, number>
+  byDate: Record<string, number>
+}
+
+export type PartnerRevenueResponse = {
+  byPartner: Record<string, PartnerRevenue>
+  partnerTotalUsd: number
+  unreconciled: { count: number; usd: number }
+  affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }
 
 export type DateRange = {
