@@ -49,4 +49,5 @@ export interface AffiliateRevenueResponse {
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: Service[]
+  unreconciled: { count: number; usd: number }
 }

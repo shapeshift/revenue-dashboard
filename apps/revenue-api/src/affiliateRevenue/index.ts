@@ -16,6 +16,9 @@ import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
+import { buildSettlement } from './partnerSettlement/settle'
+import { fetchPartnerSwaps } from './partnerSettlement/swapServiceClient'
+import type { SettlementResult } from './partnerSettlement/types'
 import * as portals from './portals'
 import * as relay from './relay'
 import * as thorchain from './thorchain'
@@ -125,9 +128,10 @@ const getOrCreateAssetRevenue = (
 }
 
 export class AffiliateRevenue {
-  async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
-    assetDataService.resetMissLog()
-
+  private async collectFees(
+    startTimestamp: number,
+    endTimestamp: number,
+  ): Promise<{ fees: Fees[]; failedProviders: Service[] }> {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 
@@ -157,18 +161,34 @@ export class AffiliateRevenue {
       }
     })
 
+    return { fees, failedProviders }
+  }
+
+  private async settle(fees: Fees[], startTimestamp: number, endTimestamp: number): Promise<SettlementResult> {
+    const startDate = timestampToDate(startTimestamp)
+    const endDate = timestampToDate(endTimestamp)
+    try {
+      const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
+      return buildSettlement(fees, partnerSwaps)
+    } catch (error) {
+      console.error(`[AffiliateRevenue] partner settlement failed: ${formatError(error)}`)
+      // graceful: no peeling, empty partner ledger
+      return { netFees: fees, byPartner: {}, partnerTotalUsd: 0, unreconciled: { count: 0, usd: 0 } }
+    }
+  }
+
+  async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
+    assetDataService.resetMissLog()
+
+    const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
+    const settlement = await this.settle(fees, startTimestamp, endTimestamp)
+
     const byDate: AffiliateRevenueResponse['byDate'] = {}
     const byAsset: Record<string, AssetRevenue> = {}
 
-    for (const fee of fees) {
+    for (const fee of settlement.netFees) {
       const date = timestampToDate(fee.timestamp)
       const amountUsd = parseFloat(fee.amountUsd || '0')
-      const asset = await assetDataService.getAsset(fee.assetId)
-
-      const symbol = asset?.symbol || 'UNKNOWN'
-      const decimals = asset?.precision ?? 18
-
-      const chainName = getChainName(fee.chainId)
 
       if (!byDate[date]) {
         byDate[date] = {
@@ -184,30 +204,41 @@ export class AffiliateRevenue {
 
       byDate[date].totalUsd += amountUsd
       byDate[date].totalVolumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      byDate[date].totalFeeCount += 1
       byDate[date].byService[fee.service] += amountUsd
       byDate[date].byServiceVolume[fee.service] += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      byDate[date].byServiceFeeCount[fee.service] += 1
 
-      const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
+      if (!fee.synthetic) {
+        byDate[date].totalFeeCount += 1
+        byDate[date].byServiceFeeCount[fee.service] += 1
+      }
 
-      // Daily asset aggregation
-      const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
-      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-      dailyAsset.amountUsd += amountUsd
-      dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      dailyAsset.feeCount += 1
-      dailyAsset.byService[fee.service] += amountUsd
-      dailyAsset.byServiceFeeCount[fee.service] += 1
+      if (!fee.synthetic) {
+        const asset = await assetDataService.getAsset(fee.assetId)
 
-      // Global asset aggregation
-      const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
-      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-      globalAsset.amountUsd += amountUsd
-      globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      globalAsset.feeCount += 1
-      globalAsset.byService[fee.service] += amountUsd
-      globalAsset.byServiceFeeCount[fee.service] += 1
+        const symbol = asset?.symbol || 'UNKNOWN'
+        const decimals = asset?.precision ?? 18
+        const chainName = getChainName(fee.chainId)
+
+        const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
+
+        // Daily asset aggregation
+        const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
+        dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
+        dailyAsset.amountUsd += amountUsd
+        dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
+        dailyAsset.feeCount += 1
+        dailyAsset.byService[fee.service] += amountUsd
+        dailyAsset.byServiceFeeCount[fee.service] += 1
+
+        // Global asset aggregation
+        const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
+        globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
+        globalAsset.amountUsd += amountUsd
+        globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
+        globalAsset.feeCount += 1
+        globalAsset.byService[fee.service] += amountUsd
+        globalAsset.byServiceFeeCount[fee.service] += 1
+      }
     }
 
     const byService = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
@@ -236,6 +267,7 @@ export class AffiliateRevenue {
       byDate,
       byAsset,
       failedProviders,
+      unreconciled: settlement.unreconciled,
     }
   }
 }
