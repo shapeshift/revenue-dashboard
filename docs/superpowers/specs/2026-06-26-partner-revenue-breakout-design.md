@@ -12,176 +12,194 @@ too. We over-state ShapeShift revenue.
 
 We need to:
 
-1. Attribute only the **`shapeshiftBps`** portion of partner swaps to ShapeShift (remove the
-   partner cut from our numbers).
-2. Add a **Revenue by Partner** view so we can see how partners perform (and, later, expose it to
-   partners themselves).
+1. Make the **main revenue page/endpoint report ShapeShift-only revenue** — partner cuts peeled
+   out, no partner revenue, no double accounting.
+2. Add a **separate Partners page/endpoint** breaking down revenue by partner (internal now;
+   partner-facing later).
+
+A dollar from a partner swap is counted **once**: ShapeShift's `shapeshiftBps` share on the main
+page, the partner's `partnerBps` share on the Partners page. The two never overlap.
 
 ## Decisions (from brainstorming)
 
-- **Attribution model:** swap-service is the *partner-split authority* over existing totals. The
-  existing per-protocol providers remain the source of total revenue; we reclassify the
-  partner-attributable slice out of ShapeShift's number.
-- **Partner view scope:** Internal all-partners view now; structure the API so a partner-scoped /
-  authenticated view can be added later without rework.
-- **Data access:** New aggregate HTTP endpoint on swap-service (no direct DB coupling; matches the
-  existing axios-per-provider pattern in revenue-api).
-- **Partner identity:** Group and label by **`partnerCode`** (always present — see Assumptions).
-- **Adjustment granularity:** Per **service + per date**, so every existing breakdown (totals,
-  by-service, by-date) reflects ShapeShift-net revenue.
-- **swap-service returns `swapperName`** (raw, required), not a pre-mapped dashboard service. The
-  `swapperName → service` mapping lives in revenue-api.
+- **Attribution model:** swap-service is the *partner-split authority*. Existing per-protocol
+  providers remain the source of gross revenue; we **settle** partner swaps against that gross,
+  per swap, and move the partner slice out of ShapeShift's number.
+- **Settlement is per-swap, not aggregate.** revenue-api pulls all affiliates + all partner swaps
+  from swap-service and joins each partner swap to the matching provider fee event, splitting that
+  event's own USD by the swap's `partnerBps / affiliateBps`. (An earlier aggregate-subtraction
+  approach was rejected — it mixed swap-service USD with provider USD and could over/under-shoot.)
+- **Two endpoints / two pages:** main `revenue` (ShapeShift-net only) and new `partner/revenue`
+  (by-partner). Partner data never appears in the main response.
+- **Partner identity:** `partnerCode` (the attribution key; see "Current swap-service state").
+- **Data access:** new read endpoint(s) on swap-service; revenue-api fetches via axios/fetch and
+  does the bucketing + settlement.
+- **Frontend:** lightweight in-app tab/nav (no new routing dep) → "Revenue" and "Partners" views.
 
-## Architecture
-
-Three layers across two repos:
-
-```
-microservices/swap-service
-  └── GET /v1/affiliate/revenue-breakdown        (new, read-only aggregate)
-        owns: bps/fee math, partnerCode resolution, grouping
-        returns: partner-attributed revenue grouped by partnerCode × swapperName × date
-
-revenue-dashboard/apps/revenue-api
-  └── new partnerRevenue module
-        fetches the breakdown (axios), maps swapperName → service,
-        reconciles (subtracts partner slice from existing totals),
-        adds `byPartner` + `partnerTotalUsd` to AffiliateRevenueResponse
-
-revenue-dashboard/apps/revenue-dashboard (frontend)
-  └── new PartnerBreakdown component; existing totals/charts become "ShapeShift net"
-```
-
-## Component 1 — swap-service endpoint
-
-**Route:** `GET /v1/affiliate/revenue-breakdown?startDate=&endDate=` (added to
-`apps/swap-service/src/affiliate/affiliate.controller.ts` + `affiliate.service.ts`).
-
-**Query:** swaps where `partnerCode IS NOT NULL`, `status='SUCCESS'`, `isAffiliateVerified=true`,
-and `createdAt` within `[startDate, endDate]`. This mirrors `getAffiliateStats`' filters (see
-"Current swap-service state" below) generalized across *all* partners — the endpoint is essentially
-`getAffiliateStats` fanned out and grouped. No `origin` filter, to stay consistent with the
-partner-facing stats numbers. `partnerBps > 0` is implied for real partner swaps but we key off
-`partnerCode` (the attribution key) rather than bps.
-
-**Per-swap math (reuses existing utils):**
-- `fee = calculateFeeForSwap(swap)` → `{ feeUsd, volumeUsd, verifiedBps }` (skip if null).
-- `partnerRate = getPartnerFeeRate(fee.verifiedBps, swap.partnerBps)` — same as `getAffiliateStats`.
-- `partnerFeeUsd = fee.feeUsd * partnerRate`
-- `partnerVolumeUsd = fee.volumeUsd`
-
-**Grouping:** by `partnerCode × swapperName × date` (date = UTC `YYYY-MM-DD` from `createdAt`).
-`partnerCode` is read directly off the swap row (already populated at creation — see below); no
-per-row `Affiliate` lookup needed.
-
-### Current swap-service state (verified on `develop`)
+## Current swap-service state (verified on `develop`)
 
 The partnerCode migration is complete on `develop`:
 
 - `Affiliate.partnerCode` is `String @unique` (required); `Swap.partnerCode String?` with a relation
-  to `Affiliate` and an index. Populated at swap creation via `SwapsService.resolvePartner()` (from
-  `data.partnerCode`, falling back to resolving `partnerAddress → partnerCode`).
-- `AffiliateService.getAffiliateStats(partnerCode, …)` and `getAffiliateSwaps(partnerCode, …)` are
-  keyed by `partnerCode`, filtering `status='SUCCESS'`, `isAffiliateVerified=true`. The new
-  `revenue-breakdown` endpoint reuses this exact shape, adds `partnerCode: { not: null }`, and
-  groups by `swapperName × date` per partner.
+  to `Affiliate` + index. Populated at swap creation via `SwapsService.resolvePartner()` (from
+  `data.partnerCode`, else resolving `partnerAddress → partnerCode`).
+- `AffiliateService.getAffiliateStats(partnerCode, …)` / `getAffiliateSwaps(partnerCode, …)` are
+  keyed by `partnerCode`, filtering `status='SUCCESS'`, `isAffiliateVerified=true`.
 - Fee math (`calculateFeeForSwap`, `getPartnerFeeRate`) lives in `apps/swap-service/src/swaps/utils.ts`.
 
 Caveat: `Swap.partnerCode` is nullable, so partner swaps created *before* the migration may have a
-`partnerAddress` but no `partnerCode`; those won't appear in the breakdown. Acceptable — the
-breakout is forward-looking. If historical backfill is needed, it's a separate task.
+`partnerAddress` but no `partnerCode`; those are out of scope (the breakout is forward-looking).
+Historical backfill, if wanted, is a separate task.
 
-**Response:**
+## Architecture
 
-```ts
-type RevenueBreakdownRow = {
-  partnerCode: string      // always present
-  swapperName: string      // raw SwapperName, e.g. "THORChain", "0x"
-  date: string             // YYYY-MM-DD (UTC)
-  partnerFeeUsd: number
-  partnerVolumeUsd: number
-  swapCount: number
-}
-type RevenueBreakdownResponse = { rows: RevenueBreakdownRow[] }
+```
+microservices/swap-service  (develop)
+  ├── GET /v1/affiliate/registry                 (new) all affiliates
+  └── GET /v1/affiliate/partner-swaps            (new) per-swap partner rows, date-ranged, paginated
+        filters: partnerCode NOT NULL, status='SUCCESS', isAffiliateVerified=true
+        row: { partnerCode, swapperName, sellTxHash, buyTxHash,
+               partnerBps, shapeshiftBps, affiliateBps, feeUsd, partnerFeeUsd, date }
+
+revenue-dashboard/apps/revenue-api
+  ├── partnerSettlement service  (new, shared)
+  │     fetches registry + partner-swaps, indexes swaps by normalized txHash,
+  │     walks existing provider fee events, splits matched events by bps,
+  │     produces { shapeshiftNet: {...}, byPartner: {...}, unreconciled: {...} }
+  ├── GET /api/v1/affiliate/revenue   (existing) → ShapeShift-net only (no byPartner)
+  └── GET /api/v1/partner/revenue     (new)      → by-partner breakdown
+
+revenue-dashboard/apps/revenue-dashboard (frontend)
+  ├── tab nav: "Revenue" | "Partners"
+  ├── Revenue view (existing components; numbers now net)
+  └── Partners view (new PartnerBreakdown + usePartnerRevenue hook)
 ```
 
-## Component 2 — revenue-api reconciliation
+## Component 1 — swap-service endpoints
 
-New module under `apps/revenue-api/src/affiliateRevenue/partnerRevenue/` (fetch + mapping +
-reconciliation), wired into `AffiliateRevenue.getAffiliateRevenue` in
-`affiliateRevenue/index.ts`.
+Added to `apps/swap-service/src/affiliate/affiliate.controller.ts` + `affiliate.service.ts`.
 
-**`swapperName → service` map:** revenue-api owns a lookup from raw `SwapperName` to the dashboard
-`Service` ids (`thorchain`, `zrx`, `cowswap`, `relay`, `mayachain`, `chainflip`, `nearintents`,
-`portals`, `butterswap`, `avnu`, `bebop`). Swappers with no dashboard counterpart (Across,
-ArbitrumBridge, Cetus, Debridge, Stonfi, Sunio, Test) map to `null`.
+**`GET /v1/affiliate/registry`** — returns all affiliates:
+`{ partnerCode, bps, isActive }[]`. Lets the Partners page list every registered partner (including
+those with zero swaps in a range).
 
-**Reconciliation** (after `byDate`/`byService`/`byAsset` are built from existing providers):
-For each breakdown row, let `service = map(swapperName)`:
-- If `service` is a known dashboard service, subtract `partnerFeeUsd` from `totalUsd`,
-  `byService[service]`, `byDate[date].totalUsd`, `byDate[date].byService[service]`; subtract
-  `partnerVolumeUsd` from the corresponding `*Volume` aggregates. **Clamp at 0** defensively.
-- If `service` is `null` (untracked swapper), **no subtraction** — that revenue was never counted
-  by an existing provider, so there is nothing to remove.
-- **Fee counts are never changed** — we re-attribute USD revenue/volume, not event counts.
+**`GET /v1/affiliate/partner-swaps?startDate=&endDate=&cursor=&limit=`** — per-swap partner rows.
 
-**New response fields** (added to `AffiliateRevenueResponse` in `apps/revenue-api/src/types.ts` and
-mirrored in `apps/revenue-dashboard/src/types/index.ts`):
+- Filters mirror `getAffiliateStats` plus `partnerCode: { not: null }`: `status='SUCCESS'`,
+  `isAffiliateVerified=true`, `createdAt` within range. No `origin` filter (consistency with the
+  partner-facing stats numbers).
+- Per swap: `fee = calculateFeeForSwap(swap)` (skip if null),
+  `partnerFeeUsd = fee.feeUsd * getPartnerFeeRate(fee.verifiedBps, partnerBps)`.
+- Cursor pagination (reuse `swapCursorArgs` / `getNextCursor`).
 
 ```ts
-type PartnerServiceBreakdown = Record<string, number>   // keyed by raw swapperName
+type PartnerSwapRow = {
+  partnerCode: string
+  swapperName: string          // raw SwapperName, e.g. "THORChain", "0x"
+  sellTxHash: string | null
+  buyTxHash: string | null
+  partnerBps: number
+  shapeshiftBps: number
+  affiliateBps: number         // verified affiliate bps for the swap
+  feeUsd: number               // full affiliate fee (swap-service pricing) — fallback only
+  partnerFeeUsd: number        // partner slice (swap-service pricing) — fallback only
+  date: string                 // YYYY-MM-DD (UTC)
+}
+type PartnerSwapsResponse = { rows: PartnerSwapRow[]; nextCursor: string | null }
+```
+
+`feeUsd`/`partnerFeeUsd` are swap-service's own valuation, used only for the unmatched fallback and
+for the Partners view where a swap has no provider counterpart; matched swaps use provider USD.
+
+## Component 2 — revenue-api settlement
+
+New shared module `apps/revenue-api/src/affiliateRevenue/partnerSettlement/`, invoked by both
+endpoints. `swapperName → service` map (raw `SwapperName` → dashboard `Service` id) lives here.
+
+**Inputs:** the existing per-provider fee events (already produced in
+`AffiliateRevenue.getAffiliateRevenue`), plus registry + partner-swap rows fetched from swap-service
+(paginated to completion, cached per date with daily TTL).
+
+**Settlement algorithm:**
+
+1. Build the gross `byDate` / `byService` / `byAsset` from existing providers (unchanged today).
+2. Index partner swaps by **normalized txHash** (lowercase; index both `sellTxHash` and `buyTxHash`).
+3. For each existing provider fee event with a non-empty txHash that matches a partner swap:
+   - `partnerShare = feeEvent.amountUsd * (partnerBps / affiliateBps)`
+   - `shapeshiftShare = feeEvent.amountUsd − partnerShare`
+   - Subtract `partnerShare` (and the proportional volume) from ShapeShift's `totalUsd`, `byService[mappedService]`,
+     `byDate[date]`, and the asset bucket. Add `partnerShare` to `byPartner[partnerCode]`, bucketed
+     by the swap's raw `swapperName` + date. ShapeShift keeps `shapeshiftShare`. (Subtraction uses
+     the mapped dashboard `service`; the partner view buckets by raw `swapperName` so a partner's
+     totals stay complete even for untracked swappers.)
+4. **Unmatched partner swaps** (empty/absent txHash — e.g. chainflip — or no matching fee event):
+   fall back to swap-service's `partnerFeeUsd`. Subtract it (aggregate) from the matching service
+   bucket and add to `byPartner`; accumulate `unreconciled.count` / `unreconciled.usd`.
+5. **Fee counts unchanged** — only USD revenue/volume is re-attributed.
+
+Result: `{ shapeshiftNet, byPartner, unreconciled }`, computed once and shared by both endpoints.
+
+**Main endpoint** `GET /api/v1/affiliate/revenue` returns `shapeshiftNet` shaped exactly like today's
+`AffiliateRevenueResponse` (no `byPartner`), plus an `unreconciled` summary so no one silently reads
+over/under-stated numbers.
+
+**Partner endpoint** `GET /api/v1/partner/revenue?startDate=&endDate=` returns:
+
+```ts
 type PartnerRevenue = {
   partnerCode: string
   totalUsd: number
   totalVolumeUsd: number
   swapCount: number
-  byService: PartnerServiceBreakdown   // raw swapperName → usd (complete, incl. untracked)
-  byDate: Record<string, number>       // date → usd
+  byService: Record<string, number>   // raw swapperName → usd (complete)
+  byDate: Record<string, number>      // date → usd
 }
-// added to AffiliateRevenueResponse:
-byPartner: Record<string, PartnerRevenue>   // keyed by partnerCode
-partnerTotalUsd: number
+type PartnerRevenueResponse = {
+  byPartner: Record<string, PartnerRevenue>  // keyed by partnerCode
+  partnerTotalUsd: number
+  affiliates: { partnerCode: string; bps: number; isActive: boolean }[]  // incl. zero-activity
+  unreconciled: { count: number; usd: number }
+}
 ```
 
-The partner view's `byService` uses **raw `swapperName`** so each partner's total is complete,
-including swappers the main dashboard doesn't track. The `swapperName → service` map is used only
-for the main-dashboard reconciliation.
-
-**Caching:** the breakdown is cached per UTC date with the same daily TTL as the existing
-`feeCache` (historical dates are immutable; only the current/last day is re-fetched). If the
-breakdown fetch fails, log and continue with **unreconciled** (gross) numbers and an empty
-`byPartner` — partner reporting degrades gracefully rather than breaking the whole dashboard.
+Route wiring is Hono (`apps/revenue-api/src/routes/`), mirroring the existing
+`affiliateRevenue.ts` (date validation, error shape).
 
 ## Component 3 — frontend
 
-- New `apps/revenue-dashboard/src/components/PartnerBreakdown.tsx` — a sortable table (partner,
-  revenue, volume, swap count), styled after `ServiceBreakdown.tsx`. Rendered in `App.tsx` from
-  `data.byPartner`. Keyed by `partnerCode` so a future partner-scoped filter / auth gate drops in
-  without restructuring.
-- Existing "Revenue" framing clarified as **ShapeShift net** (after partner payouts); add an
-  optional "Partner payouts" summary card sourced from `partnerTotalUsd`.
+- Tab/nav state in `App.tsx` (dependency-free) → "Revenue" and "Partners".
+- **Revenue view:** existing components unchanged; the numbers are now ShapeShift-net. Optional
+  small note when `unreconciled.usd > 0`.
+- **Partners view:** `usePartnerRevenue` hook (fetches `/api/v1/partner/revenue`) +
+  `PartnerBreakdown.tsx` — sortable table (partner, revenue, volume, swap count), styled after
+  `ServiceBreakdown.tsx`, with per-partner service/date drill-down. Keyed by `partnerCode` so a
+  future partner-scoped / authenticated filter drops in cleanly.
+- Add `PartnerRevenueResponse` types to `apps/revenue-dashboard/src/types/index.ts`.
 
 ## Testing
 
-- **swap-service:** bps split correctness; `partnerBps=0` excluded; grouping by
-  `partnerCode × swapperName × date`; rows always carry a `partnerCode`.
-- **revenue-api:** reconciliation subtracts the partner slice from `totalUsd` + `byService` +
-  `byDate` for mapped swappers; unmapped swapper → no subtraction but present in `byPartner`;
-  clamp-at-0; `byPartner` assembled correctly; graceful degradation when the fetch fails.
-- **frontend:** `PartnerBreakdown` render + sort.
+- **swap-service:** `partner-swaps` filters (`partnerCode NOT NULL`, SUCCESS, verified); per-swap
+  `partnerFeeUsd` math; pagination; `registry` returns all affiliates.
+- **revenue-api settlement:** matched fee event splits by bps (provider USD, not swap-service USD);
+  `shapeshiftShare + partnerShare == amountUsd` (no double count / no loss); unmatched swap →
+  `partnerFeeUsd` fallback + `unreconciled` accounting; `swapperName → service` mapping (unmapped
+  swapper still appears in `byPartner`); main endpoint omits `byPartner`; both endpoints share one
+  cached settlement.
+- **frontend:** tab switch; `PartnerBreakdown` render/sort; net numbers on Revenue view.
 
 ## Assumptions / dependencies
 
-- **Resolved:** `partnerCode` is now populated at swap creation on `develop` (see "Current
-  swap-service state"). Pre-migration partner swaps may lack it and are out of scope for the
-  breakout (forward-looking).
-- `affiliateBps = shapeshiftBps + partnerBps` for partner swaps (consistent with
-  `getPartnerFeeRate`).
+- `partnerCode` is populated at swap creation on `develop` (see above). Pre-migration partner swaps
+  without it are out of scope.
+- For a partner swap, the provider's affiliate fee event equals `affiliateBps` worth (ShapeShift
+  collects the full affiliate fee, incl. the partner's bps, then pays the partner out) — so
+  splitting by `partnerBps / affiliateBps` is exact.
+- `affiliateBps = shapeshiftBps + partnerBps`.
+- EVM tx hashes may differ in case/prefix between sources → normalize (lowercase) before joining.
 
 ## Out of scope (YAGNI)
 
-- Partner-facing authentication / per-partner access control (deferred — view is internal-only for
-  now; API shape is forward-compatible).
+- Partner-facing auth / per-partner access control (internal-only now; API shape forward-compatible).
 - Reconciling fee *counts* (only USD revenue/volume re-attributed).
-- Pre-aggregated/materialized rollups in swap-service (on-demand + cache is sufficient at current
-  volume).
+- Historical backfill of `partnerCode` on pre-migration swaps.
+- Pre-aggregated/materialized rollups in swap-service (on-demand + cache is sufficient).
