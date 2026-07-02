@@ -4,7 +4,7 @@ import { assetDataService } from '../assetData/AssetDataService'
 import { bnOrZero } from '../lib/bignumber'
 import { aggregatePartnerRevenue } from '../partnerRevenue/aggregate'
 import { buildSettlement } from '../partnerRevenue/settle'
-import { fetchAffiliateRegistry, fetchPartnerSwaps } from '../partnerRevenue/swapServiceClient'
+import { fetchAffiliates, fetchPartnerSwaps } from '../partnerRevenue/swapServiceClient'
 import type { SettlementResult } from '../partnerRevenue/types'
 import type { AffiliateRevenueResponse, AssetRevenue, PartnerRevenueResponse, Service } from '../types'
 import { services } from '../types'
@@ -272,8 +272,6 @@ export class AffiliateRevenue {
     }
   }
 
-  // Partner revenue is a straight roll-up of the affiliate swaps — it does not depend on
-  // affiliate provider revenue or the netting settlement (that's only for the ShapeShift-net view).
   async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
     const startDate = timestampToDate(startTimestamp)
     const endDate = timestampToDate(endTimestamp)
@@ -289,7 +287,7 @@ export class AffiliateRevenue {
 
     let affiliates: PartnerRevenueResponse['affiliates'] = []
     try {
-      affiliates = await fetchAffiliateRegistry()
+      affiliates = await fetchAffiliates()
     } catch (error) {
       console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
     }

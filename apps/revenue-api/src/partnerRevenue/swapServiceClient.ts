@@ -62,11 +62,8 @@ export async function fetchPartnerSwaps(
   return rows
 }
 
-export async function fetchAffiliateRegistry(
-  opts: Opts = {}
-): Promise<{ partnerCode: string; bps: number; isActive: boolean }[]> {
-  const doFetch = opts.fetchImpl ?? fetch
-  const res = await doFetch(new URL('/v1/affiliate', BASE).toString(), { headers: { 'x-api-key': API_KEY } })
+export async function fetchAffiliates(): Promise<{ partnerCode: string; bps: number; isActive: boolean }[]> {
+  const res = await fetch(new URL('/v1/affiliate', BASE).toString(), { headers: { 'x-api-key': API_KEY } })
   if (!res.ok) throw new Error(`swap-service /v1/affiliate ${res.status}`)
   return (await res.json()) as { partnerCode: string; bps: number; isActive: boolean }[]
 }
