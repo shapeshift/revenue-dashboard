@@ -57,8 +57,12 @@ revenue-dashboard/apps/revenue-dashboard (frontend)
 **Route:** `GET /v1/affiliate/revenue-breakdown?startDate=&endDate=` (added to
 `apps/swap-service/src/affiliate/affiliate.controller.ts` + `affiliate.service.ts`).
 
-**Query:** swaps where `status='SUCCESS'`, `isAffiliateVerified=true`, `partnerBps > 0`, and
-`createdAt` within `[startDate, endDate]`. Only partner-attributed swaps need reclassification.
+**Query:** swaps where `partnerCode IS NOT NULL`, `status='SUCCESS'`, `isAffiliateVerified=true`,
+and `createdAt` within `[startDate, endDate]`. This mirrors `getAffiliateStats`' filters (see
+"Current swap-service state" below) generalized across *all* partners — the endpoint is essentially
+`getAffiliateStats` fanned out and grouped. No `origin` filter, to stay consistent with the
+partner-facing stats numbers. `partnerBps > 0` is implied for real partner swaps but we key off
+`partnerCode` (the attribution key) rather than bps.
 
 **Per-swap math (reuses existing utils):**
 - `fee = calculateFeeForSwap(swap)` → `{ feeUsd, volumeUsd, verifiedBps }` (skip if null).
@@ -67,7 +71,25 @@ revenue-dashboard/apps/revenue-dashboard (frontend)
 - `partnerVolumeUsd = fee.volumeUsd`
 
 **Grouping:** by `partnerCode × swapperName × date` (date = UTC `YYYY-MM-DD` from `createdAt`).
-`partnerCode` resolved from the `Affiliate` registry.
+`partnerCode` is read directly off the swap row (already populated at creation — see below); no
+per-row `Affiliate` lookup needed.
+
+### Current swap-service state (verified on `develop`)
+
+The partnerCode migration is complete on `develop`:
+
+- `Affiliate.partnerCode` is `String @unique` (required); `Swap.partnerCode String?` with a relation
+  to `Affiliate` and an index. Populated at swap creation via `SwapsService.resolvePartner()` (from
+  `data.partnerCode`, falling back to resolving `partnerAddress → partnerCode`).
+- `AffiliateService.getAffiliateStats(partnerCode, …)` and `getAffiliateSwaps(partnerCode, …)` are
+  keyed by `partnerCode`, filtering `status='SUCCESS'`, `isAffiliateVerified=true`. The new
+  `revenue-breakdown` endpoint reuses this exact shape, adds `partnerCode: { not: null }`, and
+  groups by `swapperName × date` per partner.
+- Fee math (`calculateFeeForSwap`, `getPartnerFeeRate`) lives in `apps/swap-service/src/swaps/utils.ts`.
+
+Caveat: `Swap.partnerCode` is nullable, so partner swaps created *before* the migration may have a
+`partnerAddress` but no `partnerCode`; those won't appear in the breakdown. Acceptable — the
+breakout is forward-looking. If historical backfill is needed, it's a separate task.
 
 **Response:**
 
@@ -150,9 +172,9 @@ breakdown fetch fails, log and continue with **unreconciled** (gross) numbers an
 
 ## Assumptions / dependencies
 
-- swap-service currently has a gap where `partnerCode` is not always populated. The endpoint
-  assumes `partnerCode` is **always present** for partner swaps; this gap is being fixed separately
-  before/alongside this work.
+- **Resolved:** `partnerCode` is now populated at swap creation on `develop` (see "Current
+  swap-service state"). Pre-migration partner swaps may lack it and are out of scope for the
+  breakout (forward-looking).
 - `affiliateBps = shapeshiftBps + partnerBps` for partner swaps (consistent with
   `getPartnerFeeRate`).
 
