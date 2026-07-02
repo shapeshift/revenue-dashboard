@@ -3,10 +3,6 @@ import type { PartnerSwapRow } from './types'
 const BASE = process.env.SWAP_SERVICE_URL ?? 'http://localhost:3001'
 const API_KEY = process.env.SERVICE_API_KEY ?? ''
 
-type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
-
-type Opts = { fetchImpl?: FetchLike }
-
 type RawPartnerSwap = {
   partnerCode: string
   swapperName: string
@@ -22,12 +18,7 @@ type RawPartnerSwap = {
 
 const toDate = (iso: string): string => iso.slice(0, 10)
 
-export async function fetchPartnerSwaps(
-  startDate: string,
-  endDate: string,
-  opts: Opts = {}
-): Promise<PartnerSwapRow[]> {
-  const doFetch = opts.fetchImpl ?? fetch
+export async function fetchPartnerSwaps(startDate: string, endDate: string): Promise<PartnerSwapRow[]> {
   const rows: PartnerSwapRow[] = []
   let cursor: string | null = null
 
@@ -38,7 +29,7 @@ export async function fetchPartnerSwaps(
     url.searchParams.set('limit', '100')
     if (cursor) url.searchParams.set('cursor', cursor)
 
-    const res = await doFetch(url.toString(), { headers: { 'x-api-key': API_KEY } })
+    const res = await fetch(url.toString(), { headers: { 'x-api-key': API_KEY } })
     if (!res.ok) throw new Error(`swap-service /v1/affiliate/swaps ${res.status}`)
     const body = (await res.json()) as { swaps: RawPartnerSwap[]; nextCursor: string | null }
 
