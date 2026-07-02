@@ -1,7 +1,7 @@
 # Partner Revenue Breakout — Design
 
 **Date:** 2026-06-26
-**Status:** Approved (pending spec review)
+**Status:** Implemented
 
 ## Problem
 
