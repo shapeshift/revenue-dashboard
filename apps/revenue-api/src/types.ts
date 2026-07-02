@@ -1,4 +1,4 @@
-import type { PartnerRevenue } from './affiliateRevenue/partnerSettlement/types'
+import type { PartnerRevenue } from './partnerRevenue/types'
 
 export const services = [
   'avnu',

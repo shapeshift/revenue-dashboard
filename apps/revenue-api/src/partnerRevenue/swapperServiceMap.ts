@@ -1,4 +1,4 @@
-import type { Service } from '../../types'
+import type { Service } from '../types'
 
 // Raw @shapeshiftoss/swapper SwapperName -> dashboard Service id.
 // Swappers with no dashboard provider are intentionally absent (=> null).

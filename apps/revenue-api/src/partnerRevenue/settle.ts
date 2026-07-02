@@ -1,5 +1,5 @@
-import { getDateStartTimestamp } from '../cache'
-import type { Fees } from '../index'
+import { getDateStartTimestamp } from '../affiliateRevenue/cache'
+import type { Fees } from '../affiliateRevenue/index'
 
 import { mapSwapperNameToService } from './swapperServiceMap'
 import type { PartnerRevenue, PartnerSwapRow, SettlementResult } from './types'

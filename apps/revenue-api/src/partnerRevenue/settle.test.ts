@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { Fees } from '../index'
+import type { Fees } from '../affiliateRevenue/index'
 
 import { buildSettlement } from './settle'
 import type { PartnerSwapRow } from './types'

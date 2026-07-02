@@ -1,4 +1,4 @@
-import type { Fees } from '../index'
+import type { Fees } from '../affiliateRevenue/index'
 
 export type PartnerSwapRow = {
   partnerCode: string
