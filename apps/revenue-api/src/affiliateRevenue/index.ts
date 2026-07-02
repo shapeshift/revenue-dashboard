@@ -97,6 +97,7 @@ export type Fees = {
   service: Service
   timestamp: number
   txHash: string
+  synthetic?: boolean // settlement-only negative adjustment; excluded from counts + asset breakdown
 }
 
 const getOrCreateAssetRevenue = (
