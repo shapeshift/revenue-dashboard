@@ -7,12 +7,16 @@ describe('mapSwapperNameToService', () => {
     expect(mapSwapperNameToService('0x')).toBe('zrx')
     expect(mapSwapperNameToService('CoW Swap')).toBe('cowswap')
     expect(mapSwapperNameToService('Relay')).toBe('relay')
-    expect(mapSwapperNameToService('Mayachain')).toBe('mayachain')
+    expect(mapSwapperNameToService('MAYAChain')).toBe('mayachain')
+    expect(mapSwapperNameToService('NEAR Intents')).toBe('nearintents')
+    expect(mapSwapperNameToService('AVNU')).toBe('avnu')
   })
 
   test('returns null for swappers the dashboard does not track', () => {
     expect(mapSwapperNameToService('Across')).toBeNull()
     expect(mapSwapperNameToService('ArbitrumBridge')).toBeNull()
     expect(mapSwapperNameToService('Unknown')).toBeNull()
+    // Documents that exact string match matters: the old (wrong) casing must not resolve.
+    expect(mapSwapperNameToService('Mayachain')).toBeNull()
   })
 })

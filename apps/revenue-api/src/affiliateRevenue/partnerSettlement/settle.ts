@@ -46,7 +46,8 @@ export function buildSettlement(fees: Fees[], partnerSwaps: PartnerSwapRow[]): S
       continue
     }
     const amountUsd = parseFloat(fee.amountUsd || '0')
-    const partnerShare = amountUsd * (s.partnerBps / s.affiliateBps)
+    const partnerRate = Math.min(s.partnerBps / s.affiliateBps, 1)
+    const partnerShare = amountUsd * partnerRate
     netFees.push({ ...fee, amountUsd: (amountUsd - partnerShare).toString() })
     credit(s, partnerShare)
   }

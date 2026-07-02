@@ -38,6 +38,15 @@ describe('buildSettlement — matched fee event', () => {
     expect(Number(res.netFees[0].amountUsd)).toBeCloseTo(6, 6)
     expect(res.partnerTotalUsd).toBe(0)
   })
+
+  test('clamps the partner ratio to 1 when partnerBps > affiliateBps', () => {
+    const fees = [fee({ txHash: '0xABC', amountUsd: '6' })]
+    const res = buildSettlement(fees, [swap({ partnerBps: 80, affiliateBps: 60 })])
+
+    // rate = min(80/60, 1) = 1, so partner share is the full 6, net is 0 (not negative)
+    expect(res.byPartner.alpha.totalUsd).toBeCloseTo(6, 6)
+    expect(Number(res.netFees[0].amountUsd)).toBe(0)
+  })
 })
 
 describe('buildSettlement — unmatched fallback', () => {
