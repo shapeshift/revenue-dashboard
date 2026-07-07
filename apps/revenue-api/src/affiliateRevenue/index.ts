@@ -1,29 +1,25 @@
 import axios from 'axios'
 
 import { assetDataService } from '../assetData/AssetDataService'
-import { bnOrZero } from '../lib/bignumber'
-import { aggregatePartnerRevenue } from '../partnerRevenue/aggregate'
-import { buildSettlement } from '../partnerRevenue/settle'
-import { fetchAffiliates, fetchPartnerSwaps } from '../partnerRevenue/swapServiceClient'
-import type { SettlementResult } from '../partnerRevenue/types'
-import type { AffiliateRevenueResponse, AssetRevenue, PartnerRevenueResponse, Service } from '../types'
-import { services } from '../types'
+import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
 
+import { aggregateAffiliateRevenue, aggregatePartnerRevenue } from './aggregateRevenue'
 import * as avnu from './avnu'
 import * as bebop from './bebop'
 import * as bobgateway from './bobgateway'
 import * as butterswap from './butterswap'
-import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
-import { getAffiliateFeeRate } from './constants'
 import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
+import { reconcilePartnerRevenue } from './reconcileRevenue'
 import * as relay from './relay'
+import { fetchPartners, fetchPartnerSwaps } from './swapServiceClient'
 import * as thorchain from './thorchain'
-import { baseUnitToTokenAmount } from './utils'
+import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
+import { timestampToDate } from './utils/date'
 import * as zrx from './zrx'
 
 const providerNames: Service[] = [
@@ -42,43 +38,6 @@ const providerNames: Service[] = [
   'zrx',
 ]
 
-const chainMap: Record<string, string> = {
-  // EVM chains
-  'eip155:1': 'Ethereum',
-  'eip155:10': 'Optimism',
-  'eip155:8453': 'Base',
-  'eip155:42161': 'Arbitrum',
-  'eip155:137': 'Polygon',
-  'eip155:56': 'BSC',
-  'eip155:100': 'Gnosis',
-  'eip155:43114': 'Avalanche',
-  'eip155:22776': 'MAP Protocol',
-  'eip155:143': 'Monad',
-  'eip155:9745': 'Plasma',
-  'eip155:999': 'HyperEVM',
-  'eip155:747474': 'Katana',
-
-  // Bitcoin-based chains
-  'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
-  'bip122:00000000001a91e3dace36e2be3bf030': 'Dogecoin',
-  'bip122:00040fe8ec8471911baa1db1266ea15d': 'Zcash',
-
-  // Other chains
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': 'Solana',
-  'tron:0x2b6653dc': 'Tron',
-  'sui:35834a8a': 'Sui',
-  'near:mainnet': 'Near',
-  'starknet:SN_MAIN': 'Starknet',
-  'ton:mainnet': 'TON',
-  'aptos:1': 'Aptos',
-
-  // Cosmos chains
-  'cosmos:thorchain-1': 'THORChain',
-  'cosmos:mayachain-mainnet-v1': 'MAYAChain',
-}
-
-const getChainName = (chainId: string): string => chainMap[chainId] || chainId
-
 const formatError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 'no response'
@@ -92,40 +51,21 @@ const formatError = (error: unknown): string => {
   return String(error)
 }
 
-export type Fees = {
-  amount: string
-  amountUsd?: string
-  originalUsdValue?: string
-  assetId: string
-  chainId: string
-  service: Service
-  timestamp: number
-  txHash: string
-  synthetic?: boolean // settlement-only negative adjustment; excluded from counts + asset breakdown
-}
+const logExcludedPartnerSwaps = (context: string, excluded: ExcludedPartnerSwap[]): void => {
+  const byReason = new Map<string, ExcludedPartnerSwap[]>()
 
-const getOrCreateAssetRevenue = (
-  byAsset: Record<string, AssetRevenue>,
-  assetId: string,
-  symbol: string,
-  chainId: string,
-  chainName: string
-): AssetRevenue => {
-  if (!byAsset[assetId]) {
-    byAsset[assetId] = {
-      symbol,
-      chainId,
-      chainName,
-      assetId,
-      tokenAmount: '0',
-      amountUsd: 0,
-      volumeUsd: 0,
-      feeCount: 0,
-      byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-      byServiceFeeCount: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-    }
+  for (const swap of excluded) {
+    const list = byReason.get(swap.reason) ?? []
+    list.push(swap)
+    byReason.set(swap.reason, list)
   }
-  return byAsset[assetId]
+
+  for (const [reason, swaps] of byReason) {
+    const sample = swaps.slice(0, 5).map(s => s.swapId)
+    console.warn(
+      `[${context}] ${swaps.length} partner swap(s) excluded — ${reason} (e.g. ${sample.join(', ')}${swaps.length > sample.length ? ', …' : ''})`
+    )
+  }
 }
 
 export class AffiliateRevenue {
@@ -165,133 +105,50 @@ export class AffiliateRevenue {
     return { fees, failedProviders }
   }
 
-  private async settle(fees: Fees[], startTimestamp: number, endTimestamp: number): Promise<SettlementResult> {
+  private async reconcile(
+    fees: Fees[],
+    failedProviders: Service[],
+    startTimestamp: number,
+    endTimestamp: number
+  ): Promise<ReconciliationResult> {
     const startDate = timestampToDate(startTimestamp)
     const endDate = timestampToDate(endTimestamp)
-    try {
-      const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
-      return buildSettlement(fees, partnerSwaps)
-    } catch (error) {
-      console.error(`[AffiliateRevenue] partner settlement failed: ${formatError(error)}`)
-      // graceful: no peeling
-      return { netFees: fees, unreconciled: { count: 0, usd: 0 } }
-    }
+
+    const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
+
+    return reconcilePartnerRevenue(fees, partnerSwaps, failedProviders)
   }
 
   async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
     assetDataService.resetMissLog()
 
     const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
-    const settlement = await this.settle(fees, startTimestamp, endTimestamp)
+    const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
 
-    const byDate: AffiliateRevenueResponse['byDate'] = {}
-    const byAsset: Record<string, AssetRevenue> = {}
+    logExcludedPartnerSwaps('AffiliateRevenue', reconciliation.excluded)
 
-    for (const fee of settlement.netFees) {
-      const date = timestampToDate(fee.timestamp)
-      const amountUsd = parseFloat(fee.amountUsd || '0')
-
-      if (!byDate[date]) {
-        byDate[date] = {
-          totalUsd: 0,
-          totalVolumeUsd: 0,
-          totalFeeCount: 0,
-          byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byServiceVolume: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byServiceFeeCount: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byAsset: {},
-        }
-      }
-
-      byDate[date].totalUsd += amountUsd
-      byDate[date].totalVolumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      byDate[date].byService[fee.service] += amountUsd
-      byDate[date].byServiceVolume[fee.service] += amountUsd / getAffiliateFeeRate(fee.timestamp)
-
-      if (!fee.synthetic) {
-        byDate[date].totalFeeCount += 1
-        byDate[date].byServiceFeeCount[fee.service] += 1
-      }
-
-      if (!fee.synthetic) {
-        const asset = await assetDataService.getAsset(fee.assetId)
-
-        const symbol = asset?.symbol || 'UNKNOWN'
-        const decimals = asset?.precision ?? 18
-        const chainName = getChainName(fee.chainId)
-
-        const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
-
-        // Daily asset aggregation
-        const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
-        dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-        dailyAsset.amountUsd += amountUsd
-        dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-        dailyAsset.feeCount += 1
-        dailyAsset.byService[fee.service] += amountUsd
-        dailyAsset.byServiceFeeCount[fee.service] += 1
-
-        // Global asset aggregation
-        const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
-        globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-        globalAsset.amountUsd += amountUsd
-        globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-        globalAsset.feeCount += 1
-        globalAsset.byService[fee.service] += amountUsd
-        globalAsset.byServiceFeeCount[fee.service] += 1
-      }
-    }
-
-    const byService = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
-    const byServiceVolume = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
-    const byServiceFeeCount = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
-
-    for (const daily of Object.values(byDate)) {
-      for (const service of services) {
-        byService[service] += daily.byService[service]
-        byServiceVolume[service] += daily.byServiceVolume[service]
-        byServiceFeeCount[service] += daily.byServiceFeeCount[service]
-      }
-    }
-
-    const totalUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalUsd, 0)
-    const totalVolumeUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalVolumeUsd, 0)
-    const totalFeeCount = Object.values(byDate).reduce((sum, daily) => sum + daily.totalFeeCount, 0)
-
-    return {
-      totalUsd,
-      totalVolumeUsd,
-      totalFeeCount,
-      byService,
-      byServiceVolume,
-      byServiceFeeCount,
-      byDate,
-      byAsset,
-      failedProviders,
-      unreconciled: settlement.unreconciled,
-    }
+    return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
+      assetDataService.getAsset(assetId)
+    )
   }
 
   async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
     const startDate = timestampToDate(startTimestamp)
     const endDate = timestampToDate(endTimestamp)
 
-    let byPartner: PartnerRevenueResponse['byPartner'] = {}
-    let partnerTotalUsd = 0
-    try {
-      const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
-      ;({ byPartner, partnerTotalUsd } = aggregatePartnerRevenue(partnerSwaps))
-    } catch (error) {
-      console.error(`[PartnerRevenue] partner swaps fetch failed: ${formatError(error)}`)
-    }
+    const [partnerSwaps, affiliates] = await Promise.all([
+      fetchPartnerSwaps(startDate, endDate).catch((error: unknown) => {
+        console.error(`[PartnerRevenue] partner swaps fetch failed: ${formatError(error)}`)
+        return []
+      }),
+      fetchPartners().catch((error: unknown) => {
+        console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
+        return []
+      }),
+    ])
 
-    let affiliates: PartnerRevenueResponse['affiliates'] = []
-    try {
-      affiliates = await fetchAffiliates()
-    } catch (error) {
-      console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
-    }
-
-    return { byPartner, partnerTotalUsd, affiliates }
+    const { response, excluded } = aggregatePartnerRevenue(partnerSwaps, affiliates)
+    logExcludedPartnerSwaps('PartnerRevenue', excluded)
+    return response
   }
 }

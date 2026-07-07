@@ -1,4 +1,3 @@
-import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getCachedBlockTimestamp,
@@ -11,6 +10,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
 
 import {

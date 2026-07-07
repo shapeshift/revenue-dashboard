@@ -1,4 +1,4 @@
-import type { PartnerRevenue } from './partnerRevenue/types'
+import type { PartnerRevenue } from './affiliateRevenue/types'
 
 export const services = [
   'avnu',
@@ -51,7 +51,6 @@ export interface AffiliateRevenueResponse {
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: Service[]
-  unreconciled: { count: number; usd: number }
 }
 
 export interface PartnerRevenueResponse {

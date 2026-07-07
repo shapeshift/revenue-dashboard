@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { assetDataService } from '../../assetData/AssetDataService'
 import {
   getCacheableThreshold,
@@ -13,6 +12,7 @@ import {
 } from '../cache'
 import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 import { buildAssetId, decimalToBaseUnit } from '../utils'
 
 import { BEBOP_API_KEY, BEBOP_API_URL, NANOSECONDS_PER_SECOND, SHAPESHIFT_REFERRER } from './constants'

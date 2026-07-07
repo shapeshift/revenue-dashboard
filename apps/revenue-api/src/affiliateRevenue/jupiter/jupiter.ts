@@ -1,4 +1,3 @@
-import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -9,6 +8,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 
 import {
   JUPITER_AFFILIATE_CONTRACT,

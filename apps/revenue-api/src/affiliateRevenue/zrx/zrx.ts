@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { assetDataService } from '../../assetData/AssetDataService'
 import { bn } from '../../lib/bignumber'
 import { withRetry } from '../../utils/retry'
@@ -16,6 +15,7 @@ import {
 import { getAffiliateFeeRate } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { getAssetPriceUsd } from '../priceCache'
+import type { Fees } from '../types'
 import { baseUnitToTokenAmount, buildAssetId, decimalToBaseUnit, safeAmountToString } from '../utils'
 
 import { SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'

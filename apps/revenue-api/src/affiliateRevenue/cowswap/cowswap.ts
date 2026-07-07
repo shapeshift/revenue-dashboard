@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -12,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 
 import {
   BLOCKSCOUT_API_URL,
