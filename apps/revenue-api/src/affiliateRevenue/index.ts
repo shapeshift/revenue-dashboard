@@ -78,7 +78,10 @@ const logExcludedPartnerSwaps = (context: string, excluded: ExcludedPartnerSwap[
       .map(([name, count]) => `${name} ×${count}`)
       .join(', ')
 
-    console.warn(`  • $${usd.toFixed(2)} — ${reason} — ${swaps.length} swap(s): ${swappers}`)
+    // All swapIds (not a sample) so the underlying rows can be pulled from the DB.
+    const swapIds = swaps.map(s => s.swapId).join(', ')
+
+    console.warn(`  • $${usd.toFixed(2)} — ${reason} — ${swaps.length} swap(s): ${swappers}\n    swapIds: ${swapIds}`)
   }
 }
 
