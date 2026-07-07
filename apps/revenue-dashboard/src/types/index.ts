@@ -31,7 +31,6 @@ export type AffiliateRevenueResponse = {
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: string[]
-  unreconciled: { count: number; usd: number }
 }
 
 export type PartnerRevenue = {
