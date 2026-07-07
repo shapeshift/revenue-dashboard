@@ -18,6 +18,7 @@ export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
   if (!swap.affiliateFeeAssetId) return { payable: false, reason: 'no affiliate-fee asset' }
   if (!swap.affiliateFeeAmountCryptoBaseUnit) return { payable: false, reason: 'no on-chain affiliate-fee amount' }
   if (!swap.verifiedBps || swap.verifiedBps <= 0) return { payable: false, reason: 'no verified on-chain bps' }
+  if (swap.partnerBps < 0) return { payable: false, reason: 'invalid partner bps' }
 
   const partnerFeeUsd = bnOrZero(swap.partnerFeeUsd)
   if (partnerFeeUsd.lte(0)) return { payable: false, reason: 'no partner fee' }

@@ -6,6 +6,9 @@ const SWAP_SERVICE_API_KEY = process.env['SWAP_SERVICE_API_KEY'] as string
 if (!SWAP_SERVICE_URL) throw new Error('SWAP_SERVICE_URL is required')
 if (!SWAP_SERVICE_API_KEY) throw new Error('SWAP_SERVICE_API_KEY is required')
 
+const REQUEST_TIMEOUT_MS = 30_000
+const MAX_PAGES = 1000 // safety cap for the cursor loop (100/page → 100k swaps)
+
 type AffiliateSwap = {
   swapId: string
   status: string
@@ -28,14 +31,20 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
   const swaps: PartnerSwap[] = []
 
   let cursor: string | null = null
+  let pages = 0
   do {
+    if (pages++ >= MAX_PAGES) throw new Error(`swap-service /v1/affiliate/swaps exceeded ${MAX_PAGES} pages`)
+
     const url = new URL('/v1/affiliate/swaps', SWAP_SERVICE_URL)
     url.searchParams.set('startDate', startDate)
     url.searchParams.set('endDate', endDate)
     url.searchParams.set('limit', '100')
     if (cursor) url.searchParams.set('cursor', cursor)
 
-    const res = await fetch(url.toString(), { headers: { 'x-api-key': SWAP_SERVICE_API_KEY } })
+    const res = await fetch(url.toString(), {
+      headers: { 'x-api-key': SWAP_SERVICE_API_KEY },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
     if (!res.ok) throw new Error(`swap-service /v1/affiliate/swaps ${res.status}`)
 
     const body = (await res.json()) as { swaps: AffiliateSwap[]; nextCursor: string | null }
@@ -69,6 +78,7 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
 export async function fetchPartners(): Promise<{ partnerCode: string; bps: number; isActive: boolean }[]> {
   const res = await fetch(new URL('/v1/affiliate', SWAP_SERVICE_URL).toString(), {
     headers: { 'x-api-key': SWAP_SERVICE_API_KEY },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 
   if (!res.ok) throw new Error(`swap-service /v1/affiliate ${res.status}`)

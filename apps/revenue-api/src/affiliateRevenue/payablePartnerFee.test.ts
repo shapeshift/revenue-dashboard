@@ -39,11 +39,19 @@ describe('getPayablePartnerFee', () => {
     if (res.payable) expect(res.partnerFeeCryptoBaseUnit).toBe('500000000000000000')
   })
 
+  test('clamps the crypto share to the total when partnerBps > verifiedBps', () => {
+    // 1e18 × 120/60 = 2e18, clamped to the 1e18 total
+    const res = getPayablePartnerFee(swap({ partnerBps: 120, verifiedBps: 60, feeUsd: '6', partnerFeeUsd: '6' }))
+    expect(res.payable).toBe(true)
+    if (res.payable) expect(res.partnerFeeCryptoBaseUnit).toBe('1000000000000000000')
+  })
+
   test.each([
     ['swap not SUCCESS', swap({ status: 'PENDING' })],
     ['no affiliate-fee asset', swap({ affiliateFeeAssetId: null })],
     ['no on-chain affiliate-fee amount', swap({ affiliateFeeAmountCryptoBaseUnit: null })],
     ['no verified on-chain bps', swap({ verifiedBps: null })],
+    ['invalid partner bps', swap({ partnerBps: -30 })],
     ['no partner fee', swap({ partnerFeeUsd: '0' })],
   ])('not payable: %s', (reason, s) => {
     const res = getPayablePartnerFee(s)
