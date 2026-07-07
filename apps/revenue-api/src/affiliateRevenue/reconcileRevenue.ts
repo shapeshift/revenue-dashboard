@@ -34,7 +34,13 @@ export function reconcilePartnerRevenue(
   const excluded: ExcludedPartnerSwap[] = []
 
   const exclude = (swap: PartnerSwap, reason: string) => {
-    excluded.push({ swapId: swap.swapId, partnerCode: swap.partnerCode, swapperName: swap.swapperName, reason })
+    excluded.push({
+      swapId: swap.swapId,
+      partnerCode: swap.partnerCode,
+      swapperName: swap.swapperName,
+      reason,
+      partnerFeeUsd: bnOrZero(swap.partnerFeeUsd).toNumber(),
+    })
   }
 
   for (const swap of partnerSwaps) {

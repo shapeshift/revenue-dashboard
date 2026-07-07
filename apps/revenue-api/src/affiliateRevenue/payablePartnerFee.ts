@@ -27,7 +27,8 @@ export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
   if (impliedFeeUsd.gt(0)) {
     const deviation = bnOrZero(swap.feeUsd).minus(impliedFeeUsd).abs().div(impliedFeeUsd)
     if (deviation.gt(FEE_DEVIATION_TOLERANCE)) {
-      return { payable: false, reason: `fee anomaly (${deviation.times(100).toFixed(0)}% off bps-implied)` }
+      // Stable category (no per-swap %) so exclusions group cleanly in the audit log.
+      return { payable: false, reason: `fee anomaly (>${FEE_DEVIATION_TOLERANCE * 100}% off bps-implied)` }
     }
   }
 

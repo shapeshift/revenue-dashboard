@@ -37,6 +37,7 @@ export type ExcludedPartnerSwap = {
   partnerCode: string
   swapperName: string
   reason: string
+  partnerFeeUsd: number // the fee we're NOT counting — for logging $ impact
 }
 
 export type PartnerRevenue = {

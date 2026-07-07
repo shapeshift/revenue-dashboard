@@ -217,6 +217,7 @@ export function aggregatePartnerRevenue(
           partnerCode: swap.partnerCode,
           swapperName: swap.swapperName,
           reason: fee.reason,
+          partnerFeeUsd: bnOrZero(swap.partnerFeeUsd).toNumber(),
         })
       }
       continue

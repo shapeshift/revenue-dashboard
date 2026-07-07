@@ -52,19 +52,33 @@ const formatError = (error: unknown): string => {
 }
 
 const logExcludedPartnerSwaps = (context: string, excluded: ExcludedPartnerSwap[]): void => {
-  const byReason = new Map<string, ExcludedPartnerSwap[]>()
+  if (excluded.length === 0) return
 
+  const byReason = new Map<string, ExcludedPartnerSwap[]>()
   for (const swap of excluded) {
     const list = byReason.get(swap.reason) ?? []
     list.push(swap)
     byReason.set(swap.reason, list)
   }
 
-  for (const [reason, swaps] of byReason) {
-    const sample = swaps.slice(0, 5).map(s => s.swapId)
-    console.warn(
-      `[${context}] ${swaps.length} partner swap(s) excluded — ${reason} (e.g. ${sample.join(', ')}${swaps.length > sample.length ? ', …' : ''})`
-    )
+  // Biggest $ impact first — that's what tells you whether revenue is materially off.
+  const groups = [...byReason.entries()]
+    .map(([reason, swaps]) => ({ reason, swaps, usd: swaps.reduce((sum, s) => sum + s.partnerFeeUsd, 0) }))
+    .sort((a, b) => b.usd - a.usd)
+
+  const total = groups.reduce((sum, g) => sum + g.usd, 0)
+  console.warn(`[${context}] ${excluded.length} partner swap(s) excluded from revenue — $${total.toFixed(2)} total`)
+
+  for (const { reason, swaps, usd } of groups) {
+    // Swapper breakdown surfaces systematic gaps (e.g. a whole swapper that never emits an on-chain fee).
+    const bySwapper = new Map<string, number>()
+    for (const s of swaps) bySwapper.set(s.swapperName, (bySwapper.get(s.swapperName) ?? 0) + 1)
+    const swappers = [...bySwapper.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `${name} ×${count}`)
+      .join(', ')
+
+    console.warn(`  • $${usd.toFixed(2)} — ${reason} — ${swaps.length} swap(s): ${swappers}`)
   }
 }
 
