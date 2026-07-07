@@ -1,6 +1,7 @@
 import type { AffiliateRevenueResponse, DateRange } from '../types'
 
-const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'https://api.proxy.shapeshift.com'
+const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL
+if (!API_BASE_URL) throw new Error('VITE_API_BASE_URL is required')
 
 export async function fetchAffiliateRevenue(dateRange: DateRange): Promise<AffiliateRevenueResponse> {
   const url = new URL('/api/v1/affiliate/revenue', API_BASE_URL)
