@@ -6,7 +6,7 @@ import { formatTokenAmountDisplay } from '../utils/assetHelpers'
 import { formatUsd, formatPercent } from '../utils/formatters'
 
 import { ExportButton } from './ExportButton'
-import { SortArrow } from './SortArrow'
+import { SortHeader } from './SortHeader'
 
 type AssetBreakdownProps = {
   byAsset: Record<string, AssetRevenue> | undefined
@@ -18,33 +18,6 @@ type AssetBreakdownProps = {
 type SortKey = 'symbol' | 'amountUsd' | 'volumeUsd' | 'feeCount'
 
 const PAGE_SIZE = 10 // rows shown before scrolling; more are rendered as you scroll
-
-// A sortable header cell — reserves the arrow slot so nothing shifts when the active column changes.
-function SortHeader({
-  label,
-  colKey,
-  sortKey,
-  sortDir,
-  onSort,
-  align = 'right',
-}: {
-  label: string
-  colKey: SortKey
-  sortKey: SortKey
-  sortDir: 'asc' | 'desc'
-  onSort: (key: SortKey) => void
-  align?: 'left' | 'right'
-}) {
-  return (
-    <th
-      className={`${align === 'left' ? 'text-left' : 'text-right'} py-2 font-medium cursor-pointer select-none hover:text-zinc-200 sticky top-0 bg-zinc-800`}
-      onClick={() => onSort(colKey)}
-    >
-      {label}
-      <SortArrow active={sortKey === colKey} dir={sortDir} />
-    </th>
-  )
-}
 
 export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: AssetBreakdownProps) {
   const [sortKey, setSortKey] = useState<SortKey>('amountUsd')

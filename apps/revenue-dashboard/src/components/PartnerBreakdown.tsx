@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PartnerRevenueResponse } from '../types'
 import { formatUsd } from '../utils/formatters'
 
-import { SortArrow } from './SortArrow'
+import { SortHeader } from './SortHeader'
 
 type SortKey = 'partnerCode' | 'totalUsd' | 'totalVolumeUsd' | 'swapCount'
 
 type PartnerBreakdownProps = {
   data: PartnerRevenueResponse | undefined
   isLoading: boolean
+  isError?: boolean
 }
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -24,7 +25,7 @@ const SORT_KEYS: SortKey[] = ['totalUsd', 'totalVolumeUsd', 'swapCount']
 
 const PAGE_SIZE = 10 // rows shown before scrolling; more are rendered as you scroll
 
-export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
+export function PartnerBreakdown({ data, isLoading, isError }: PartnerBreakdownProps) {
   const [sortKey, setSortKey] = useState<SortKey>('totalUsd')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -73,6 +74,15 @@ export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
     )
   }
 
+  if (isError) {
+    return (
+      <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Revenue by Partner</h2>
+        <p className="text-red-300">Failed to load partner revenue</p>
+      </div>
+    )
+  }
+
   if (!data || rows.length === 0) {
     return (
       <div className="rounded-xl bg-zinc-800/50 border border-zinc-700 p-6">
@@ -94,22 +104,23 @@ export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
         <table className="w-full text-sm [&_th:first-child]:pl-2 [&_td:first-child]:pl-2 [&_th:last-child]:pr-2 [&_td:last-child]:pr-2">
           <thead>
             <tr className="text-zinc-400 border-b border-zinc-700">
-              <th
-                className="text-left py-2 font-medium cursor-pointer select-none hover:text-zinc-200 sticky top-0 bg-zinc-800"
-                onClick={() => handleSort('partnerCode')}
-              >
-                {SORT_LABELS.partnerCode}
-                <SortArrow active={sortKey === 'partnerCode'} dir={sortDir} />
-              </th>
+              <SortHeader
+                label={SORT_LABELS.partnerCode}
+                colKey="partnerCode"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSort={handleSort}
+                align="left"
+              />
               {SORT_KEYS.map(key => (
-                <th
+                <SortHeader
                   key={key}
-                  className="text-right py-2 font-medium cursor-pointer select-none hover:text-zinc-200 sticky top-0 bg-zinc-800"
-                  onClick={() => handleSort(key)}
-                >
-                  {SORT_LABELS[key]}
-                  <SortArrow active={sortKey === key} dir={sortDir} />
-                </th>
+                  label={SORT_LABELS[key]}
+                  colKey={key}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
               ))}
             </tr>
           </thead>

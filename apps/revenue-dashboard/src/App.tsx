@@ -27,7 +27,7 @@ function App() {
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
 
   const { data, isLoading, isError, error } = useAffiliateRevenue(dateRange)
-  const { data: partnerData, isLoading: partnerLoading } = usePartnerRevenue(dateRange)
+  const { data: partnerData, isLoading: partnerLoading, isError: partnerError } = usePartnerRevenue(dateRange)
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100">
@@ -75,7 +75,7 @@ function App() {
             isLoading={isLoading}
             dateRange={dateRange}
           />
-          <PartnerBreakdown data={partnerData} isLoading={partnerLoading} />
+          <PartnerBreakdown data={partnerData} isLoading={partnerLoading} isError={partnerError} />
         </div>
       </div>
     </div>
