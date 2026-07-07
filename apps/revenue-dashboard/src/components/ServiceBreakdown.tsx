@@ -133,8 +133,6 @@ export function ServiceBreakdown({
                 outerRadius={100}
                 innerRadius={60}
                 paddingAngle={2}
-                label={({ name }) => (name ? getServiceLabel(name) : '')}
-                labelLine={false}
               >
                 {serviceData.map(entry => (
                   <Cell key={entry.service} fill={getServiceColor(entry.service)} />
