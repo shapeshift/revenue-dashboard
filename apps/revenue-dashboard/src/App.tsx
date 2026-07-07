@@ -47,6 +47,12 @@ function App() {
           </div>
         )}
 
+        {partnerError && (
+          <div className="mb-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200">
+            <p className="font-medium">Error loading partner revenue</p>
+          </div>
+        )}
+
         {data?.failedProviders && data.failedProviders.length > 0 && (
           <div className="mb-6 p-4 rounded-lg bg-amber-900/50 border border-amber-700 text-amber-200">
             <p className="font-medium">Some providers failed to respond</p>
@@ -75,7 +81,7 @@ function App() {
             isLoading={isLoading}
             dateRange={dateRange}
           />
-          <PartnerBreakdown data={partnerData} isLoading={partnerLoading} isError={partnerError} />
+          <PartnerBreakdown data={partnerData} isLoading={partnerLoading} />
         </div>
       </div>
     </div>

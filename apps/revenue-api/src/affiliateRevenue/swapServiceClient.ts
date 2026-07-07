@@ -7,7 +7,6 @@ if (!SWAP_SERVICE_URL) throw new Error('SWAP_SERVICE_URL is required')
 if (!SWAP_SERVICE_API_KEY) throw new Error('SWAP_SERVICE_API_KEY is required')
 
 const REQUEST_TIMEOUT_MS = 30_000
-const MAX_PAGES = 1000 // safety cap for the cursor loop (100/page → 100k swaps)
 
 type AffiliateSwap = {
   swapId: string
@@ -31,10 +30,7 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
   const swaps: PartnerSwap[] = []
 
   let cursor: string | null = null
-  let pages = 0
   do {
-    if (pages++ >= MAX_PAGES) throw new Error(`swap-service /v1/affiliate/swaps exceeded ${MAX_PAGES} pages`)
-
     const url = new URL('/v1/affiliate/swaps', SWAP_SERVICE_URL)
     url.searchParams.set('startDate', startDate)
     url.searchParams.set('endDate', endDate)
