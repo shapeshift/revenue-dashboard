@@ -1,10 +1,11 @@
 import { LRUCache } from 'lru-cache'
 
+import { getDateEndTimestamp, getDateRange, timestampToDate } from '../utils/date'
+
 import type { TokenTransfer } from './portals/types'
 import type { Fees } from './types'
-import { getDateEndTimestamp, getDateRange, timestampToDate } from './utils/date'
 
-export { getDateEndTimestamp, getDateRange, getDateStartTimestamp, timestampToDate } from './utils/date'
+export { getDateEndTimestamp, getDateRange, getDateStartTimestamp, timestampToDate } from '../utils/date'
 
 export const feeCache = new LRUCache<string, Fees[]>({
   max: 5000,

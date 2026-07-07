@@ -2,12 +2,12 @@ import type { Asset } from '../assetData/types'
 import { bnOrZero } from '../lib/bignumber'
 import type { AffiliateRevenueResponse, AssetRevenue, PartnerRevenueResponse, Service } from '../types'
 import { services } from '../types'
+import { timestampToDate } from '../utils/date'
 
 import { getAffiliateFeeRate } from './constants'
 import { getPayablePartnerFee } from './payablePartnerFee'
 import type { ExcludedPartnerSwap, Fees, PartnerSwap } from './types'
 import { baseUnitToTokenAmount } from './utils/amount'
-import { timestampToDate } from './utils/date'
 
 const chainMap: Record<string, string> = {
   // EVM chains

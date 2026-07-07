@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import { assetDataService } from '../assetData/AssetDataService'
 import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
+import { timestampToDate } from '../utils/date'
 
 import { aggregateAffiliateRevenue, aggregatePartnerRevenue } from './aggregateRevenue'
 import * as avnu from './avnu'
@@ -19,7 +20,6 @@ import * as relay from './relay'
 import { fetchPartners, fetchPartnerSwaps } from './swapServiceClient'
 import * as thorchain from './thorchain'
 import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
-import { timestampToDate } from './utils/date'
 import * as zrx from './zrx'
 
 const providerNames: Service[] = [

@@ -1,6 +1,8 @@
 // Date <-> unix-seconds helpers. Fees.timestamp and all provider fetch windows are unix seconds;
 // date strings are UTC `YYYY-MM-DD`.
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
 export const timestampToDate = (timestamp: number): string => {
   const date = new Date(timestamp * 1000)
   return date.toISOString().split('T')[0]
@@ -31,4 +33,24 @@ export const getDateStartTimestamp = (date: string): number => {
 // Unix seconds at the end (23:59:59Z) of a `YYYY-MM-DD` day.
 export const getDateEndTimestamp = (date: string): number => {
   return Math.floor(new Date(date + 'T23:59:59Z').getTime() / 1000)
+}
+
+export type DateRange = { ok: true; startTimestamp: number; endTimestamp: number } | { ok: false; error: string }
+
+// Validate YYYY-MM-DD start/end query params into UTC day-bounded unix timestamps.
+export function parseDateRange(startDate?: string, endDate?: string): DateRange {
+  if (!startDate || !DATE_REGEX.test(startDate)) {
+    return { ok: false, error: 'Invalid startDate format, expected YYYY-MM-DD' }
+  }
+  if (!endDate || !DATE_REGEX.test(endDate)) {
+    return { ok: false, error: 'Invalid endDate format, expected YYYY-MM-DD' }
+  }
+
+  const startTimestamp = getDateStartTimestamp(startDate)
+  const endTimestamp = getDateEndTimestamp(endDate)
+
+  if (isNaN(startTimestamp)) return { ok: false, error: 'Invalid startDate value' }
+  if (isNaN(endTimestamp)) return { ok: false, error: 'Invalid endDate value' }
+
+  return { ok: true, startTimestamp, endTimestamp }
 }

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 
 import { AffiliateRevenue } from '../affiliateRevenue'
 import type { AffiliateRevenueResponse } from '../types'
-import { parseDateRange } from '../utils/parseDateRange'
+import { parseDateRange } from '../utils/date'
 
 const affiliateRevenueRoute = new Hono()
 const affiliateRevenue = new AffiliateRevenue()
