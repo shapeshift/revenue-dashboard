@@ -51,7 +51,7 @@ const formatError = (error: unknown): string => {
   return String(error)
 }
 
-const logExcludedPartnerSwaps = (context: string, excluded: ExcludedPartnerSwap[]): void => {
+const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
   if (excluded.length === 0) return
 
   const byReason = new Map<string, ExcludedPartnerSwap[]>()
@@ -67,7 +67,9 @@ const logExcludedPartnerSwaps = (context: string, excluded: ExcludedPartnerSwap[
     .sort((a, b) => b.usd - a.usd)
 
   const total = groups.reduce((sum, g) => sum + g.usd, 0)
-  console.warn(`[${context}] ${excluded.length} partner swap(s) excluded from revenue — $${total.toFixed(2)} total`)
+  console.warn(
+    `[PartnerReconciliation] ${excluded.length} partner swap(s) excluded from revenue — $${total.toFixed(2)} total`
+  )
 
   for (const { reason, swaps, usd } of groups) {
     // Swapper breakdown surfaces systematic gaps (e.g. a whole swapper that never emits an on-chain fee).
@@ -142,7 +144,7 @@ export class AffiliateRevenue {
     const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
     const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
 
-    logExcludedPartnerSwaps('AffiliateRevenue', reconciliation.excluded)
+    logExcludedPartnerSwaps(reconciliation.excluded)
 
     return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
       assetDataService.getAsset(assetId)
@@ -164,9 +166,8 @@ export class AffiliateRevenue {
       }),
     ])
 
-    // Exclusions are logged from getAffiliateRevenue (the reconcile path is the superset — it also
-    // covers unmapped-swapper and failed-provider exclusions), so we don't re-log the subset here.
     const { response } = aggregatePartnerRevenue(partnerSwaps, affiliates)
+
     return response
   }
 }
