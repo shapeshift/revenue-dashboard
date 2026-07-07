@@ -164,8 +164,9 @@ export class AffiliateRevenue {
       }),
     ])
 
-    const { response, excluded } = aggregatePartnerRevenue(partnerSwaps, affiliates)
-    logExcludedPartnerSwaps('PartnerRevenue', excluded)
+    // Exclusions are logged from getAffiliateRevenue (the reconcile path is the superset — it also
+    // covers unmapped-swapper and failed-provider exclusions), so we don't re-log the subset here.
+    const { response } = aggregatePartnerRevenue(partnerSwaps, affiliates)
     return response
   }
 }
