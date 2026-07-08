@@ -10,6 +10,7 @@ type SortKey = 'partnerCode' | 'totalUsd' | 'totalVolumeUsd' | 'swapCount'
 type PartnerBreakdownProps = {
   data: PartnerRevenueResponse | undefined
   isLoading: boolean
+  isError?: boolean
 }
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -24,7 +25,7 @@ const SORT_KEYS: SortKey[] = ['totalUsd', 'totalVolumeUsd', 'swapCount']
 
 const PAGE_SIZE = 10 // rows shown before scrolling; more are rendered as you scroll
 
-export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
+export function PartnerBreakdown({ data, isLoading, isError }: PartnerBreakdownProps) {
   const [sortKey, setSortKey] = useState<SortKey>('totalUsd')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -72,6 +73,8 @@ export function PartnerBreakdown({ data, isLoading }: PartnerBreakdownProps) {
       </div>
     )
   }
+
+  if (isError) return null
 
   if (!data || rows.length === 0) {
     return (

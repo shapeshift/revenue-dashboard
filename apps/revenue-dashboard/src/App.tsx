@@ -26,8 +26,8 @@ function getDefaultDateRange(): DateRange {
 function App() {
   const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange)
 
-  const { data, isLoading, isError, error } = useAffiliateRevenue(dateRange)
-  const { data: partnerData, isLoading: partnerLoading, isError: partnerError } = usePartnerRevenue(dateRange)
+  const affiliateRevenueQuery = useAffiliateRevenue(dateRange)
+  const partnerRevenueQuery = usePartnerRevenue(dateRange)
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100">
@@ -40,48 +40,59 @@ function App() {
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
 
-        {isError && (
+        {affiliateRevenueQuery.isError && (
           <div className="mb-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200">
             <p className="font-medium">Error loading revenue data</p>
-            <p className="text-sm text-red-300">{error?.message || 'Unknown error'}</p>
+            <p className="text-sm text-red-300">{affiliateRevenueQuery.error?.message || 'Unknown error'}</p>
           </div>
         )}
 
-        {partnerError && (
+        {partnerRevenueQuery.isError && (
           <div className="mb-6 p-4 rounded-lg bg-red-900/50 border border-red-700 text-red-200">
             <p className="font-medium">Error loading partner revenue</p>
+            <p className="text-sm text-red-300">{partnerRevenueQuery.error?.message || 'Unknown error'}</p>
           </div>
         )}
 
-        {data?.failedProviders && data.failedProviders.length > 0 && (
+        {affiliateRevenueQuery.data?.failedProviders && affiliateRevenueQuery.data.failedProviders.length > 0 && (
           <div className="mb-6 p-4 rounded-lg bg-amber-900/50 border border-amber-700 text-amber-200">
             <p className="font-medium">Some providers failed to respond</p>
-            <p className="text-sm text-amber-300">{data.failedProviders.join(', ')}</p>
+            <p className="text-sm text-amber-300">{affiliateRevenueQuery.data.failedProviders.join(', ')}</p>
           </div>
         )}
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <TotalRevenue amount={data?.totalUsd} isLoading={isLoading} />
-            <TotalVolume amount={data?.totalVolumeUsd} isLoading={isLoading} />
-            <TotalFees count={data?.totalFeeCount} isLoading={isLoading} />
+            <TotalRevenue amount={affiliateRevenueQuery.data?.totalUsd} isLoading={affiliateRevenueQuery.isLoading} />
+            <TotalVolume
+              amount={affiliateRevenueQuery.data?.totalVolumeUsd}
+              isLoading={affiliateRevenueQuery.isLoading}
+            />
+            <TotalFees count={affiliateRevenueQuery.data?.totalFeeCount} isLoading={affiliateRevenueQuery.isLoading} />
           </div>
-          <ServiceStackedBarChart byDate={data?.byDate} isLoading={isLoading} />
+          <ServiceStackedBarChart
+            byDate={affiliateRevenueQuery.data?.byDate}
+            isLoading={affiliateRevenueQuery.isLoading}
+          />
           <ServiceBreakdown
-            byService={data?.byService}
-            byServiceVolume={data?.byServiceVolume}
-            byServiceFeeCount={data?.byServiceFeeCount}
-            totalUsd={data?.totalUsd}
-            isLoading={isLoading}
+            byService={affiliateRevenueQuery.data?.byService}
+            byServiceVolume={affiliateRevenueQuery.data?.byServiceVolume}
+            byServiceFeeCount={affiliateRevenueQuery.data?.byServiceFeeCount}
+            totalUsd={affiliateRevenueQuery.data?.totalUsd}
+            isLoading={affiliateRevenueQuery.isLoading}
             dateRange={dateRange}
           />
           <AssetBreakdown
-            byAsset={data?.byAsset}
-            totalUsd={data?.totalUsd}
-            isLoading={isLoading}
+            byAsset={affiliateRevenueQuery.data?.byAsset}
+            totalUsd={affiliateRevenueQuery.data?.totalUsd}
+            isLoading={affiliateRevenueQuery.isLoading}
             dateRange={dateRange}
           />
-          <PartnerBreakdown data={partnerData} isLoading={partnerLoading} />
+          <PartnerBreakdown
+            data={partnerRevenueQuery.data}
+            isLoading={partnerRevenueQuery.isLoading}
+            isError={partnerRevenueQuery.isError}
+          />
         </div>
       </div>
     </div>
