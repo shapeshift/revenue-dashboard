@@ -65,4 +65,30 @@ describe('getPayablePartnerFee', () => {
     expect(res.payable).toBe(false)
     if (!res.payable) expect(res.reason).toContain('anomaly')
   })
+
+  test('payable with $0: verified on-chain with a genuine 0 affiliate bps', () => {
+    // A real settled swap whose verified affiliate bps is 0 earned nothing for anyone. It's payable
+    // (so it still counts as a swap) but contributes $0 — even when the fee asset/amount are absent,
+    // which is expected when nothing was collected. Distinct from verifiedBps null (never verified).
+    const res = getPayablePartnerFee(
+      swap({
+        verifiedBps: 0,
+        feeUsd: '0',
+        partnerFeeUsd: '0',
+        affiliateFeeAssetId: null,
+        affiliateFeeAmountCryptoBaseUnit: null,
+      })
+    )
+    expect(res.payable).toBe(true)
+    if (res.payable) {
+      expect(res.partnerFeeUsd).toBe(0)
+      expect(res.partnerFeeCryptoBaseUnit).toBe('0')
+    }
+  })
+
+  test('not payable: a malformed negative partner bps is rejected even when verifiedBps is 0', () => {
+    const res = getPayablePartnerFee(swap({ verifiedBps: 0, partnerBps: -30, partnerFeeUsd: '0' }))
+    expect(res.payable).toBe(false)
+    if (!res.payable) expect(res.reason).toBe('invalid partner bps')
+  })
 })

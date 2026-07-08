@@ -198,9 +198,10 @@ export async function aggregateAffiliateRevenue(
 }
 
 // Aggregate partner swaps into the per-partner revenue breakdown for the /partner view. Only payable
-// swaps (verified on-chain with a real affiliate fee; see getPayablePartnerFee) contribute revenue,
-// volume, or counts — so we never overstate a partner. Excluded swaps that carry a partner fee are
-// returned for audit logging.
+// swaps (verified on-chain; see getPayablePartnerFee) contribute volume or counts — so we never
+// overstate a partner. A verified swap with a genuine 0 affiliate bps is payable but adds $0 revenue,
+// so it's counted without inflating the total. Excluded swaps that carry a partner fee are returned
+// for audit logging.
 export function aggregatePartnerRevenue(
   partnerSwaps: PartnerSwap[],
   affiliates: PartnerRevenueResponse['affiliates']

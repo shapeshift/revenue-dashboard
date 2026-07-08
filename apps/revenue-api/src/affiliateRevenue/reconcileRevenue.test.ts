@@ -53,6 +53,12 @@ describe('reconcilePartnerRevenue — payable swap', () => {
     const res = reconcilePartnerRevenue([], [swap({ affiliateBps: 999 })], [])
     expect(res.netFees.find(f => f.synthetic)!.amount).toBe('-500000000000000000')
   })
+
+  test('verified 0-bps swap is payable but deducts nothing (no synthetic adjustment)', () => {
+    const res = reconcilePartnerRevenue([], [swap({ verifiedBps: 0, feeUsd: '0', partnerFeeUsd: '0' })], [])
+    expect(res.netFees.find(f => f.synthetic)).toBeUndefined() // $0 share → nothing to net out
+    expect(res.excluded).toEqual([]) // and not an audit exclusion
+  })
 })
 
 describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {

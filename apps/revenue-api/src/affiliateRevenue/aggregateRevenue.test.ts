@@ -152,6 +152,30 @@ describe('aggregatePartnerRevenue', () => {
     expect(response.partnerTotalUsd).toBeCloseTo(12, 6)
   })
 
+  test('counts a verified 0-bps swap toward count + volume with $0 revenue', () => {
+    const { response, excluded } = aggregatePartnerRevenue(
+      [
+        partnerSwap({ partnerFeeUsd: '3', volumeUsd: '1000' }), // payable, $3
+        partnerSwap({
+          swapId: 'zero',
+          verifiedBps: 0,
+          feeUsd: '0',
+          partnerFeeUsd: '0',
+          volumeUsd: '500',
+          affiliateFeeAssetId: null,
+          affiliateFeeAmountCryptoBaseUnit: null,
+        }),
+      ],
+      []
+    )
+
+    const alpha = response.byPartner['alpha']
+    expect(alpha.swapCount).toBe(2) // the verified 0-bps swap still counts as a swap
+    expect(alpha.totalUsd).toBeCloseTo(3, 6) // but adds no revenue
+    expect(alpha.totalVolumeUsd).toBeCloseTo(1500, 6) // its volume is real
+    expect(excluded).toHaveLength(0) // $0 fee → not an audit exclusion
+  })
+
   test('includes volumeUsd for payable swaps (parsed via BigNumber)', () => {
     const { response } = aggregatePartnerRevenue([partnerSwap({ partnerFeeUsd: '3.5', volumeUsd: '1234.56' })], [])
 

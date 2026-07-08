@@ -50,6 +50,10 @@ export function reconcilePartnerRevenue(
       continue
     }
 
+    // A verified 0-bps swap is payable but its share is $0 — there's nothing to deduct from gross,
+    // so emit no synthetic adjustment (an empty-assetId $0 entry would only add noise downstream).
+    if (bnOrZero(fee.partnerFeeUsd).lte(0)) continue
+
     const service = SWAPPER_TO_SERVICE[swap.swapperName]
     if (!service) {
       exclude(swap, `unmapped swapper "${swap.swapperName}"`)
