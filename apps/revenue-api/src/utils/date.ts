@@ -52,5 +52,7 @@ export function parseDateRange(startDate?: string, endDate?: string): DateRange 
   if (isNaN(startTimestamp)) return { ok: false, error: 'Invalid startDate value' }
   if (isNaN(endTimestamp)) return { ok: false, error: 'Invalid endDate value' }
 
+  if (startTimestamp > endTimestamp) return { ok: false, error: 'startDate must be on or before endDate' }
+
   return { ok: true, startTimestamp, endTimestamp }
 }
