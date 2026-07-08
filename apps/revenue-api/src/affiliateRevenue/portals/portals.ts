@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { padHex, zeroAddress } from 'viem'
 
-import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getCachedTokenTransfer,
@@ -14,6 +13,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 
 import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'

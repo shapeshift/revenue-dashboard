@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -12,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { DAO_TREASURY_BASE } from '../constants'
+import type { Fees } from '../types'
 
 import { RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'

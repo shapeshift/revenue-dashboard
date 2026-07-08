@@ -2,10 +2,10 @@ import { createHash } from 'crypto'
 
 import { encodeAbiParameters, parseAbiParameters } from 'viem'
 
-import type { Fees } from '..'
 import { assetDataService } from '../../assetData/AssetDataService'
 import { getDateRange, getDateStartTimestamp, getDateEndTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 import { buildAssetId, estimateBlockFromTimestamp } from '../utils'
 
 import {

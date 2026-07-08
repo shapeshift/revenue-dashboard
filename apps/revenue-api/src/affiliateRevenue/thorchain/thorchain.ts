@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -12,6 +11,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { THORCHAIN_CHAIN_ID } from '../constants'
+import type { Fees } from '../types'
 
 import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET_ID } from './constants'
 import type { MidgardAction, MidgardActionsResponse, RunePriceHistory } from './types'

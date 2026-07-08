@@ -1,25 +1,25 @@
 import axios from 'axios'
 
 import { assetDataService } from '../assetData/AssetDataService'
-import { bnOrZero } from '../lib/bignumber'
-import type { AffiliateRevenueResponse, AssetRevenue, Service } from '../types'
-import { services } from '../types'
+import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
+import { timestampToDate } from '../utils/date'
 
+import { aggregateAffiliateRevenue, aggregatePartnerRevenue } from './aggregateRevenue'
 import * as avnu from './avnu'
 import * as bebop from './bebop'
 import * as bobgateway from './bobgateway'
 import * as butterswap from './butterswap'
-import { timestampToDate } from './cache'
 import * as chainflip from './chainflip'
-import { getAffiliateFeeRate } from './constants'
 import * as cowswap from './cowswap'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
+import { reconcilePartnerRevenue } from './reconcileRevenue'
 import * as relay from './relay'
+import { fetchPartners, fetchPartnerSwaps } from './swapServiceClient'
 import * as thorchain from './thorchain'
-import { baseUnitToTokenAmount } from './utils'
+import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
 
 const providerNames: Service[] = [
@@ -38,43 +38,6 @@ const providerNames: Service[] = [
   'zrx',
 ]
 
-const chainMap: Record<string, string> = {
-  // EVM chains
-  'eip155:1': 'Ethereum',
-  'eip155:10': 'Optimism',
-  'eip155:8453': 'Base',
-  'eip155:42161': 'Arbitrum',
-  'eip155:137': 'Polygon',
-  'eip155:56': 'BSC',
-  'eip155:100': 'Gnosis',
-  'eip155:43114': 'Avalanche',
-  'eip155:22776': 'MAP Protocol',
-  'eip155:143': 'Monad',
-  'eip155:9745': 'Plasma',
-  'eip155:999': 'HyperEVM',
-  'eip155:747474': 'Katana',
-
-  // Bitcoin-based chains
-  'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
-  'bip122:00000000001a91e3dace36e2be3bf030': 'Dogecoin',
-  'bip122:00040fe8ec8471911baa1db1266ea15d': 'Zcash',
-
-  // Other chains
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': 'Solana',
-  'tron:0x2b6653dc': 'Tron',
-  'sui:35834a8a': 'Sui',
-  'near:mainnet': 'Near',
-  'starknet:SN_MAIN': 'Starknet',
-  'ton:mainnet': 'TON',
-  'aptos:1': 'Aptos',
-
-  // Cosmos chains
-  'cosmos:thorchain-1': 'THORChain',
-  'cosmos:mayachain-mainnet-v1': 'MAYAChain',
-}
-
-const getChainName = (chainId: string): string => chainMap[chainId] || chainId
-
 const formatError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 'no response'
@@ -88,45 +51,47 @@ const formatError = (error: unknown): string => {
   return String(error)
 }
 
-export type Fees = {
-  amount: string
-  amountUsd?: string
-  originalUsdValue?: string
-  assetId: string
-  chainId: string
-  service: Service
-  timestamp: number
-  txHash: string
-}
+const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
+  if (excluded.length === 0) return
 
-const getOrCreateAssetRevenue = (
-  byAsset: Record<string, AssetRevenue>,
-  assetId: string,
-  symbol: string,
-  chainId: string,
-  chainName: string
-): AssetRevenue => {
-  if (!byAsset[assetId]) {
-    byAsset[assetId] = {
-      symbol,
-      chainId,
-      chainName,
-      assetId,
-      tokenAmount: '0',
-      amountUsd: 0,
-      volumeUsd: 0,
-      feeCount: 0,
-      byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-      byServiceFeeCount: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-    }
+  const byReason = new Map<string, ExcludedPartnerSwap[]>()
+  for (const swap of excluded) {
+    const list = byReason.get(swap.reason) ?? []
+    list.push(swap)
+    byReason.set(swap.reason, list)
   }
-  return byAsset[assetId]
+
+  // Biggest $ impact first — that's what tells you whether revenue is materially off.
+  const groups = [...byReason.entries()]
+    .map(([reason, swaps]) => ({ reason, swaps, usd: swaps.reduce((sum, s) => sum + s.partnerFeeUsd, 0) }))
+    .sort((a, b) => b.usd - a.usd)
+
+  const total = groups.reduce((sum, g) => sum + g.usd, 0)
+  console.warn(
+    `[PartnerReconciliation] ${excluded.length} partner swap(s) excluded from revenue — $${total.toFixed(2)} total`
+  )
+
+  for (const { reason, swaps, usd } of groups) {
+    // Swapper breakdown surfaces systematic gaps (e.g. a whole swapper that never emits an on-chain fee).
+    const bySwapper = new Map<string, number>()
+    for (const s of swaps) bySwapper.set(s.swapperName, (bySwapper.get(s.swapperName) ?? 0) + 1)
+    const swappers = [...bySwapper.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `${name} ×${count}`)
+      .join(', ')
+
+    // All swapIds (not a sample) so the underlying rows can be pulled from the DB.
+    const swapIds = swaps.map(s => s.swapId).join(', ')
+
+    console.warn(`  • $${usd.toFixed(2)} — ${reason} — ${swaps.length} swap(s): ${swappers}\n    swapIds: ${swapIds}`)
+  }
 }
 
 export class AffiliateRevenue {
-  async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
-    assetDataService.resetMissLog()
-
+  private async collectFees(
+    startTimestamp: number,
+    endTimestamp: number
+  ): Promise<{ fees: Fees[]; failedProviders: Service[] }> {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 
@@ -156,85 +121,53 @@ export class AffiliateRevenue {
       }
     })
 
-    const byDate: AffiliateRevenueResponse['byDate'] = {}
-    const byAsset: Record<string, AssetRevenue> = {}
+    return { fees, failedProviders }
+  }
 
-    for (const fee of fees) {
-      const date = timestampToDate(fee.timestamp)
-      const amountUsd = parseFloat(fee.amountUsd || '0')
-      const asset = await assetDataService.getAsset(fee.assetId)
+  private async reconcile(
+    fees: Fees[],
+    failedProviders: Service[],
+    startTimestamp: number,
+    endTimestamp: number
+  ): Promise<ReconciliationResult> {
+    const startDate = timestampToDate(startTimestamp)
+    const endDate = timestampToDate(endTimestamp)
 
-      const symbol = asset?.symbol || 'UNKNOWN'
-      const decimals = asset?.precision ?? 18
+    const partnerSwaps = await fetchPartnerSwaps(startDate, endDate)
 
-      const chainName = getChainName(fee.chainId)
+    return reconcilePartnerRevenue(fees, partnerSwaps, failedProviders)
+  }
 
-      if (!byDate[date]) {
-        byDate[date] = {
-          totalUsd: 0,
-          totalVolumeUsd: 0,
-          totalFeeCount: 0,
-          byService: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byServiceVolume: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byServiceFeeCount: Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>,
-          byAsset: {},
-        }
-      }
+  async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
+    assetDataService.resetMissLog()
 
-      byDate[date].totalUsd += amountUsd
-      byDate[date].totalVolumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      byDate[date].totalFeeCount += 1
-      byDate[date].byService[fee.service] += amountUsd
-      byDate[date].byServiceVolume[fee.service] += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      byDate[date].byServiceFeeCount[fee.service] += 1
+    const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
+    const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
 
-      const feeTokenAmount = baseUnitToTokenAmount(fee.amount, decimals)
+    logExcludedPartnerSwaps(reconciliation.excluded)
 
-      // Daily asset aggregation
-      const dailyAsset = getOrCreateAssetRevenue(byDate[date].byAsset!, fee.assetId, symbol, fee.chainId, chainName)
-      dailyAsset.tokenAmount = bnOrZero(dailyAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-      dailyAsset.amountUsd += amountUsd
-      dailyAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      dailyAsset.feeCount += 1
-      dailyAsset.byService[fee.service] += amountUsd
-      dailyAsset.byServiceFeeCount[fee.service] += 1
+    return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
+      assetDataService.getAsset(assetId)
+    )
+  }
 
-      // Global asset aggregation
-      const globalAsset = getOrCreateAssetRevenue(byAsset, fee.assetId, symbol, fee.chainId, chainName)
-      globalAsset.tokenAmount = bnOrZero(globalAsset.tokenAmount).plus(bnOrZero(feeTokenAmount)).toFixed(decimals)
-      globalAsset.amountUsd += amountUsd
-      globalAsset.volumeUsd += amountUsd / getAffiliateFeeRate(fee.timestamp)
-      globalAsset.feeCount += 1
-      globalAsset.byService[fee.service] += amountUsd
-      globalAsset.byServiceFeeCount[fee.service] += 1
-    }
+  async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
+    const startDate = timestampToDate(startTimestamp)
+    const endDate = timestampToDate(endTimestamp)
 
-    const byService = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
-    const byServiceVolume = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
-    const byServiceFeeCount = Object.fromEntries(services.map(s => [s, 0])) as Record<Service, number>
+    const [partnerSwaps, affiliates] = await Promise.all([
+      fetchPartnerSwaps(startDate, endDate).catch((error: unknown) => {
+        console.error(`[PartnerRevenue] partner swaps fetch failed: ${formatError(error)}`)
+        return []
+      }),
+      fetchPartners().catch((error: unknown) => {
+        console.error(`[PartnerRevenue] registry fetch failed: ${formatError(error)}`)
+        return []
+      }),
+    ])
 
-    for (const daily of Object.values(byDate)) {
-      for (const service of services) {
-        byService[service] += daily.byService[service]
-        byServiceVolume[service] += daily.byServiceVolume[service]
-        byServiceFeeCount[service] += daily.byServiceFeeCount[service]
-      }
-    }
+    const { response } = aggregatePartnerRevenue(partnerSwaps, affiliates)
 
-    const totalUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalUsd, 0)
-    const totalVolumeUsd = Object.values(byDate).reduce((sum, daily) => sum + daily.totalVolumeUsd, 0)
-    const totalFeeCount = Object.values(byDate).reduce((sum, daily) => sum + daily.totalFeeCount, 0)
-
-    return {
-      totalUsd,
-      totalVolumeUsd,
-      totalFeeCount,
-      byService,
-      byServiceVolume,
-      byServiceFeeCount,
-      byDate,
-      byAsset,
-      failedProviders,
-    }
+    return response
   }
 }

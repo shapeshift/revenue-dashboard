@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -13,6 +12,7 @@ import {
 } from '../cache'
 import { DAO_TREASURY_ETHEREUM, ETHEREUM_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 import { buildAssetId, getBlockByTimestamp } from '../utils'
 
 import type { UnchainedTxHistoryResponse } from './types'

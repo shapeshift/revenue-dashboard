@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -11,6 +10,7 @@ import {
   tryGetCachedFees,
 } from '../cache'
 import { ETHEREUM_CHAIN_ID } from '../constants'
+import type { Fees } from '../types'
 import { buildAssetId, decimalToBaseUnit } from '../utils'
 
 import { CHAINFLIP_API_URL, GET_AFFILIATE_SWAPS_QUERY, PAGE_SIZE, SHAPESHIFT_BROKER_ID } from './constants'

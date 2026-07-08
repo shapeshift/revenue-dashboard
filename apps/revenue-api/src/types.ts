@@ -1,3 +1,5 @@
+import type { PartnerRevenue } from './affiliateRevenue/types'
+
 export const services = [
   'avnu',
   'bebop',
@@ -49,4 +51,10 @@ export interface AffiliateRevenueResponse {
   byDate: Record<string, DailyRevenue>
   byAsset?: Record<string, AssetRevenue>
   failedProviders: Service[]
+}
+
+export interface PartnerRevenueResponse {
+  byPartner: Record<string, PartnerRevenue>
+  partnerTotalUsd: number
+  affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }

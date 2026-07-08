@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-import type { Fees } from '..'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -13,6 +12,7 @@ import {
 } from '../cache'
 import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
+import type { Fees } from '../types'
 import { calculateFee } from '../utils'
 
 import { DAO_NEAR_TREASURY_ADDRESSES, NEAR_INTENTS_API_KEY } from './constants'

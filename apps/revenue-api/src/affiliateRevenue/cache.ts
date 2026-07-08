@@ -1,8 +1,11 @@
 import { LRUCache } from 'lru-cache'
 
-import type { TokenTransfer } from './portals/types'
+import { getDateEndTimestamp, getDateRange, timestampToDate } from '../utils/date'
 
-import type { Fees } from './index'
+import type { TokenTransfer } from './portals/types'
+import type { Fees } from './types'
+
+export { getDateEndTimestamp, getDateRange, getDateStartTimestamp, timestampToDate } from '../utils/date'
 
 export const feeCache = new LRUCache<string, Fees[]>({
   max: 5000,
@@ -23,36 +26,6 @@ export const blockNumberCache = new LRUCache<string, number>({
   ttl: 1000 * 60 * 60 * 24 * 365, // 1 year default, overridden by saveCachedBlockNumber
   updateAgeOnGet: true,
 })
-
-export const timestampToDate = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000)
-  return date.toISOString().split('T')[0]
-}
-
-export const getDateRange = (startTimestamp: number, endTimestamp: number): string[] => {
-  const dates: string[] = []
-  const start = new Date(startTimestamp * 1000)
-  const end = new Date(endTimestamp * 1000)
-
-  start.setUTCHours(0, 0, 0, 0)
-  end.setUTCHours(0, 0, 0, 0)
-
-  const current = new Date(start)
-  while (current <= end) {
-    dates.push(current.toISOString().split('T')[0])
-    current.setUTCDate(current.getUTCDate() + 1)
-  }
-
-  return dates
-}
-
-export const getDateStartTimestamp = (date: string): number => {
-  return Math.floor(new Date(date + 'T00:00:00Z').getTime() / 1000)
-}
-
-export const getDateEndTimestamp = (date: string): number => {
-  return Math.floor(new Date(date + 'T23:59:59Z').getTime() / 1000)
-}
 
 export const getCacheableThreshold = (): number => {
   const today = new Date()

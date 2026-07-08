@@ -1,8 +1,7 @@
 import { assetDataService } from '../assetData/AssetDataService'
 
 import { getBulkAssetPrices } from './priceCache'
-
-import type { Fees } from './index'
+import type { Fees } from './types'
 
 /**
  * Price Enrichment Strategy

@@ -33,6 +33,21 @@ export type AffiliateRevenueResponse = {
   failedProviders: string[]
 }
 
+export type PartnerRevenue = {
+  partnerCode: string
+  totalUsd: number
+  totalVolumeUsd: number
+  swapCount: number
+  byService: Record<string, number>
+  byDate: Record<string, number>
+}
+
+export type PartnerRevenueResponse = {
+  byPartner: Record<string, PartnerRevenue>
+  partnerTotalUsd: number
+  affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
+}
+
 export type DateRange = {
   startDate: string
   endDate: string

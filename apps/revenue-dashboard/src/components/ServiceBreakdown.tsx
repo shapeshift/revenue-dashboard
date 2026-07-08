@@ -121,7 +121,7 @@ export function ServiceBreakdown({
         <ExportButton headers={exportData.headers} rows={exportData.rows} filename={filename} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="h-80">
+        <div className="h-80 self-center">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -133,8 +133,6 @@ export function ServiceBreakdown({
                 outerRadius={100}
                 innerRadius={60}
                 paddingAngle={2}
-                label={({ name }) => (name ? getServiceLabel(name) : '')}
-                labelLine={false}
               >
                 {serviceData.map(entry => (
                   <Cell key={entry.service} fill={getServiceColor(entry.service)} />

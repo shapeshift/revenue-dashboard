@@ -26,3 +26,7 @@ logs
 
 # Local-only files
 .claude/settings.local.json
+
+# Local-only plan tracking & agent scratch (kept on disk, never checked in)
+docs/plans/
+.superpowers/
