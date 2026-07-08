@@ -20,20 +20,17 @@ export function SortHeader<K extends string>({
   const active = sortKey === colKey
   return (
     <th
-      role="button"
-      tabIndex={0}
       aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      className={`${align === 'left' ? 'text-left' : 'text-right'} py-2 font-medium cursor-pointer select-none hover:text-zinc-200 sticky top-0 bg-zinc-800`}
-      onClick={() => onSort(colKey)}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onSort(colKey)
-        }
-      }}
+      className={`${align === 'left' ? 'text-left' : 'text-right'} py-2 font-medium sticky top-0 bg-zinc-800`}
     >
-      {label}
-      <SortArrow active={active} dir={sortDir} />
+      <button
+        type="button"
+        onClick={() => onSort(colKey)}
+        className={`${align === 'left' ? '' : 'w-full text-right'} cursor-pointer select-none hover:text-zinc-200`}
+      >
+        {label}
+        <SortArrow active={active} dir={sortDir} />
+      </button>
     </th>
   )
 }
