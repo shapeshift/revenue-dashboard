@@ -36,12 +36,6 @@ export const AVALANCHE_CHAIN_ID = 'eip155:43114'
 export const MONAD_CHAIN_ID = 'eip155:143'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
 
-// ButterSwap on MAP Protocol
-export const BUTTERSWAP_CONTRACT = '0x4De2ADb9cB88c10Bf200F76c18035cbB8906b6bC'
-export const MAP_USDT_ADDRESS = '0x33daba9618a75a7aff103e53afe530fbacf4a3dd'
-export const MAP_RPC_URL = 'https://rpc.maplabs.io/'
-export const BUTTERSWAP_AFFILIATE_ID = 26
-
 // Slip44 coin type values for native assets
 export const SLIP44 = {
   BITCOIN: 0,

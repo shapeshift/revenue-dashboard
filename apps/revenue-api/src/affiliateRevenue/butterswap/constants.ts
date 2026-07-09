@@ -1,24 +1,55 @@
-import { BUTTERSWAP_AFFILIATE_ID, BUTTERSWAP_CONTRACT, MAP_CHAIN_ID, MAP_RPC_URL, MAP_USDT_ADDRESS } from '../constants'
+import { toEventSelector, zeroAddress } from 'viem'
 
-export { BUTTERSWAP_AFFILIATE_ID, BUTTERSWAP_CONTRACT, MAP_CHAIN_ID, MAP_RPC_URL, MAP_USDT_ADDRESS }
+import {
+  ARBITRUM_CHAIN_ID,
+  AVALANCHE_CHAIN_ID,
+  BASE_CHAIN_ID,
+  BSC_CHAIN_ID,
+  ETHEREUM_CHAIN_ID,
+  GNOSIS_CHAIN_ID,
+  OPTIMISM_CHAIN_ID,
+  POLYGON_CHAIN_ID,
+} from '../constants'
 
-export const BLOCK_TIME_SECONDS = 5
-export const TOKEN_LIST_API = 'https://butterapi.chainservice.io/api/token/bam/list'
-export const TOKEN_CACHE_TTL_MS = 60 * 60 * 1000
+export const BUTTERSWAP_AFFILIATE_ID = 26
+export const MAP_USDT_ADDRESS = '0x33daba9618a75a7aff103e53afe530fbacf4a3dd'
 
-export const GET_TOTAL_BALANCE_SELECTOR = '0x47b2f8d9'
+export const TRANSACTIONS_API = 'https://butterapi.chainservice.io/api/forpm/transactions'
+export const PAGE_SIZE = 100
 export const API_SUCCESS_CODE = 0
-export const HEX_RADIX = 16
-export const HEX_PREFIX_LENGTH = 2
-export const UINT256_HEX_LENGTH = 66
+export const REQUEST_TIMEOUT_MS = 15000
 
-export const FALLBACK_TOKENS = [
-  '0x05ab928d446d8ce6761e368c8e7be03c3168a9ec',
-  '0x33daba9618a75a7aff103e53afe530fbacf4a3dd',
-  '0x9f722b2cb30093f766221fd0d37964949ed66918',
-  '0xb877e3562a660c7861117c2f1361a26abaf19beb',
-  '0x5de6606ae1250c64560a603b40078de268240fdd',
-  '0xc478a25240d9c072ebec5109b417e0a78a41667c',
-  '0x593a37fe0f6dfd0b6c5a051e9a44aa0f6922a1a2',
-  '0x0e9e7317c7132604c009c9860a259a3da33a3ed3',
-]
+export const VOLUME_USD_DECIMALS = 6
+export const USDT_DECIMALS = 18
+export const BPS_DENOMINATOR = 10000
+
+// Fee is credited only once the swap settles on the MAP relay chain.
+export const RELAY_STATE_SETTLED = 1
+
+export const SAME_CHAIN_ROUTERS = new Set(
+  ['0xEE0319cF0BCa5d09333f9F6277743E8De31bD69A', '0xEE030ec6F4307411607E55aCD08e628Ae6655B86'].map(a => a.toLowerCase())
+)
+
+export const SAME_CHAIN_FEE_RECEIVERS = new Set(
+  ['0x35339070f178dc4119732982c23f5a8d88d3f8a3', '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'].map(a => a.toLowerCase())
+)
+
+export const ERC20_TRANSFER_TOPIC = toEventSelector('Transfer(address,address,uint256)')
+
+// EIP-7528 native-token sentinel (viem has no constant for it; zeroAddress covers the other case).
+const NATIVE_TOKEN_EIP7528 = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+export const isNativeAddress = (address: string | undefined): boolean => {
+  const a = (address ?? '').toLowerCase()
+  return !a || a === zeroAddress || a === NATIVE_TOKEN_EIP7528
+}
+
+export const EVM_CHAIN_BY_SOURCE_CHAIN_ID: Record<string, { chainId: string; url: string }> = {
+  '1': { chainId: ETHEREUM_CHAIN_ID, url: 'https://api.ethereum.shapeshift.com' },
+  '10': { chainId: OPTIMISM_CHAIN_ID, url: 'https://api.optimism.shapeshift.com' },
+  '56': { chainId: BSC_CHAIN_ID, url: 'https://api.bnbsmartchain.shapeshift.com' },
+  '100': { chainId: GNOSIS_CHAIN_ID, url: 'https://api.gnosis.shapeshift.com' },
+  '137': { chainId: POLYGON_CHAIN_ID, url: 'https://api.polygon.shapeshift.com' },
+  '8453': { chainId: BASE_CHAIN_ID, url: 'https://api.base.shapeshift.com' },
+  '42161': { chainId: ARBITRUM_CHAIN_ID, url: 'https://api.arbitrum.shapeshift.com' },
+  '43114': { chainId: AVALANCHE_CHAIN_ID, url: 'https://api.avalanche.shapeshift.com' },
+}
