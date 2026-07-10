@@ -15,6 +15,11 @@ type MoralisDateToBlockResponse = {
 // Moralis chain identifier (e.g. 'eth', 'polygon', 'bsc') keyed by CAIP-2 chainId.
 const MORALIS_CHAIN_BY_CHAIN_ID: Record<string, string> = {
   'eip155:1': 'eth',
+  'eip155:100': 'gnosis',
+  'eip155:137': 'polygon',
+  'eip155:8453': 'base',
+  'eip155:42161': 'arbitrum',
+  'eip155:43114': 'avalanche',
 }
 
 /**
