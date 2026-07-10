@@ -13,12 +13,10 @@ import {
 import { DAO_TREASURY_ETHEREUM, ETHEREUM_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { buildAssetId, getBlockByTimestamp } from '../utils'
+import { buildAssetId, getBlockByTimestamp, getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from '../utils'
+import type { UnchainedTxHistoryResponse } from '../utils'
 
-import type { UnchainedTxHistoryResponse } from './types'
-
-export const UNCHAINED_BASE_URL = 'https://api.ethereum.shapeshift.com'
-export const UNCHAINED_PAGE_SIZE = 100
+export const UNCHAINED_BASE_URL = getUnchainedBaseUrl(ETHEREUM_CHAIN_ID)
 
 export const BOB_GATEWAY_FIRST_FEE_BLOCK = 25288446
 export const BOB_GATEWAY_METHOD_SELECTORS: Record<string, string> = {
