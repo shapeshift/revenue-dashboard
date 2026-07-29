@@ -26,6 +26,10 @@ import {
 export const NEAR_INTENTS_API_KEY = process.env.NEAR_INTENTS_API_KEY
 if (!NEAR_INTENTS_API_KEY) throw new Error('NEAR_INTENTS_API_KEY env var not set')
 
+export const TRANSACTIONS_API = 'https://explorer.near-intents.org/api/v0/transactions-pages'
+export const PAGE_SIZE = 1000
+export const REQUEST_INTERVAL_MS = 10_000
+
 export const DAO_NEAR_TREASURY_ADDRESSES = [
   'f471d0b0f90593d85125f38aaf5458748d6f23fd5b437b844d293d8e87557070',
   'shapeshifttokenomics.sputnik-dao.near',
