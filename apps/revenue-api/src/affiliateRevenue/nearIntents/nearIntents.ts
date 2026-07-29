@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
+import { createThrottle } from '../../utils/throttle'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -24,10 +25,8 @@ import {
 } from './constants'
 import * as tokenRegistry from './tokenRegistry'
 import type { NearIntentsTransaction, TransactionsResponse } from './types'
-import { createThrottle, parseNearIntentsAsset } from './utils'
+import { parseNearIntentsAsset } from './utils'
 
-// The rate limit is per-key and time-based, so space EVERY request — the cacheable and recent
-// ranges each run their own paging walk, and both revenue routes run their own provider sweep.
 const throttle = createThrottle(REQUEST_INTERVAL_MS)
 
 const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {

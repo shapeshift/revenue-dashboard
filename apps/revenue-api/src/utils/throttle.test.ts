@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { createThrottle } from './utils'
+import { createThrottle } from './throttle'
 
 const INTERVAL = 50
 
