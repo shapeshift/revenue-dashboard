@@ -1,19 +1,10 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
 import { DAO_TREASURY_ETHEREUM, ETHEREUM_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { buildAssetId, getBlockByTimestamp, getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from '../utils'
+import { buildAssetId, getBlockByTimestamp, getCachedFees, getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from '../utils'
 import type { UnchainedTxHistoryResponse } from '../utils'
 
 export const UNCHAINED_BASE_URL = getUnchainedBaseUrl(ETHEREUM_CHAIN_ID)
@@ -87,41 +78,19 @@ const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: numb
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
-  const cacheLookups = cacheableDates.map(date => ({
-    date,
-    cached: tryGetCachedFees('bobgateway', ETHEREUM_CHAIN_ID, date),
-  }))
-  const cachedFees = cacheLookups.flatMap(({ cached }) => cached ?? [])
-  const datesToFetch = cacheLookups.filter(({ cached }) => !cached).map(({ date }) => date)
-  const cacheMisses = datesToFetch.length
-  const cacheHits = cacheableDates.length - cacheMisses
-
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromUnchained(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      saveCachedFees('bobgateway', ETHEREUM_CHAIN_ID, date, feesByDate[date] || [])
-    }
-    newFees.push(...fetched)
-  }
-
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromUnchained(recentStart, endTimestamp)))
-  }
-
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
-  const duration = Date.now() - startTime
-  console.log(
-    `[bobgateway] Total: ${allFees.length} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'bobgateway',
+    ETHEREUM_CHAIN_ID,
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromUnchained
   )
 
-  return enrichFeesWithUsdPrices(allFees)
+  const duration = Date.now() - startTime
+  console.log(
+    `[bobgateway] Total: ${fees.length} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
+
+  return enrichFeesWithUsdPrices(fees)
 }

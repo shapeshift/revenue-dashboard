@@ -1,6 +1,7 @@
 import type { PartnerRevenue } from './affiliateRevenue/types'
 
 export const services = [
+  'across',
   'avnu',
   'bebop',
   'bobgateway',

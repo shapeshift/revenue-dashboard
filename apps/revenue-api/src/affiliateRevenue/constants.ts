@@ -7,6 +7,8 @@ export const DAO_TREASURY_GNOSIS = '0xb0E3175341794D1dc8E5F02a02F9D26989EbedB3'
 export const DAO_TREASURY_BSC = '0x8b92b1698b57bEDF2142297e9397875ADBb2297E'
 export const DAO_TREASURY_ARBITRUM = '0x38276553F8fbf2A027D901F8be45f00373d8Dd48'
 export const DAO_TREASURY_BASE = '0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502'
+export const DAO_TREASURY_MONAD = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_HYPEREVM = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 
 // CAIP-2 Chain IDs (non-EVM chains that need explicit mapping)
 export const BITCOIN_CHAIN_ID = 'bip122:000000000019d6689c085ae165831e93'
@@ -34,6 +36,7 @@ export const MAP_CHAIN_ID = 'eip155:22776'
 export const ARBITRUM_CHAIN_ID = 'eip155:42161'
 export const AVALANCHE_CHAIN_ID = 'eip155:43114'
 export const MONAD_CHAIN_ID = 'eip155:143'
+export const HYPEREVM_CHAIN_ID = 'eip155:999'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
 
 // Slip44 coin type values for native assets
@@ -84,6 +87,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:100': { platform: 'xdai', nativeCoinId: 'xdai' },
   'eip155:137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
   'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
+  'eip155:999': { platform: 'hyperevm', nativeCoinId: 'hyperliquid' },
   'eip155:4217': { platform: 'tempo', nativeCoinId: '' },
   'eip155:8453': { platform: 'base', nativeCoinId: 'ethereum' },
   'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },

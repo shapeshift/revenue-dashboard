@@ -4,6 +4,7 @@ import { assetDataService } from '../assetData/AssetDataService'
 import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
 import { timestampToDate } from '../utils/date'
 
+import * as across from './across'
 import { aggregateAffiliateRevenue, aggregatePartnerRevenue } from './aggregateRevenue'
 import * as avnu from './avnu'
 import * as bebop from './bebop'
@@ -23,6 +24,7 @@ import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
 
 const providerNames: Service[] = [
+  'across',
   'avnu',
   'bebop',
   'bobgateway',
@@ -96,6 +98,7 @@ export class AffiliateRevenue {
     const failedProviders: Service[] = []
 
     const results = await Promise.allSettled([
+      across.getFees(startTimestamp, endTimestamp),
       avnu.getFees(startTimestamp, endTimestamp),
       bebop.getFees(startTimestamp, endTimestamp),
       bobgateway.getFees(startTimestamp, endTimestamp),

@@ -1,4 +1,5 @@
 export const SERVICE_LABELS: Record<string, string> = {
+  across: 'Across',
   avnu: 'AVNU',
   bobgateway: 'BOB Gateway',
   nearintents: 'Near Intents',
@@ -15,6 +16,7 @@ export const SERVICE_LABELS: Record<string, string> = {
 }
 
 export const SERVICE_COLORS: Record<string, string> = {
+  across: '#3b82f6',
   avnu: '#8b5cf6',
   bobgateway: '#ef4444',
   thorchain: '#0095FF',
@@ -48,4 +50,5 @@ export const SERVICE_STACK_ORDER = [
   'butterswap',
   'nearintents',
   'bobgateway',
+  'across',
 ]
