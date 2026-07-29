@@ -2,6 +2,7 @@ import {
   ARBITRUM_CHAIN_ID,
   AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
+  BSC_CHAIN_ID,
   ETHEREUM_CHAIN_ID,
   GNOSIS_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
@@ -18,7 +19,10 @@ const UNCHAINED_HOST_BY_CHAIN_ID: Record<string, string> = {
   [POLYGON_CHAIN_ID]: 'https://api.polygon.shapeshift.com',
   [GNOSIS_CHAIN_ID]: 'https://api.gnosis.shapeshift.com',
   [OPTIMISM_CHAIN_ID]: 'https://api.optimism.shapeshift.com',
+  [BSC_CHAIN_ID]: 'https://api.bnbsmartchain.shapeshift.com',
 }
+
+export const hasUnchainedHost = (chainId: string): boolean => chainId in UNCHAINED_HOST_BY_CHAIN_ID
 
 export const getUnchainedBaseUrl = (chainId: string): string => {
   const url = UNCHAINED_HOST_BY_CHAIN_ID[chainId]
