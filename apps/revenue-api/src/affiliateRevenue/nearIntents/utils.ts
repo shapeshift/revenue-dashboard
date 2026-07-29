@@ -191,3 +191,23 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
 }
 
 export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * Spread callers at least `intervalMs` apart.
+ *
+ * Each caller claims its slot synchronously — before any await — so concurrent
+ * callers can't read the same slot and resume together. Both revenue routes run
+ * their own provider sweep, so two overlapping requests do share this.
+ */
+export const createThrottle = (intervalMs: number) => {
+  let nextSlot = 0
+
+  return async (): Promise<void> => {
+    const now = Date.now()
+    const runAt = Math.max(now, nextSlot)
+    nextSlot = runAt + intervalMs
+
+    const wait = runAt - now
+    if (wait > 0) await sleep(wait)
+  }
+}

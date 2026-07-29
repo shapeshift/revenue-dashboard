@@ -24,14 +24,11 @@ import {
 } from './constants'
 import * as tokenRegistry from './tokenRegistry'
 import type { NearIntentsTransaction, TransactionsResponse } from './types'
-import { parseNearIntentsAsset, sleep } from './utils'
+import { createThrottle, parseNearIntentsAsset } from './utils'
 
-let nextRequestAt = 0
-const throttle = async (): Promise<void> => {
-  const wait = nextRequestAt - Date.now()
-  if (wait > 0) await sleep(wait)
-  nextRequestAt = Date.now() + REQUEST_INTERVAL_MS
-}
+// The rate limit is per-key and time-based, so space EVERY request — the cacheable and recent
+// ranges each run their own paging walk, and both revenue routes run their own provider sweep.
+const throttle = createThrottle(REQUEST_INTERVAL_MS)
 
 const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {
   return withRetry(
