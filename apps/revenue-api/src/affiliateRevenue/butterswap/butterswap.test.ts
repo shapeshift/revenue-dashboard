@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { affiliateFeeUsd, parseOrderTimeMs, selectAffiliateFee } from './butterswap'
+import { affiliateFeeUsd, crossChainFee, parseFeeAmount, parseOrderTimeMs, selectAffiliateFee } from './butterswap'
 import { BUTTERSWAP_AFFILIATE_ID, SAME_CHAIN_FEE_RECEIVERS, SAME_CHAIN_ROUTERS } from './constants'
 import { extractFee } from './resolveFee'
 import type { AffiliateFee, ButterSwapTransaction } from './types'
@@ -96,6 +96,80 @@ describe('affiliateFeeUsd', () => {
 
   test('0bps order → $0', () => {
     expect(affiliateFeeUsd(feeRow({ rate: '0', fee: '0' }))).toBe(0)
+  })
+})
+
+describe('parseFeeAmount', () => {
+  test('parses the integer strings the API actually sends', () => {
+    expect(parseFeeAmount('869453514000000000')).toBe(869453514000000000n)
+    expect(parseFeeAmount('0')).toBe(0n)
+  })
+
+  test('missing → 0', () => {
+    expect(parseFeeAmount(undefined)).toBe(0n)
+    expect(parseFeeAmount('')).toBe(0n)
+  })
+
+  test('non-integer → null, never a throw (BigInt rejects these)', () => {
+    expect(parseFeeAmount('1.5')).toBeNull()
+    expect(parseFeeAmount('1e18')).toBeNull()
+    expect(parseFeeAmount('abc')).toBeNull()
+  })
+})
+
+describe('crossChainFee', () => {
+  test('builds the fee from our row, denominated in the row token on the MAP relay chain', () => {
+    const fee = crossChainFee(tx(), 1784495531)
+
+    expect(fee).toEqual({
+      service: 'butterswap',
+      amount: '869453514000000000',
+      amountUsd: '0.8693874355329361',
+      chainId: 'eip155:22776',
+      assetId: `eip155:22776/erc20:${MAP_USDC.address}`,
+      timestamp: 1784495531,
+      txHash: feeRow().hash,
+    })
+  })
+
+  // One malformed record must cost one order, not the batch: a throw here propagates out of
+  // getFees, which marks the whole provider failed for the window.
+  test('unparseable fee → skipped, not thrown', () => {
+    const malformed = tx({ affiliateFees: [feeRow({ fee: '8.69e17' })] })
+
+    expect(() => crossChainFee(malformed, 1784495531)).not.toThrow()
+    expect(crossChainFee(malformed, 1784495531)).toBeNull()
+  })
+
+  test('0bps order → no fee', () => {
+    expect(crossChainFee(tx({ affiliateFees: [feeRow({ rate: '0', fee: '0' })] }), 1784495531)).toBeNull()
+  })
+
+  test('no relay hash → never charged, so no fee', () => {
+    expect(crossChainFee(tx({ affiliateFees: [feeRow({ hash: '' })] }), 1784495531)).toBeNull()
+  })
+
+  test('fee token off the MAP relay chain → skipped rather than mis-attributed', () => {
+    const offChain = tx({ affiliateFees: [feeRow({ token: { ...MAP_USDC, chainId: 1 } })] })
+
+    expect(crossChainFee(offChain, 1784495531)).toBeNull()
+  })
+
+  test('no row for us → no fee', () => {
+    expect(crossChainFee(tx({ affiliateFees: [] }), 1784495531)).toBeNull()
+  })
+
+  // "NaN" would survive into aggregation, which parseFloats and sums it; "0" would understate the
+  // fee wherever enrichment falls back to it. Neither belongs on a fee we know is nonzero.
+  test.each([
+    ['garbled price (NaN)', feeRow({ price: 'abc' })],
+    ['empty price (0)', feeRow({ price: '' })],
+    ['missing decimals (NaN)', feeRow({ token: { ...MAP_USDC, decimals: undefined as unknown as number } })],
+  ])('%s → fee kept, USD left for enrichment', (_label, row) => {
+    const fee = crossChainFee(tx({ affiliateFees: [row] }), 1784495531)
+
+    expect(fee?.amount).toBe('869453514000000000')
+    expect(fee?.amountUsd).toBeUndefined()
   })
 })
 

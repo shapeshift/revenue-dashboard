@@ -32,8 +32,20 @@ export const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: numbe
   tx.affiliateFees?.find(fee => Number(fee.affiliateId) === affiliateId) ?? null
 
 // USD value at the time of the swap: fee (token base units) × the row's token price (6 decimals).
+// NaN when the row is missing a price or decimals — callers must not emit that as a USD string.
 export const affiliateFeeUsd = (row: AffiliateFee): number =>
   (Number(row.fee) / 10 ** row.token.decimals) * (Number(row.price) / 10 ** USD_DECIMALS)
+
+// Amounts arrive as integer strings; BigInt throws on anything else (a decimal point, an exponent).
+// Null rather than throw: an unparseable row is one skipped order, not a reason to abort the batch
+// and take the whole provider down with it.
+export const parseFeeAmount = (fee: string | undefined): bigint | null => {
+  try {
+    return BigInt(fee || '0')
+  } catch {
+    return null
+  }
+}
 
 const fetchTransactions = async (startMs: number, endMs: number): Promise<ButterSwapTransaction[]> => {
   const items: ButterSwapTransaction[] = []
@@ -59,7 +71,7 @@ const fetchTransactions = async (startMs: number, endMs: number): Promise<Butter
 // (mapped USDC/USDT/ETH/BTC — all 18 decimals). Take the fee row verbatim rather than deriving it
 // from `volume × rate`: the reported rate doesn't reproduce the charged fee on every order, and the
 // row names the token that actually hit the relay.
-const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fees | null => {
+export const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fees | null => {
   const row = selectAffiliateFee(tx, BUTTERSWAP_AFFILIATE_ID)
 
   if (!row) {
@@ -69,8 +81,13 @@ const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fees | nul
     return null
   }
 
+  const amount = parseFeeAmount(row.fee)
+  if (amount === null) {
+    console.warn(`[butterswap] UNCOUNTED cross-chain fee: unparseable fee "${row.fee}" for order ${tx.orderId}.`)
+    return null
+  }
+
   // 0bps orders carry a zero row — nothing was charged, nothing to count.
-  const amount = BigInt(row.fee || '0')
   if (amount <= BigInt(0)) return null
 
   // The row is written by the relay tx that charges the fee, so a missing hash means it never settled.
@@ -83,10 +100,22 @@ const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fees | nul
     return null
   }
 
+  // A nonzero fee is never worth exactly $0, so treat NaN (missing price/decimals) and 0 alike:
+  // the row just doesn't price itself. Emit no USD and let enrichment price it from the assetId —
+  // "NaN" would poison the dashboard totals, which parseFloat and sum these, and "0" would
+  // understate the fee wherever the fallback is used.
+  const feeUsd = affiliateFeeUsd(row)
+  const hasUsableUsd = feeUsd > 0
+  if (!hasUsableUsd) {
+    console.warn(
+      `[butterswap] no usable USD for order ${tx.orderId} (price "${row.price}", decimals ${row.token.decimals}) — pricing from the asset instead.`
+    )
+  }
+
   return {
     service: 'butterswap',
     amount: amount.toString(),
-    amountUsd: affiliateFeeUsd(row).toString(),
+    amountUsd: hasUsableUsd ? feeUsd.toString() : undefined,
     chainId: MAP_CHAIN_ID,
     assetId: buildAssetId(MAP_CHAIN_ID, row.token.address),
     timestamp,
