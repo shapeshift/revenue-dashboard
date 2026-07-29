@@ -19,6 +19,39 @@ export const ASSET_OVERRIDES: Record<string, Asset> = {
     icon: '',
   },
 
+  // MAP Protocol bridged USDC — 18 decimals on-chain (verified via decimals())
+  'eip155:22776/erc20:0x9f722b2cb30093f766221fd0d37964949ed66918': {
+    assetId: 'eip155:22776/erc20:0x9f722b2cb30093f766221fd0d37964949ed66918',
+    chainId: 'eip155:22776',
+    symbol: 'USDC',
+    precision: 18,
+    name: 'Map Bridged USDC',
+    color: '',
+    icon: '',
+  },
+
+  // MAP Protocol bridged WETH
+  'eip155:22776/erc20:0x05ab928d446d8ce6761e368c8e7be03c3168a9ec': {
+    assetId: 'eip155:22776/erc20:0x05ab928d446d8ce6761e368c8e7be03c3168a9ec',
+    chainId: 'eip155:22776',
+    symbol: 'ETH',
+    precision: 18,
+    name: 'Map Bridged Wrapped Ether',
+    color: '',
+    icon: '',
+  },
+
+  // MAP Protocol bridged BTC — 18 decimals, not BTC's usual 8 (verified via decimals())
+  'eip155:22776/erc20:0xb877e3562a660c7861117c2f1361a26abaf19beb': {
+    assetId: 'eip155:22776/erc20:0xb877e3562a660c7861117c2f1361a26abaf19beb',
+    chainId: 'eip155:22776',
+    symbol: 'BTC',
+    precision: 18,
+    name: 'Map Bridged BTC',
+    color: '',
+    icon: '',
+  },
+
   // Expanse native EXP
   'eip155:2/slip44:60': {
     assetId: 'eip155:2/slip44:60',

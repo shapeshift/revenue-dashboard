@@ -7,39 +7,33 @@ import { buildAssetId } from '../utils'
 
 import {
   API_SUCCESS_CODE,
-  BPS_DENOMINATOR,
   BUTTERSWAP_AFFILIATE_ID,
   isNativeAddress,
-  MAP_USDT_ADDRESS,
+  MAP_RELAY_CHAIN_ID,
   PAGE_SIZE,
-  RELAY_STATE_SETTLED,
+  USD_DECIMALS,
   REQUEST_TIMEOUT_MS,
   EVM_CHAIN_BY_SOURCE_CHAIN_ID,
   TRANSACTIONS_API,
-  USDT_DECIMALS,
-  VOLUME_USD_DECIMALS,
 } from './constants'
 import { resolveSameChainFee } from './resolveFee'
-import type { ButterSwapTransaction, TransactionsResponse } from './types'
+import type { AffiliateFee, ButterSwapTransaction, TransactionsResponse } from './types'
 
 const LOOKUP_CONCURRENCY = 10
 
-// Our affiliate's fee rate (bps) from the "26:60|9:4" affiliates string; 0 if absent/zero.
-export const parseAffiliateBps = (affiliates: string | undefined, affiliateId: number): number => {
-  if (!affiliates) return 0
-  for (const part of affiliates.split('|')) {
-    const [id, bps] = part.split(':')
-    if (Number(id) === affiliateId) return Number(bps) || 0
-  }
-  return 0
+// Order timestamps are ISO-8601 strings; tolerate epoch ms in case the field flips back.
+export const parseOrderTimeMs = (value: string | number | undefined): number => {
+  if (value === undefined || value === null || value === '') return NaN
+  return typeof value === 'number' ? value : Date.parse(value)
 }
 
-// Affiliate fee in MAP USDT base units (18 dec) from the USD-normalized `volume` (6 dec) and bps.
-// Integer math throughout: volume * bps * 10^(18-6) / 10^4 — no float, no precision loss.
-export const computeFeeBaseUnits = (volume: string, bps: number): bigint => {
-  const scale = BigInt(10) ** BigInt(USDT_DECIMALS - VOLUME_USD_DECIMALS)
-  return (BigInt(volume) * BigInt(bps) * scale) / BigInt(BPS_DENOMINATOR)
-}
+// Our fee row for an order. The API writes one row per affiliate, so pick ours by id.
+export const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: number): AffiliateFee | null =>
+  tx.affiliateFees?.find(fee => Number(fee.affiliateId) === affiliateId) ?? null
+
+// USD value at the time of the swap: fee (token base units) × the row's token price (6 decimals).
+export const affiliateFeeUsd = (row: AffiliateFee): number =>
+  (Number(row.fee) / 10 ** row.token.decimals) * (Number(row.price) / 10 ** USD_DECIMALS)
 
 const fetchTransactions = async (startMs: number, endMs: number): Promise<ButterSwapTransaction[]> => {
   const items: ButterSwapTransaction[] = []
@@ -61,35 +55,51 @@ const fetchTransactions = async (startMs: number, endMs: number): Promise<Butter
   return items
 }
 
-// Cross-chain swaps collect the affiliate fee on the MAP relay; the API reports the rate (26:60) and
-// we denominate in MAP USDT, matching the reconciled on-chain relay balance.
-const crossChainFee = (tx: ButterSwapTransaction, mapUsdtAssetId: string): Fees | null => {
-  const bps = parseAffiliateBps(tx.affiliates, BUTTERSWAP_AFFILIATE_ID)
-  if (bps <= 0) return null
+// Cross-chain fees are charged on the MAP relay chain in whichever token the swap bridged through
+// (mapped USDC/USDT/ETH/BTC — all 18 decimals). Take the fee row verbatim rather than deriving it
+// from `volume × rate`: the reported rate doesn't reproduce the charged fee on every order, and the
+// row names the token that actually hit the relay.
+const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fees | null => {
+  const row = selectAffiliateFee(tx, BUTTERSWAP_AFFILIATE_ID)
 
-  if (tx.raw?.relayState !== RELAY_STATE_SETTLED) return null
+  if (!row) {
+    console.warn(
+      `[butterswap] UNCOUNTED cross-chain fee: no affiliate ${BUTTERSWAP_AFFILIATE_ID} fee row for order ${tx.orderId}.`
+    )
+    return null
+  }
 
-  const amount = computeFeeBaseUnits(tx.volume, bps)
+  // 0bps orders carry a zero row — nothing was charged, nothing to count.
+  const amount = BigInt(row.fee || '0')
   if (amount <= BigInt(0)) return null
 
-  const feeUsd = (Number(tx.volume) / 10 ** VOLUME_USD_DECIMALS) * (bps / BPS_DENOMINATOR)
+  // The row is written by the relay tx that charges the fee, so a missing hash means it never settled.
+  if (!row.hash) return null
+
+  if (String(row.token.chainId) !== MAP_RELAY_CHAIN_ID) {
+    console.warn(
+      `[butterswap] UNCOUNTED cross-chain fee on unexpected chain ${row.token.chainId} — order ${tx.orderId}. Fees are expected on the MAP relay chain (${MAP_RELAY_CHAIN_ID}).`
+    )
+    return null
+  }
 
   return {
     service: 'butterswap',
     amount: amount.toString(),
-    amountUsd: feeUsd.toString(),
+    amountUsd: affiliateFeeUsd(row).toString(),
     chainId: MAP_CHAIN_ID,
-    assetId: mapUsdtAssetId,
-    timestamp: Math.floor(tx.sourceTime / 1000),
-    txHash: tx.orderId,
+    assetId: buildAssetId(MAP_CHAIN_ID, row.token.address),
+    timestamp,
+    txHash: row.hash,
   }
 }
 
-// Same-chain fees are taken on the source chain (API reports 26:0), so we read the actual amount
-// on-chain and denominate in the source token. Never assume a rate — skip + warn if it can't be read.
-const sameChainFee = async (tx: ButterSwapTransaction): Promise<Fees | null> => {
+// Same-chain fees are taken on the source chain (API reports 26:0 and no fee row), so we read the
+// actual amount on-chain and denominate in the source token. Never assume a rate — skip + warn if
+// it can't be read.
+const sameChainFee = async (tx: ButterSwapTransaction, timestamp: number): Promise<Fees | null> => {
   const sourceChainId = String(tx.raw.sourceChainId)
-  const volumeUsd = Number(tx.volume) / 10 ** VOLUME_USD_DECIMALS
+  const volumeUsd = Number(tx.volume) / 10 ** USD_DECIMALS
 
   const { chainId } = EVM_CHAIN_BY_SOURCE_CHAIN_ID[sourceChainId] ?? {}
   if (!chainId) {
@@ -132,7 +142,7 @@ const sameChainFee = async (tx: ButterSwapTransaction): Promise<Fees | null> => 
     amountUsd: originalUsd,
     chainId,
     assetId,
-    timestamp: Math.floor(tx.sourceTime / 1000),
+    timestamp,
     txHash: tx.raw.sourceHash || tx.orderId,
   }
 }
@@ -144,23 +154,31 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const endMs = endTimestamp * 1000
   const transactions = await fetchTransactions(startMs, endMs)
 
-  const mapUsdtAssetId = buildAssetId(MAP_CHAIN_ID, MAP_USDT_ADDRESS)
   const fees: Fees[] = []
-  const sameChainTxs: ButterSwapTransaction[] = []
+  const sameChainTxs: Array<{ tx: ButterSwapTransaction; timestamp: number }> = []
 
   const seen = new Set<string>()
   let crossCount = 0
   for (const tx of transactions) {
-    if (tx.sourceTime < startMs || tx.sourceTime > endMs) continue
+    // The API's window is fuzzy at the upper bound (it can return orders sent after `end`), so
+    // filter on the order's own send time.
+    const sourceMs = parseOrderTimeMs(tx.sendTime ?? tx.raw?.sourceTime)
+    if (Number.isNaN(sourceMs)) {
+      console.warn(`[butterswap] UNCOUNTED: unparseable send time "${tx.sendTime}" for order ${tx.orderId}.`)
+      continue
+    }
+    if (sourceMs < startMs || sourceMs > endMs) continue
     if (seen.has(tx.orderId)) continue
     seen.add(tx.orderId)
 
+    const timestamp = Math.floor(sourceMs / 1000)
+
     if (String(tx.raw.sourceChainId) === String(tx.raw.destinationChainId)) {
-      sameChainTxs.push(tx)
+      sameChainTxs.push({ tx, timestamp })
       continue
     }
 
-    const fee = crossChainFee(tx, mapUsdtAssetId)
+    const fee = crossChainFee(tx, timestamp)
     if (fee) {
       fees.push(fee)
       crossCount++
@@ -169,7 +187,9 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   let sameChainCount = 0
   for (let i = 0; i < sameChainTxs.length; i += LOOKUP_CONCURRENCY) {
-    const results = await Promise.all(sameChainTxs.slice(i, i + LOOKUP_CONCURRENCY).map(sameChainFee))
+    const results = await Promise.all(
+      sameChainTxs.slice(i, i + LOOKUP_CONCURRENCY).map(({ tx, timestamp }) => sameChainFee(tx, timestamp))
+    )
     for (const fee of results) {
       if (!fee) continue
       fees.push(fee)
