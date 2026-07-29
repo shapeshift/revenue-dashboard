@@ -12,19 +12,13 @@ import {
 } from '../constants'
 
 export const BUTTERSWAP_AFFILIATE_ID = 26
-export const MAP_USDT_ADDRESS = '0x33daba9618a75a7aff103e53afe530fbacf4a3dd'
+export const MAP_RELAY_CHAIN_ID = '22776'
+export const USD_DECIMALS = 6
 
-export const TRANSACTIONS_API = 'https://butterapi.chainservice.io/api/forpm/transactions'
+export const TRANSACTIONS_API = 'https://affiliate.butterswap.io/api/transactions'
 export const PAGE_SIZE = 100
 export const API_SUCCESS_CODE = 0
 export const REQUEST_TIMEOUT_MS = 15000
-
-export const VOLUME_USD_DECIMALS = 6
-export const USDT_DECIMALS = 18
-export const BPS_DENOMINATOR = 10000
-
-// Fee is credited only once the swap settles on the MAP relay chain.
-export const RELAY_STATE_SETTLED = 1
 
 export const SAME_CHAIN_ROUTERS = new Set(
   ['0xEE0319cF0BCa5d09333f9F6277743E8De31bD69A', '0xEE030ec6F4307411607E55aCD08e628Ae6655B86'].map(a => a.toLowerCase())
