@@ -189,5 +189,3 @@ export const parseNearIntentsAsset = (asset: string): ParseResult => {
   console.warn(`[nearIntents] Unrecognized asset format: ${asset} - update parser`)
   return { chainId: `unknown:${prefix}`, assetId: `unknown:${prefix}/unknown` }
 }
-
-export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

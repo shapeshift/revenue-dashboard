@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
+import { createThrottle } from '../../utils/throttle'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -15,33 +16,43 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { calculateFee } from '../utils'
 
-import { DAO_NEAR_TREASURY_ADDRESSES, NEAR_INTENTS_API_KEY } from './constants'
+import {
+  DAO_NEAR_TREASURY_ADDRESSES,
+  NEAR_INTENTS_API_KEY,
+  PAGE_SIZE,
+  REQUEST_INTERVAL_MS,
+  TRANSACTIONS_API,
+} from './constants'
 import * as tokenRegistry from './tokenRegistry'
-import type { TransactionsResponse } from './types'
-import { parseNearIntentsAsset, sleep } from './utils'
+import type { NearIntentsTransaction, TransactionsResponse } from './types'
+import { parseNearIntentsAsset } from './utils'
+
+const throttle = createThrottle(REQUEST_INTERVAL_MS)
 
 const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {
-  return withRetry('nearIntents', async () => {
-    const { data } = await axios.get<TransactionsResponse>(
-      'https://explorer.near-intents.org/api/v0/transactions-pages',
-      {
+  return withRetry(
+    'nearIntents',
+    async () => {
+      await throttle()
+      const { data } = await axios.get<TransactionsResponse>(TRANSACTIONS_API, {
         params: {
           referral: 'shapeshift',
           page,
-          perPage: 1000,
+          perPage: PAGE_SIZE,
           statuses: 'SUCCESS',
           startTimestampUnix: startTimestamp,
           endTimestampUnix: endTimestamp,
         },
         headers: { Authorization: `Bearer ${NEAR_INTENTS_API_KEY}` },
-      }
-    )
-    return data
-  })
+      })
+      return data
+    },
+    { initialDelay: REQUEST_INTERVAL_MS }
+  )
 }
 
-const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const fees: Fees[] = []
+const fetchTransactions = async (startTimestamp: number, endTimestamp: number): Promise<NearIntentsTransaction[]> => {
+  const transactions: NearIntentsTransaction[] = []
   let page: number | undefined = 1
 
   while (page) {
@@ -52,46 +63,49 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       break
     }
 
-    for (const transaction of data.data) {
-      const { chainId, assetId } = parseNearIntentsAsset(transaction.originAsset)
-      const txHash = transaction.originChainTxHashes[0] || transaction.nearTxHashes[0] || transaction.intentHashes || ''
-
-      for (const appFee of transaction.appFees) {
-        if (!DAO_NEAR_TREASURY_ADDRESSES.includes(appFee.recipient)) {
-          continue
-        }
-
-        // amountIn is already in smallest units (wei/satoshi), use directly
-        const amountInStr = transaction.amountIn
-        const amountInUsd = parseFloat(transaction.amountInUsd)
-
-        if (isNaN(amountInUsd)) {
-          console.warn(
-            `[nearIntents] Invalid amountInUsd in tx ${transaction.intentHashes}: ${transaction.amountInUsd}`
-          )
-          continue
-        }
-
-        // Calculate fee using BigNumber arithmetic
-        const feeAmount = calculateFee(amountInStr, appFee.fee, FEE_BPS_DENOMINATOR)
-        const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
-
-        fees.push({
-          chainId,
-          assetId,
-          service: 'nearintents',
-          txHash,
-          timestamp: transaction.createdAtTimestamp,
-          amount: feeAmount,
-          amountUsd: String(feeUsd),
-        })
-      }
-    }
-
+    transactions.push(...data.data)
     page = data.nextPage
+  }
 
-    if (page) {
-      await sleep(5000)
+  return transactions
+}
+
+const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const fees: Fees[] = []
+
+  const transactions = await fetchTransactions(startTimestamp, endTimestamp)
+
+  for (const transaction of transactions) {
+    const { chainId, assetId } = parseNearIntentsAsset(transaction.originAsset)
+    const txHash = transaction.originChainTxHashes[0] || transaction.nearTxHashes[0] || transaction.intentHashes || ''
+
+    for (const appFee of transaction.appFees) {
+      if (!DAO_NEAR_TREASURY_ADDRESSES.includes(appFee.recipient)) {
+        continue
+      }
+
+      // amountIn is already in smallest units (wei/satoshi), use directly
+      const amountInStr = transaction.amountIn
+      const amountInUsd = parseFloat(transaction.amountInUsd)
+
+      if (isNaN(amountInUsd)) {
+        console.warn(`[nearIntents] Invalid amountInUsd in tx ${transaction.intentHashes}: ${transaction.amountInUsd}`)
+        continue
+      }
+
+      // Calculate fee using BigNumber arithmetic
+      const feeAmount = calculateFee(amountInStr, appFee.fee, FEE_BPS_DENOMINATOR)
+      const feeUsd = (amountInUsd * appFee.fee) / FEE_BPS_DENOMINATOR
+
+      fees.push({
+        chainId,
+        assetId,
+        service: 'nearintents',
+        txHash,
+        timestamp: transaction.createdAtTimestamp,
+        amount: feeAmount,
+        amountUsd: String(feeUsd),
+      })
     }
   }
 
