@@ -48,6 +48,8 @@ const fetchRunePriceLookup = async (
     (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceUSD
 }
 
+// midgard's timestamp param cuts at exactly endTimestamp*1e9 nanoseconds, which would drop
+// final-second fees — pass endTimestamp+1 and trim to the window client-side
 const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number): Promise<MidgardAction[]> => {
   const actions: MidgardAction[] = []
 
@@ -58,7 +60,7 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
         params: {
           affiliate: MIDGARD_AFFILIATE,
           fromTimestamp: startTimestamp,
-          timestamp: endTimestamp,
+          timestamp: endTimestamp + 1,
           limit: MIDGARD_PAGE_LIMIT,
           offset,
         },
@@ -72,7 +74,11 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
 
     offset += MIDGARD_PAGE_LIMIT
   }
-  return actions
+
+  return actions.filter(a => {
+    const ts = Math.floor(Number(a.date) / 1_000_000_000)
+    return ts >= startTimestamp && ts <= endTimestamp
+  })
 }
 
 const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
