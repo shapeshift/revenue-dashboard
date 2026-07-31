@@ -13,7 +13,7 @@ import {
 import { THORCHAIN_CHAIN_ID } from '../constants'
 import type { Fees } from '../types'
 
-import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET_ID } from './constants'
+import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET, RUNE_ASSET_ID } from './constants'
 import type { MidgardAction, MidgardActionsResponse, RunePriceHistory } from './types'
 
 const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
@@ -89,12 +89,18 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
 
   return allActions.reduce<Fees[]>((acc, action) => {
     const affiliateOut = action.out.find(o => o.affiliate === true)
-    if (!affiliateOut?.coins?.[0]) return acc
+    const affiliateCoin = affiliateOut?.coins?.[0]
+    if (!affiliateCoin) return acc
 
     const inTxId = action.in[0]?.txID
     if (!inTxId) return acc
 
-    const runeAmount = affiliateOut.coins[0].amount
+    if (affiliateCoin.asset !== RUNE_ASSET) {
+      console.warn(`[thorchain] Skipping non-RUNE affiliate payout ${affiliateCoin.asset} (tx ${inTxId})`)
+      return acc
+    }
+
+    const runeAmount = affiliateCoin.amount
     const timestamp = Math.floor(Number(action.date) / 1_000_000_000)
 
     const runePrice = getRunePrice(timestamp)
