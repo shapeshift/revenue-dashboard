@@ -1,3 +1,4 @@
-export const MAYACHAIN_API_URL = 'https://api.mayachain.shapeshift.com/api/v1/affiliate/fees'
-export const PRICE_API_URL = 'https://api.proxy.shapeshift.com/api/v1/markets/simple/price'
-export const MILLISECONDS_PER_SECOND = 1_000
+export const MIDGARD_BASE_URL = 'https://api.mayachain.shapeshift.com/midgard/v2'
+export const MIDGARD_AFFILIATE = 'ssmaya'
+export const MIDGARD_PAGE_LIMIT = 50
+export const USDC_POOL = 'ETH.USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48'
