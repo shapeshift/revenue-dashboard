@@ -14,7 +14,7 @@ import { MAYACHAIN_CHAIN_ID } from '../constants'
 import type { Fees } from '../types'
 import { buildAssetId } from '../utils'
 
-import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, USDC_POOL } from './constants'
+import { CACAO_ASSET, MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, USDC_POOL } from './constants'
 import type { DepthHistory, MidgardAction, MidgardActionsResponse } from './types'
 
 const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
@@ -102,12 +102,18 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
 
   return allActions.reduce<Fees[]>((acc, action) => {
     const affiliateOut = action.out.find(o => o.affiliate === true)
-    if (!affiliateOut?.coins?.[0]) return acc
+    const affiliateCoin = affiliateOut?.coins?.[0]
+    if (!affiliateCoin) return acc
 
     const inTxId = action.in[0]?.txID
     if (!inTxId) return acc
 
-    const cacaoAmount = affiliateOut.coins[0].amount
+    if (affiliateCoin.asset !== CACAO_ASSET) {
+      console.warn(`[mayachain] Skipping non-CACAO affiliate payout ${affiliateCoin.asset} (tx ${inTxId})`)
+      return acc
+    }
+
+    const cacaoAmount = affiliateCoin.amount
     const timestamp = actionTimestamp(action)
 
     const cacaoPrice = getCacaoPrice(timestamp)
