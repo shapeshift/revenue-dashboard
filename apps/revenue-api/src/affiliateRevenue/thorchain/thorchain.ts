@@ -13,7 +13,7 @@ import {
 import { THORCHAIN_CHAIN_ID } from '../constants'
 import type { Fees } from '../types'
 
-import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET_ID } from './constants'
+import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET, RUNE_ASSET_ID } from './constants'
 import type { MidgardAction, MidgardActionsResponse, RunePriceHistory } from './types'
 
 const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
@@ -48,6 +48,8 @@ const fetchRunePriceLookup = async (
     (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceUSD
 }
 
+// midgard's timestamp param cuts at exactly endTimestamp*1e9 nanoseconds, which would drop
+// final-second fees — pass endTimestamp+1 and trim to the window client-side
 const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number): Promise<MidgardAction[]> => {
   const actions: MidgardAction[] = []
 
@@ -58,7 +60,7 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
         params: {
           affiliate: MIDGARD_AFFILIATE,
           fromTimestamp: startTimestamp,
-          timestamp: endTimestamp,
+          timestamp: endTimestamp + 1,
           limit: MIDGARD_PAGE_LIMIT,
           offset,
         },
@@ -72,7 +74,11 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
 
     offset += MIDGARD_PAGE_LIMIT
   }
-  return actions
+
+  return actions.filter(a => {
+    const ts = Math.floor(Number(a.date) / 1_000_000_000)
+    return ts >= startTimestamp && ts <= endTimestamp
+  })
 }
 
 const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -83,12 +89,18 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
 
   return allActions.reduce<Fees[]>((acc, action) => {
     const affiliateOut = action.out.find(o => o.affiliate === true)
-    if (!affiliateOut?.coins?.[0]) return acc
+    const affiliateCoin = affiliateOut?.coins?.[0]
+    if (!affiliateCoin) return acc
 
     const inTxId = action.in[0]?.txID
     if (!inTxId) return acc
 
-    const runeAmount = affiliateOut.coins[0].amount
+    if (affiliateCoin.asset !== RUNE_ASSET) {
+      console.warn(`[thorchain] Skipping non-RUNE affiliate payout ${affiliateCoin.asset} (tx ${inTxId})`)
+      return acc
+    }
+
+    const runeAmount = affiliateCoin.amount
     const timestamp = Math.floor(Number(action.date) / 1_000_000_000)
 
     const runePrice = getRunePrice(timestamp)
