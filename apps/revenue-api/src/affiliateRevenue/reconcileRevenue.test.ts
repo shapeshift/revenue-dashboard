@@ -29,6 +29,7 @@ const swap = (over: Partial<PartnerSwap>): PartnerSwap => ({
   volumeUsd: '1000',
   affiliateFeeAssetId: 'eip155:1/slip44:60',
   affiliateFeeAmountCryptoBaseUnit: '1000000000000000000',
+  attributionStatus: 'ACCEPTED',
   date: '2026-06-01',
   ...over,
 })

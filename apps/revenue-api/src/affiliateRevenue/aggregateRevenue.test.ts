@@ -100,6 +100,7 @@ const partnerSwap = (over: Partial<PartnerSwap>): PartnerSwap => ({
   volumeUsd: '1000',
   affiliateFeeAssetId: ETH,
   affiliateFeeAmountCryptoBaseUnit: '1000000000000000000',
+  attributionStatus: 'ACCEPTED',
   date: '2026-06-01',
   ...over,
 })

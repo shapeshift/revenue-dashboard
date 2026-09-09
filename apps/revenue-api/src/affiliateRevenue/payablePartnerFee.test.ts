@@ -18,6 +18,7 @@ const swap = (over: Partial<PartnerSwap>): PartnerSwap => ({
   volumeUsd: '1000',
   affiliateFeeAssetId: 'eip155:1/slip44:60',
   affiliateFeeAmountCryptoBaseUnit: '1000000000000000000',
+  attributionStatus: 'ACCEPTED',
   date: '2026-06-01',
   ...over,
 })
@@ -53,10 +54,19 @@ describe('getPayablePartnerFee', () => {
     ['no verified on-chain bps', swap({ verifiedBps: null })],
     ['invalid partner bps', swap({ partnerBps: -30 })],
     ['no partner fee', swap({ partnerFeeUsd: '0' })],
+    ['attribution rejected', swap({ attributionStatus: 'REJECTED' })],
+    ['attribution disputed', swap({ attributionStatus: 'DISPUTED' })],
+    ['attribution pending', swap({ attributionStatus: 'PENDING' })],
   ])('not payable: %s', (reason, s) => {
     const res = getPayablePartnerFee(s)
     expect(res.payable).toBe(false)
     if (!res.payable) expect(res.reason).toBe(reason)
+  })
+
+  test('not payable: a verified 0 bps swap whose claim is not accepted', () => {
+    const res = getPayablePartnerFee(swap({ verifiedBps: 0, attributionStatus: 'DISPUTED' }))
+    expect(res.payable).toBe(false)
+    if (!res.payable) expect(res.reason).toBe('attribution disputed')
   })
 
   test('not payable: on-chain fee deviates too far from bps-implied (anomaly)', () => {
