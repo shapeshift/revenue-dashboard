@@ -27,6 +27,7 @@ export type PartnerSwap = {
   volumeUsd: string | null
   affiliateFeeAssetId: string | null
   affiliateFeeAmountCryptoBaseUnit: string | null
+  attributionStatus: string
   date: string
 }
 

@@ -10,12 +10,18 @@ export type PayablePartnerFee =
   | { payable: false; reason: string }
 
 // A partner swap represents real, payable revenue — the same basis the payout script pays on — only
-// when it SUCCEEDED and was either verified on-chain with a real affiliate-fee amount + verified bps
-// (whose on-chain fee isn't anomalous vs the bps-implied fee), or verified with a genuine 0 bps (a
-// real swap that simply earned $0). Anything else is excluded (with a reason for audit) so we never
-// over- or under-state partner revenue.
+// when it SUCCEEDED, its claim on the transaction was accepted, and it was either verified on-chain
+// with a real affiliate-fee amount + verified bps (whose on-chain fee isn't anomalous vs the
+// bps-implied fee), or verified with a genuine 0 bps (a real swap that simply earned $0). Anything
+// else is excluded (with a reason for audit) so we never over- or under-state partner revenue.
 export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
   if (swap.status !== 'SUCCESS') return { payable: false, reason: 'swap not SUCCESS' }
+
+  // a fee verified on a transaction this partner has not been granted is still not theirs
+  if (swap.attributionStatus !== 'ACCEPTED') {
+    return { payable: false, reason: `attribution ${swap.attributionStatus.toLowerCase()}` }
+  }
+
   if (swap.partnerBps < 0) return { payable: false, reason: 'invalid partner bps' }
 
   if (swap.verifiedBps === 0) {

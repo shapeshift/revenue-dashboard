@@ -23,6 +23,7 @@ type AffiliateSwap = {
   volumeUsd: string | null
   affiliateFeeAssetId: string | null
   actualAffiliateFeeAmountCryptoBaseUnit: string | null
+  attributionStatus: string
   createdAt: string
 }
 
@@ -61,6 +62,7 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
         volumeUsd: s.volumeUsd ?? null,
         affiliateFeeAssetId: s.affiliateFeeAssetId ?? null,
         affiliateFeeAmountCryptoBaseUnit: s.actualAffiliateFeeAmountCryptoBaseUnit ?? null,
+        attributionStatus: s.attributionStatus,
         date: s.createdAt.slice(0, 10),
       })
     }
