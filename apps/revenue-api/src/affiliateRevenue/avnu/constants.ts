@@ -12,7 +12,7 @@ export const AVNU_EXCHANGE = '0x04270219d365d6b017231b52e92b3fb5d7c8378b05e9abc9
 export const TRANSFER_SELECTOR = '0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9'
 
 // Starknet RPC endpoint
-export const STARKNET_RPC_URL = 'https://rpc.starknet.lava.build'
+export const STARKNET_RPC_URL = 'https://api.cartridge.gg/x/starknet/mainnet'
 
 // Starknet block time (calculated from recent blocks: ~2.7s)
 export const STARKNET_BLOCK_TIME_SECONDS = 2.7
