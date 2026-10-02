@@ -48,17 +48,18 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       if (data.requests.length === 0) continue
 
       for (const request of data.requests) {
+        if (!request.data?.appFees) continue
+
+        // Throw on incomplete fee records so the chunk fails instead of being cached without this revenue.
         // `actual` is what settled; `quoted` can include fees that were never charged
-        const appFees = request.data?.appFees?.actual ?? []
-        const relevantFees = appFees.filter(fee => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase())
+        const { actual, currency: currencyObject } = request.data.appFees
+        if (!Array.isArray(actual)) throw new Error(`[relay] Missing appFees.actual on request ${request.id}`)
+
+        const relevantFees = actual.filter(fee => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase())
 
         if (relevantFees.length === 0) continue
 
-        const currencyObject = request.data?.appFees?.currency
-        if (!currencyObject) {
-          console.warn(`[relay] Skipped fee - missing appFees.currency`, { requestId: request.id })
-          continue
-        }
+        if (!currencyObject) throw new Error(`[relay] Missing appFees.currency on fee-bearing request ${request.id}`)
 
         let chainConfig = chainConfigCache.get(currencyObject.chainId)
         if (!chainConfig) {
