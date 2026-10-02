@@ -2,8 +2,9 @@ export type AppFee = {
   recipient: string
   bps: string
   amount: string
-  amountUsd: string
-  amountUsdCurrent?: string
+  amountFormatted: string
+  // only present on `actual` (settled) fees
+  amountUsd?: string
 }
 
 export type CurrencyObject = {
@@ -14,23 +15,21 @@ export type CurrencyObject = {
   decimals: number
 }
 
+export type AppFees = {
+  quoted: AppFee[]
+  actual: AppFee[]
+  currency: CurrencyObject
+}
+
 export type InTx = {
   chainId: number
-  hash: string
+  txHash: string
   timestamp: number
 }
 
 export type RequestData = {
-  appFees?: AppFee[]
-  paidAppFees?: AppFee[]
-  feeCurrencyObject?: CurrencyObject
-  appFeeCurrencyObject?: CurrencyObject
+  appFees?: AppFees
   inTxs?: InTx[]
-  metadata?: {
-    currencyIn?: {
-      currency?: CurrencyObject
-    }
-  }
 }
 
 export type RelayRequest = {

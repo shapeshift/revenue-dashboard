@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+import { formatError } from '../../utils/error'
 import { withRetry } from '../../utils/retry'
 import {
   getCacheableThreshold,
@@ -13,7 +14,7 @@ import {
 import { DAO_TREASURY_BASE } from '../constants'
 import type { Fees } from '../types'
 
-import { RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
+import { RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
 import { buildAssetId, getChainConfig } from './utils'
 
@@ -24,9 +25,12 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
     const chainConfigCache = new Map<number, ReturnType<typeof getChainConfig>>()
 
     do {
-      const { data } = await axios.get<RelayResponse>(`${RELAY_API_URL}/requests/v2`, {
+      const { data } = await axios.get<RelayResponse>(`${RELAY_API_URL}/requests/v3`, {
+        headers: { 'x-api-key': RELAY_API_KEY },
         params: {
           referrer: SHAPESHIFT_REFERRER,
+          // v3 only allows filtering by referrer when scoped to an api key we own
+          apiKey: RELAY_API_KEY,
           startTimestamp,
           endTimestamp,
           status: 'success',
@@ -36,24 +40,23 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
         timeout: 30000,
       })
 
-      if (!data || !Array.isArray(data.requests)) {
-        console.error('[relay] Invalid API response structure')
-        break
-      }
+      // throw rather than return partial pages, which would be cached as the complete range
+      if (!data || !Array.isArray(data.requests)) throw new Error('[relay] Invalid API response structure')
 
       continuation = data.continuation
 
       if (data.requests.length === 0) continue
 
       for (const request of data.requests) {
-        const appFees = request.data?.appFees ?? []
+        // `actual` is what settled; `quoted` can include fees that were never charged
+        const appFees = request.data?.appFees?.actual ?? []
         const relevantFees = appFees.filter(fee => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase())
 
         if (relevantFees.length === 0) continue
 
-        const currencyObject = request.data?.appFeeCurrencyObject
+        const currencyObject = request.data?.appFees?.currency
         if (!currencyObject) {
-          console.warn(`[relay] Skipped fee - missing appFeeCurrencyObject`, { requestId: request.id })
+          console.warn(`[relay] Skipped fee - missing appFees.currency`, { requestId: request.id })
           continue
         }
 
@@ -65,7 +68,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
         const { chainId, slip44, isEvm } = chainConfig
         const assetId = buildAssetId(chainId, slip44, currencyObject.address, isEvm)
-        const txHash = request.data?.inTxs?.[0]?.hash ?? ''
+        const txHash = request.data?.inTxs?.[0]?.txHash ?? ''
         const timestamp = Math.floor(new Date(request.createdAt).getTime() / 1000)
 
         for (const appFee of relevantFees) {
@@ -76,9 +79,8 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
             txHash,
             timestamp,
             amount: appFee.amount,
-            // Use current USD from Relay's API (with live prices)
-            // Fallback to historical if current unavailable (older API responses)
-            amountUsd: appFee.amountUsdCurrent ?? appFee.amountUsd,
+            // USD at swap time; enrichment re-prices at current prices when decimals are known
+            amountUsd: appFee.amountUsd,
           })
         }
       }
@@ -144,7 +146,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
         cacheFees(chunk, fees)
         newFees.push(...fees)
       } else {
-        console.error(`[relay] Chunk fetch failed (${chunk.length} dates):`, result.reason)
+        console.error(`[relay] Chunk fetch failed (${chunk.length} dates): ${formatError(result.reason)}`)
 
         console.warn(`[relay] Retrying chunk as single request fallback`)
         try {
@@ -155,7 +157,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
           cacheFees(chunk, fees)
           newFees.push(...fees)
         } catch (fallbackError) {
-          console.error(`[relay] Fallback also failed:`, fallbackError)
+          console.error(`[relay] Fallback also failed: ${formatError(fallbackError)}`)
           failedChunks.push(chunk)
         }
       }

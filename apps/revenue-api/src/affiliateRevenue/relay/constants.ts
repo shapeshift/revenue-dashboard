@@ -1,5 +1,9 @@
 import { BITCOIN_CHAIN_ID, SLIP44, SOLANA_CHAIN_ID, TRON_CHAIN_ID } from '../constants'
 
+export const RELAY_API_KEY = process.env.RELAY_API_KEY
+
+if (!RELAY_API_KEY) throw new Error('RELAY_API_KEY env var not set')
+
 export const RELAY_API_URL = 'https://api.relay.link'
 export const SHAPESHIFT_REFERRER = 'shapeshift'
 

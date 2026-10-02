@@ -1,8 +1,7 @@
-import axios from 'axios'
-
 import { assetDataService } from '../assetData/AssetDataService'
 import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
 import { timestampToDate } from '../utils/date'
+import { formatError } from '../utils/error'
 
 import * as across from './across'
 import { aggregateAffiliateRevenue, aggregatePartnerRevenue } from './aggregateRevenue'
@@ -39,19 +38,6 @@ const providerNames: Service[] = [
   'thorchain',
   'zrx',
 ]
-
-const formatError = (error: unknown): string => {
-  if (axios.isAxiosError(error)) {
-    const status = error.response?.status ?? 'no response'
-    const data = error.response?.data
-    const message = typeof data === 'object' ? JSON.stringify(data) : (data ?? error.message)
-    return `HTTP ${status}: ${message}`
-  }
-  if (error instanceof Error) {
-    return error.message
-  }
-  return String(error)
-}
 
 const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
   if (excluded.length === 0) return
