@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+import { formatError } from './error'
+
 export interface RetryOptions {
   maxRetries?: number
   initialDelay?: number
@@ -78,14 +80,8 @@ export async function withRetry<T>(context: string, fn: () => Promise<T>, option
 
       const delay = calculateDelay(attempt, opts.initialDelay, opts.backoffMultiplier, opts.maxDelay, opts.jitter)
 
-      const errorMsg = axios.isAxiosError(error)
-        ? `HTTP ${error.response?.status || 'network error'}`
-        : error instanceof Error
-          ? error.message
-          : String(error)
-
       console.warn(
-        `[retry][${context}] Attempt ${attempt + 1} failed (${errorMsg}), retrying after ${Math.round(delay)}ms`
+        `[retry][${context}] Attempt ${attempt + 1} failed (${formatError(error)}), retrying after ${Math.round(delay)}ms`
       )
 
       await new Promise(resolve => setTimeout(resolve, delay))
