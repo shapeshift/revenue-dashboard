@@ -35,6 +35,11 @@ export class AssetDataService {
     console.warn(message)
   }
 
+  // For assets a tracker resolves on chain that neither the asset DB nor CoinGecko know
+  registerAsset(asset: Asset): void {
+    this.assetData.set(asset.assetId, asset)
+  }
+
   async getAsset(assetId: string): Promise<Asset | undefined> {
     const existing = this.assetData.get(assetId)
     if (existing) return existing

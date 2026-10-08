@@ -38,6 +38,7 @@ export const AVALANCHE_CHAIN_ID = 'eip155:43114'
 export const MONAD_CHAIN_ID = 'eip155:143'
 export const HYPEREVM_CHAIN_ID = 'eip155:999'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
+export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
 
 // Slip44 coin type values for native assets
 export const SLIP44 = {

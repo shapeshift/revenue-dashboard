@@ -23,6 +23,7 @@ const chainMap: Record<string, string> = {
   'eip155:9745': 'Plasma',
   'eip155:999': 'HyperEVM',
   'eip155:747474': 'Katana',
+  'eip155:13863860': 'Symbiosis',
 
   'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
   'bip122:00000000001a91e3dace36e2be3bf030': 'Dogecoin',

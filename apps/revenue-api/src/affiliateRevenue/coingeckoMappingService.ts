@@ -71,6 +71,7 @@ type LoadState = 'uninitialized' | 'loading' | 'loaded' | 'failed'
 let loadState: LoadState = 'uninitialized'
 let mappings: Map<string, string> | null = null
 let loadPromise: Promise<void> | null = null
+const runtimeMappings = new Map<string, string>()
 
 // Runtime validation helper for mapping data
 const isValidMappingData = (data: unknown): data is Record<string, string> => {
@@ -106,7 +107,12 @@ export function getCoingeckoId(assetId: string): string | undefined {
   if (mappedId) return mappedId
 
   // Fallback: Check manual mappings for assets not in GitHub (e.g., new tokens, 1:1 pegs)
-  return MANUAL_COINGECKO_MAPPINGS[assetId]
+  return MANUAL_COINGECKO_MAPPINGS[assetId] ?? runtimeMappings.get(assetId)
+}
+
+// For assets a tracker resolves on chain at runtime, such as 1:1 wrapped tokens on a bridge's own chain
+export function registerCoingeckoId(assetId: string, coingeckoId: string): void {
+  runtimeMappings.set(assetId, coingeckoId)
 }
 
 export function isLoaded(): boolean {

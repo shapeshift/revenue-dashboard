@@ -15,6 +15,7 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   'NEAR Intents': 'nearintents',
   Portals: 'portals',
   Relay: 'relay',
+  Symbiosis: 'symbiosis',
   THORChain: 'thorchain',
   '0x': 'zrx',
 }

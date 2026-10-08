@@ -13,6 +13,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   cowswap: 'CoW Swap',
   relay: 'Relay',
   jupiter: 'Jupiter',
+  symbiosis: 'Symbiosis',
 }
 
 export const SERVICE_COLORS: Record<string, string> = {
@@ -30,6 +31,7 @@ export const SERVICE_COLORS: Record<string, string> = {
   butterswap: '#84cc16',
   nearintents: '#06b6d4',
   jupiter: '#a855f7',
+  symbiosis: '#10b981',
 }
 
 export const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
@@ -51,4 +53,5 @@ export const SERVICE_STACK_ORDER = [
   'nearintents',
   'bobgateway',
   'across',
+  'symbiosis',
 ]
