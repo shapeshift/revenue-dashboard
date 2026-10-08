@@ -11,15 +11,15 @@ import { TotalVolume } from './components/TotalVolume'
 import { useAffiliateRevenue } from './hooks/useAffiliateRevenue'
 import { usePartnerRevenue } from './hooks/usePartnerRevenue'
 import type { DateRange } from './types'
-import { formatUTCDate, getUTCYesterday, subtractUTCDays } from './utils/dateUtils'
+import { formatUTCDate, getUTCToday, subtractUTCDays } from './utils/dateUtils'
 
 function getDefaultDateRange(): DateRange {
-  // Default to 30 days ending yesterday UTC (to avoid fetching today's incomplete/slow data)
-  const yesterday = getUTCYesterday()
-  const start = subtractUTCDays(yesterday, 29) // 30 total days including yesterday
+  // Default to 30 days ending today UTC so the dashboard shows swaps as they land
+  const today = getUTCToday()
+  const start = subtractUTCDays(today, 29) // 30 total days including today
   return {
     startDate: formatUTCDate(start),
-    endDate: formatUTCDate(yesterday),
+    endDate: formatUTCDate(today),
   }
 }
 

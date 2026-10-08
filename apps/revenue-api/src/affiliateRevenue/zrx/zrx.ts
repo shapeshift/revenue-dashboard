@@ -3,20 +3,11 @@ import axios from 'axios'
 import { assetDataService } from '../../assetData/AssetDataService'
 import { bn } from '../../lib/bignumber'
 import { withRetry } from '../../utils/retry'
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
 import { getAffiliateFeeRate } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import { getAssetPriceUsd } from '../priceCache'
 import type { Fees } from '../types'
-import { baseUnitToTokenAmount, buildAssetId, decimalToBaseUnit, safeAmountToString } from '../utils'
+import { baseUnitToTokenAmount, buildAssetId, decimalToBaseUnit, getCachedFees, safeAmountToString } from '../utils'
 
 import { SERVICES, ZRX_API_KEY, ZRX_API_URL } from './constants'
 import type { TradesResponse } from './types'
@@ -166,47 +157,17 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'zrx',
+    'all',
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromAPI
+  )
 
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
+  console.log(
+    `[zrx] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('zrx', 'all', date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
-
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      saveCachedFees('zrx', 'all', date, feesByDate[date] || [])
-    }
-    newFees.push(...fetched)
-  }
-
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
-  }
-
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
-
-  console.log(`[zrx] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
-
-  return enrichFeesWithUsdPrices([...cachedFees, ...newFees, ...recentFees])
+  return enrichFeesWithUsdPrices(fees)
 }

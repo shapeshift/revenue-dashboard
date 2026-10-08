@@ -1,19 +1,11 @@
 import axios from 'axios'
 import { padHex, zeroAddress } from 'viem'
 
-import {
-  getCacheableThreshold,
-  getCachedTokenTransfer,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  saveCachedTokenTransfer,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
+import { formatError } from '../../utils/error'
+import { getCachedTokenTransfer, saveCachedTokenTransfer } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
+import { getCachedFees } from '../utils'
 
 import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -204,61 +196,31 @@ const fetchFeesForChain = async (
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const overallStart = Date.now()
+  const startTime = Date.now()
   const allFees: Fees[] = []
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
-
   let cacheHits = 0
   let cacheMisses = 0
 
   const results = await Promise.allSettled(
-    CHAIN_CONFIGS.map(async config => {
-      const cachedFees: Fees[] = []
-      const datesToFetch: string[] = []
-
-      for (const date of cacheableDates) {
-        const cached = tryGetCachedFees('portals', config.chainId, date)
-        if (cached) {
-          cachedFees.push(...cached)
-          cacheHits++
-        } else {
-          datesToFetch.push(date)
-          cacheMisses++
-        }
-      }
-
-      const newFees: Fees[] = []
-      if (datesToFetch.length > 0) {
-        const fetchStart = getDateStartTimestamp(datesToFetch[0])
-        const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-        const fetched = await fetchFeesForChain(config, fetchStart, fetchEnd)
-
-        const feesByDate = groupFeesByDate(fetched)
-        for (const date of datesToFetch) {
-          saveCachedFees('portals', config.chainId, date, feesByDate[date] || [])
-        }
-        newFees.push(...fetched)
-      }
-
-      const recentFees: Fees[] = []
-      if (recentStart !== null) {
-        recentFees.push(...(await fetchFeesForChain(config, recentStart, endTimestamp)))
-      }
-
-      return [...cachedFees, ...newFees, ...recentFees]
-    })
+    CHAIN_CONFIGS.map(config =>
+      getCachedFees('portals', config.chainId, startTimestamp, endTimestamp, (start, end) =>
+        fetchFeesForChain(config, start, end)
+      )
+    )
   )
 
-  for (const result of results) {
+  results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
-      allFees.push(...result.value)
+      allFees.push(...result.value.fees)
+      cacheHits += result.value.cacheHits
+      cacheMisses += result.value.cacheMisses
+    } else {
+      console.error(`[portals] ${CHAIN_CONFIGS[i].chainId} failed: ${formatError(result.reason)}`)
     }
-  }
+  })
 
-  const overallTime = Date.now() - overallStart
   console.log(
-    `[portals] Total: ${allFees.length} fees in ${overallTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+    `[portals] Total: ${allFees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
   )
 
   return enrichFeesWithUsdPrices(allFees)

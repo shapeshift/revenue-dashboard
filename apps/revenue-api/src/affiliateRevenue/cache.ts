@@ -16,6 +16,12 @@ export const feeCache = new LRUCache<string, Fees[]>({
   updateAgeOnHas: false,
 })
 
+// Today never settles, so it is refetched; this bounds that to once an hour per window
+export const recentFeeCache = new LRUCache<string, Fees[]>({
+  max: 500,
+  ttl: 1000 * 60 * 60,
+})
+
 export const tokenTransferCache = new LRUCache<string, { transfer: TokenTransfer | null }>({
   max: 500,
   ttl: 1000 * 60 * 60 * 24 * 7,

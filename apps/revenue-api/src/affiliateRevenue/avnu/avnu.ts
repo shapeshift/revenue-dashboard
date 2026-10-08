@@ -1,16 +1,7 @@
-import {
-  getCacheableThreshold,
-  getCachedBlockTimestamp,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedBlockTimestamp,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
+import { getCachedBlockTimestamp, saveCachedBlockTimestamp } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
+import { getCachedFees } from '../utils'
 import { estimateBlockFromTimestamp } from '../utils/blockEstimation'
 
 import {
@@ -143,51 +134,17 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'avnu',
+    STARKNET_CHAIN_ID,
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromAPI
+  )
 
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
+  console.log(
+    `[avnu] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
-  // Fetch from cache
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('avnu', STARKNET_CHAIN_ID, date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
-
-  // Fetch missing dates
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      saveCachedFees('avnu', STARKNET_CHAIN_ID, date, feesByDate[date] || [])
-    }
-    newFees.push(...fetched)
-  }
-
-  // Fetch recent (not cached)
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
-  }
-
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
-
-  console.log(`[avnu] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
-
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
-  return enrichFeesWithUsdPrices(allFees)
+  return enrichFeesWithUsdPrices(fees)
 }
