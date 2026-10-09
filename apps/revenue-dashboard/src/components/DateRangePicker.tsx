@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import type { DateRange } from '../types'
-import { formatUTCDate, getUTCYesterday, subtractUTCDays } from '../utils/dateUtils'
+import { formatUTCDate, getUTCToday, subtractUTCDays } from '../utils/dateUtils'
 
 type PresetKey = '7d' | '30d' | '90d' | 'custom'
 
@@ -23,12 +23,12 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const handlePresetClick = (preset: (typeof presets)[number]) => {
     setActivePreset(preset.key)
     setPendingRange(null)
-    // End at yesterday UTC to avoid fetching today's incomplete/slow data
-    const yesterday = getUTCYesterday()
-    const start = subtractUTCDays(yesterday, preset.days - 1)
+    // Presets end today UTC, counted inclusively
+    const today = getUTCToday()
+    const start = subtractUTCDays(today, preset.days - 1)
     onChange({
       startDate: formatUTCDate(start),
-      endDate: formatUTCDate(yesterday),
+      endDate: formatUTCDate(today),
     })
   }
 

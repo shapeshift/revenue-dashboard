@@ -2,17 +2,10 @@ import axios from 'axios'
 
 import { formatError } from '../../utils/error'
 import { withRetry } from '../../utils/retry'
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
+import { getDateEndTimestamp, getDateRange, getDateStartTimestamp } from '../cache'
 import { DAO_TREASURY_BASE } from '../constants'
 import type { Fees } from '../types'
+import { getCachedFees } from '../utils'
 
 import { RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
@@ -91,96 +84,69 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   })
 }
 
-export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const startTime = Date.now()
-  const cacheFees = (chunk: string[], fees: Fees[]) => {
-    const feesByDate = groupFeesByDate(fees)
-    for (const date of chunk) {
-      saveCachedFees('relay', 'all', date, feesByDate[date] || [])
-    }
+const PARALLEL_BATCHES = 3
+
+// Split a window into a few parallel requests, retrying a failed chunk once as a single request
+const fetchFeesInChunks = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const dates = getDateRange(startTimestamp, endTimestamp)
+  const chunkSize = Math.ceil(dates.length / PARALLEL_BATCHES)
+  const chunks: string[][] = []
+  for (let i = 0; i < dates.length; i += chunkSize) {
+    chunks.push(dates.slice(i, i + chunkSize))
   }
 
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
-
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
-
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('relay', 'all', date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
-
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const PARALLEL_BATCHES = 3
-    const chunkSize = Math.ceil(datesToFetch.length / PARALLEL_BATCHES)
-    const chunks: string[][] = []
-    for (let i = 0; i < datesToFetch.length; i += chunkSize) {
-      chunks.push(datesToFetch.slice(i, i + chunkSize))
-    }
-
-    const promises = chunks.map(chunk =>
-      fetchFeesFromAPI(getDateStartTimestamp(chunk[0]), getDateEndTimestamp(chunk[chunk.length - 1])).then(fees => ({
-        chunk,
-        fees,
-      }))
+  const fetchChunk = (chunk: string[]) =>
+    fetchFeesFromAPI(
+      Math.max(startTimestamp, getDateStartTimestamp(chunk[0])),
+      Math.min(endTimestamp, getDateEndTimestamp(chunk[chunk.length - 1]))
     )
 
-    const results = await Promise.allSettled(promises)
-    const failedChunks: string[][] = []
+  const results = await Promise.allSettled(chunks.map(fetchChunk))
+  const fees: Fees[] = []
+  const failedDates: string[] = []
 
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i]
-      const chunk = chunks[i]
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
+    const chunk = chunks[i]
 
-      if (result.status === 'fulfilled') {
-        const { fees } = result.value
-        cacheFees(chunk, fees)
-        newFees.push(...fees)
-      } else {
-        console.error(`[relay] Chunk fetch failed (${chunk.length} dates): ${formatError(result.reason)}`)
-
-        console.warn(`[relay] Retrying chunk as single request fallback`)
-        try {
-          const fees = await fetchFeesFromAPI(
-            getDateStartTimestamp(chunk[0]),
-            getDateEndTimestamp(chunk[chunk.length - 1])
-          )
-          cacheFees(chunk, fees)
-          newFees.push(...fees)
-        } catch (fallbackError) {
-          console.error(`[relay] Fallback also failed: ${formatError(fallbackError)}`)
-          failedChunks.push(chunk)
-        }
-      }
+    if (result.status === 'fulfilled') {
+      fees.push(...result.value)
+      continue
     }
 
-    if (failedChunks.length > 0) {
-      const failedDates = failedChunks.flat()
-      throw new Error(
-        `[relay] Failed to fetch fees for ${failedDates.length} dates after retry: ${failedDates.join(', ')}`
-      )
+    console.error(`[relay] Chunk fetch failed (${chunk.length} dates): ${formatError(result.reason)}`)
+    console.warn(`[relay] Retrying chunk as single request fallback`)
+    try {
+      fees.push(...(await fetchChunk(chunk)))
+    } catch (fallbackError) {
+      console.error(`[relay] Fallback also failed: ${formatError(fallbackError)}`)
+      failedDates.push(...chunk)
     }
   }
 
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
+  if (failedDates.length > 0) {
+    throw new Error(
+      `[relay] Failed to fetch fees for ${failedDates.length} dates after retry: ${failedDates.join(', ')}`
+    )
   }
 
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
+  return fees
+}
 
-  console.log(`[relay] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
+export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const startTime = Date.now()
 
-  return [...cachedFees, ...newFees, ...recentFees]
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'relay',
+    'all',
+    startTimestamp,
+    endTimestamp,
+    fetchFeesInChunks
+  )
+
+  console.log(
+    `[relay] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
+
+  return fees
 }

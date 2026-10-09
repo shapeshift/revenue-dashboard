@@ -14,7 +14,7 @@ shapeshift-revenue-dashboard/
 ├── apps/
 │   ├── revenue-api/         # Backend (Railway)
 │   │   ├── src/
-│   │   │   ├── affiliateRevenue/  # 9 provider integrations
+│   │   │   ├── affiliateRevenue/  # provider integrations
 │   │   │   ├── routes/            # API routes
 │   │   │   ├── types.ts           # Shared types
 │   │   │   └── server.ts          # Hono server
@@ -40,7 +40,7 @@ shapeshift-revenue-dashboard/
 - Revenue breakdown by service (pie chart + table)
 - Date range picker with presets (7, 30, 90 days)
 - Dark theme
-- 9 DEX provider integrations:
+- DEX provider integrations:
   - Bebop
   - ButterSwap
   - Chainflip
@@ -48,6 +48,7 @@ shapeshift-revenue-dashboard/
   - NEAR Intents
   - Portals
   - Relay
+  - Symbiosis
   - THORChain
   - 0x (ZRX)
 

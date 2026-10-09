@@ -2,19 +2,10 @@ import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
 import { createThrottle } from '../../utils/throttle'
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
 import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { calculateFee } from '../utils'
+import { calculateFee, getCachedFees } from '../utils'
 
 import {
   DAO_NEAR_TREASURY_ADDRESSES,
@@ -117,55 +108,17 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   // parseNearIntentsAsset resolves assets via the token registry — load it up front
   await tokenRegistry.ensureLoadedAsync()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
-
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
-
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('nearintents', 'all', date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
-
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      saveCachedFees('nearintents', 'all', date, feesByDate[date] || [])
-    }
-
-    newFees.push(...fetched)
-  }
-
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    const fetched = await fetchFeesFromAPI(recentStart, endTimestamp)
-    recentFees.push(...fetched)
-  }
-
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
-  const totalFees = allFees.length
-  const duration = Date.now() - startTime
-
-  console.log(
-    `[nearintents] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'nearintents',
+    'all',
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromAPI
   )
 
-  // Enrich NEAR Intents fees with current USD prices
-  const enrichedFees = await enrichFeesWithUsdPrices(allFees)
+  console.log(
+    `[nearintents] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
-  return enrichedFees
+  return enrichFeesWithUsdPrices(fees)
 }

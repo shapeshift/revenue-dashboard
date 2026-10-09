@@ -1,18 +1,9 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
 import { MAYACHAIN_CHAIN_ID } from '../constants'
 import type { Fees } from '../types'
-import { buildAssetId } from '../utils'
+import { buildAssetId, getCachedFees } from '../utils'
 
 import { CACAO_ASSET, MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, USDC_POOL } from './constants'
 import type { DepthHistory, MidgardAction, MidgardActionsResponse } from './types'
@@ -136,47 +127,17 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'mayachain',
+    MAYACHAIN_CHAIN_ID,
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromMidgard
+  )
 
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
+  console.log(
+    `[mayachain] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('mayachain', MAYACHAIN_CHAIN_ID, date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
-
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromMidgard(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      saveCachedFees('mayachain', MAYACHAIN_CHAIN_ID, date, feesByDate[date] || [])
-    }
-    newFees.push(...fetched)
-  }
-
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromMidgard(recentStart, endTimestamp)))
-  }
-
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
-
-  console.log(`[mayachain] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
-
-  return [...cachedFees, ...newFees, ...recentFees]
+  return fees
 }

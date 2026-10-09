@@ -1,14 +1,6 @@
-import {
-  getCacheableThreshold,
-  getDateEndTimestamp,
-  getDateStartTimestamp,
-  groupFeesByDate,
-  saveCachedFees,
-  splitDateRange,
-  tryGetCachedFees,
-} from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
+import { getCachedFees } from '../utils'
 
 import {
   JUPITER_AFFILIATE_CONTRACT,
@@ -91,51 +83,19 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const threshold = getCacheableThreshold()
-  const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
-
   const solanaChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'
 
-  const cachedFees: Fees[] = []
-  const datesToFetch: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
+  const { fees, cacheHits, cacheMisses } = await getCachedFees(
+    'jupiter',
+    solanaChainId,
+    startTimestamp,
+    endTimestamp,
+    fetchFeesFromAPI
+  )
 
-  for (const date of cacheableDates) {
-    const cached = tryGetCachedFees('jupiter', solanaChainId, date)
-    if (cached) {
-      cachedFees.push(...cached)
-      cacheHits++
-    } else {
-      datesToFetch.push(date)
-      cacheMisses++
-    }
-  }
+  console.log(
+    `[jupiter] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
+  )
 
-  const newFees: Fees[] = []
-  if (datesToFetch.length > 0) {
-    const fetchStart = getDateStartTimestamp(datesToFetch[0])
-    const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-    const fetched = await fetchFeesFromAPI(fetchStart, fetchEnd)
-
-    const feesByDate = groupFeesByDate(fetched)
-    for (const date of datesToFetch) {
-      const dateFees = feesByDate[date] || []
-      saveCachedFees('jupiter', solanaChainId, date, dateFees)
-    }
-    newFees.push(...fetched)
-  }
-
-  const recentFees: Fees[] = []
-  if (recentStart !== null) {
-    recentFees.push(...(await fetchFeesFromAPI(recentStart, endTimestamp)))
-  }
-
-  const totalFees = cachedFees.length + newFees.length + recentFees.length
-  const duration = Date.now() - startTime
-
-  console.log(`[jupiter] Total: ${totalFees} fees in ${duration}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`)
-
-  const allFees = [...cachedFees, ...newFees, ...recentFees]
-  return enrichFeesWithUsdPrices(allFees)
+  return enrichFeesWithUsdPrices(fees)
 }

@@ -18,6 +18,7 @@ import * as portals from './portals'
 import { reconcilePartnerRevenue } from './reconcileRevenue'
 import * as relay from './relay'
 import { fetchPartners, fetchPartnerSwaps } from './swapServiceClient'
+import * as symbiosis from './symbiosis'
 import * as thorchain from './thorchain'
 import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
@@ -35,6 +36,7 @@ const providerNames: Service[] = [
   'nearintents',
   'portals',
   'relay',
+  'symbiosis',
   'thorchain',
   'zrx',
 ]
@@ -96,6 +98,7 @@ export class AffiliateRevenue {
       nearintents.getFees(startTimestamp, endTimestamp),
       portals.getFees(startTimestamp, endTimestamp),
       relay.getFees(startTimestamp, endTimestamp),
+      symbiosis.getFees(startTimestamp, endTimestamp),
       thorchain.getFees(startTimestamp, endTimestamp),
       zrx.getFees(startTimestamp, endTimestamp),
     ])

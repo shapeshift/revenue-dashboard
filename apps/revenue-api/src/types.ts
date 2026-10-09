@@ -13,6 +13,7 @@ export const services = [
   'nearintents',
   'portals',
   'relay',
+  'symbiosis',
   'thorchain',
   'zrx',
 ] as const

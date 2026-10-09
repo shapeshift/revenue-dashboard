@@ -4,6 +4,7 @@ import {
   getDateEndTimestamp,
   getDateStartTimestamp,
   groupFeesByDate,
+  recentFeeCache,
   saveCachedFees,
   splitDateRange,
   tryGetCachedFees,
@@ -21,10 +22,27 @@ export type CachedFeesResult = {
  * only the days we're missing.
  *
  * Settled days never change, so they're cached forever; the trailing
- * not-yet-final window (see `getCacheableThreshold`) is always refetched.
- * `fetchRange` is called at most twice: once for the contiguous span of missing
- * cacheable days, once for the recent window.
+ * not-yet-final window (see `getCacheableThreshold`) is refetched once its
+ * short TTL lapses. `fetchRange` is called at most twice: once for the
+ * contiguous span of missing cacheable days, once for the recent window.
  */
+const fetchRecent = async (
+  service: Service,
+  chainId: string,
+  start: number,
+  end: number,
+  fetchRange: (start: number, end: number) => Promise<Fees[]>
+): Promise<Fees[]> => {
+  const key = `${service}:${chainId}:${start}:${end}`
+  const cached = recentFeeCache.get(key)
+  if (cached) return cached
+
+  const fees = await fetchRange(start, end)
+  recentFeeCache.set(key, fees)
+
+  return fees
+}
+
 export const getCachedFees = async (
   service: Service,
   chainId: string,
@@ -58,7 +76,7 @@ export const getCachedFees = async (
 
       return fetched
     })(),
-    recentStart === null ? Promise.resolve([]) : fetchRange(recentStart, endTimestamp),
+    recentStart === null ? Promise.resolve([]) : fetchRecent(service, chainId, recentStart, endTimestamp, fetchRange),
   ])
 
   return {

@@ -2,9 +2,9 @@ export const formatUTCDate = (date: Date): string => {
   return date.toISOString().slice(0, 10)
 }
 
-export const getUTCYesterday = (): Date => {
+// The current UTC day always contains now, so a range ending here misses nothing in any local timezone
+export const getUTCToday = (): Date => {
   const now = new Date()
-  now.setUTCDate(now.getUTCDate() - 1)
   now.setUTCHours(0, 0, 0, 0)
   return now
 }
