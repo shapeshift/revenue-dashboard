@@ -1,9 +1,8 @@
-import axios from 'axios'
-import { decodeAbiParameters, zeroAddress } from 'viem'
+import { decodeAbiParameters } from 'viem'
 
 import { FEE_BPS_DENOMINATOR, getAffiliateBps } from '../constants'
 
-import { COINGECKO_API_BASE, COINGECKO_CHAINS, PORTAL_EVENT_ABI } from './constants'
+import { PORTAL_EVENT_ABI } from './constants'
 import type { DecodedPortalEvent } from './types'
 
 export const decodePortalEventData = (data: string): DecodedPortalEvent | null => {
@@ -29,41 +28,3 @@ export const calculateFallbackFee = (inputAmount: string, timestamp?: number): s
 }
 
 export { buildAssetId } from '../utils'
-
-const priceCache: Record<string, { price: number | null; timestamp: number }> = {}
-const PRICE_CACHE_TTL = 1000 * 60 * 5 // 5 minutes
-
-export const getTokenPrice = async (chainId: string, tokenAddress: string): Promise<number | null> => {
-  const cacheKey = `${chainId}:${tokenAddress.toLowerCase()}`
-  const cached = priceCache[cacheKey]
-  if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
-    return cached.price
-  }
-
-  try {
-    const chainConfig = COINGECKO_CHAINS[chainId]
-    if (!chainConfig) return null
-
-    const tokenLower = tokenAddress.toLowerCase()
-    const isNative = tokenLower === zeroAddress
-
-    if (isNative) {
-      const { data } = await axios.get<Record<string, { usd: number }>>(`${COINGECKO_API_BASE}/simple/price`, {
-        params: { vs_currencies: 'usd', ids: chainConfig.nativeCoinId },
-      })
-      const price = data[chainConfig.nativeCoinId]?.usd ?? null
-      priceCache[cacheKey] = { price, timestamp: Date.now() }
-      return price
-    }
-
-    const { data } = await axios.get<{
-      market_data?: { current_price?: { usd?: number } }
-    }>(`${COINGECKO_API_BASE}/coins/${chainConfig.platform}/contract/${tokenLower}`)
-    const price = data.market_data?.current_price?.usd ?? null
-    priceCache[cacheKey] = { price, timestamp: Date.now() }
-    return price
-  } catch {
-    priceCache[cacheKey] = { price: null, timestamp: Date.now() }
-    return null
-  }
-}

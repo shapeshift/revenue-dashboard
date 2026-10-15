@@ -1,13 +1,9 @@
-export type ExplorerApiType = 'blockscout' | 'etherscan'
-
 export type ChainConfig = {
   chainId: string
   network: string
   router: string
   treasury: string
-  explorerUrl: string
-  apiType: ExplorerApiType
-  rpcUrl?: string
+  rpcUrl: string
 }
 
 export type PortalEventData = {
@@ -22,46 +18,6 @@ export type PortalEventData = {
 export type TokenTransfer = {
   token: string
   amount: string
-  decimals: number
-  symbol: string
-}
-
-export type EtherscanLogResult = {
-  transactionHash: string
-  blockNumber: string
-  timeStamp: string
-  topics: string[]
-  data: string
-}
-
-export type EtherscanLogsResponse = {
-  status: string
-  message: string
-  result: EtherscanLogResult[]
-}
-
-export type EtherscanTokenTxResult = {
-  from: string
-  to: string
-  contractAddress: string
-  tokenSymbol: string
-  tokenDecimal: string
-  value: string
-}
-
-export type EtherscanTokenTxResponse = {
-  status: string
-  message: string
-  result: EtherscanTokenTxResult[]
-}
-
-export type BlockscoutTokenTransferResponse = {
-  items: Array<{
-    to: { hash: string }
-    token: { address_hash: string; symbol: string }
-    total: { value: string; decimals: string }
-    token_type: string
-  }>
 }
 
 export type DecodedPortalEvent = {
@@ -69,10 +25,4 @@ export type DecodedPortalEvent = {
   inputAmount: string
   outputToken: string
   outputAmount: string
-}
-
-export type BlockNumberResponse = {
-  status: string
-  message: string
-  result: string | { blockNumber: string }
 }

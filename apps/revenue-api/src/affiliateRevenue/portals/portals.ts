@@ -1,196 +1,98 @@
-import axios from 'axios'
-import { padHex, zeroAddress } from 'viem'
+import { erc20Abi, padHex, toEventSelector, zeroAddress } from 'viem'
 
 import { formatError } from '../../utils/error'
 import { getCachedTokenTransfer, saveCachedTokenTransfer } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { getCachedFees } from '../utils'
+import type { EvmLogClient, Log } from '../utils'
+import { createEvmLogClient, getCachedFees } from '../utils'
 
-import { getBlockNumbersForRange } from './blockNumbers'
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
-import type {
-  BlockscoutTokenTransferResponse,
-  ChainConfig,
-  EtherscanLogsResponse,
-  EtherscanTokenTxResponse,
-  PortalEventData,
-  TokenTransfer,
-} from './types'
+import type { ChainConfig, PortalEventData, TokenTransfer } from './types'
 import { buildAssetId, calculateFallbackFee, decodePortalEventData } from './utils'
 
-const getPortalEventsFromExplorer = async (
+const ERC20_TRANSFER_TOPIC = toEventSelector(erc20Abi.find(item => item.type === 'event' && item.name === 'Transfer')!)
+const LOOKUP_CONCURRENCY = 10
+
+const treasuryTopic = (config: ChainConfig) => padHex(config.treasury.toLowerCase() as `0x${string}`, { size: 32 })
+
+// The ERC20 the router sent the treasury in this transaction; the fallback covers native fees
+export const getFeeTransferFromReceipt = (logs: Log[], treasury: string): TokenTransfer | null => {
+  const transfer = logs.find(
+    log =>
+      log.topics[0] === ERC20_TRANSFER_TOPIC &&
+      log.topics[2]?.toLowerCase() === padHex(treasury.toLowerCase() as `0x${string}`, { size: 32 }) &&
+      log.data.length > 2
+  )
+  if (!transfer) return null
+
+  return { token: transfer.address, amount: BigInt(transfer.data).toString() }
+}
+
+// Portal events the router emitted with our treasury as the partner, over the window's blocks
+const getPortalEvents = async (
+  client: EvmLogClient,
   config: ChainConfig,
   startTimestamp: number,
   endTimestamp: number
 ): Promise<PortalEventData[]> => {
+  const [fromBlock, toBlock] = await Promise.all([client.resolveBlock(startTimestamp), client.resolveBlock(endTimestamp)])
+  if (fromBlock === null || toBlock === null) {
+    throw new Error(`could not resolve blocks for ${startTimestamp}-${endTimestamp}`)
+  }
+
+  const logs = await client.getLogs(config.router, [PORTAL_EVENT_SIGNATURE, null, null, treasuryTopic(config)], fromBlock, toBlock)
+  const timestamps = await client.getBlockTimestamps([...new Set(logs.map(log => Number(log.blockNumber)))])
+
   const events: PortalEventData[] = []
-  const treasuryTopic = padHex(config.treasury.toLowerCase() as `0x${string}`, { size: 32 })
-
-  // Convert timestamps to block numbers for efficient API filtering
-  const blockRange = await getBlockNumbersForRange(config, startTimestamp, endTimestamp)
-
-  if (!blockRange) {
-    return events
-  }
-
-  const fromBlock = blockRange.fromBlock
-  const toBlock = blockRange.toBlock
-
-  const url = `${config.explorerUrl}/api`
-  const { data } = await axios.get<EtherscanLogsResponse>(url, {
-    params: {
-      module: 'logs',
-      action: 'getLogs',
-      address: config.router,
-      topic0: PORTAL_EVENT_SIGNATURE,
-      topic0_3_opr: 'and',
-      topic3: treasuryTopic,
-      fromBlock,
-      toBlock,
-      sort: 'desc',
-    },
-  })
-
-  if (data.status !== '1' || !Array.isArray(data.result)) {
-    return events
-  }
-
-  for (const log of data.result) {
-    const logTimestamp = parseInt(log.timeStamp, 16)
-
-    // Timestamp validation as safety check (block range should handle this, but extra safety)
-    if (logTimestamp < startTimestamp || logTimestamp > endTimestamp) continue
+  for (const log of logs) {
+    const timestamp = timestamps.get(Number(log.blockNumber))!
+    if (timestamp < startTimestamp || timestamp > endTimestamp) continue
 
     const decoded = decodePortalEventData(log.data)
     if (!decoded) continue
 
-    events.push({
-      txHash: log.transactionHash,
-      timestamp: logTimestamp,
-      inputToken: decoded.inputToken,
-      inputAmount: decoded.inputAmount,
-      outputToken: decoded.outputToken,
-      outputAmount: decoded.outputAmount,
-    })
+    events.push({ txHash: log.transactionHash, timestamp, ...decoded })
   }
 
   return events
 }
 
-const getFeeTransferFromExplorer = async (config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
-  const treasuryLower = config.treasury.toLowerCase()
+const getFeeTransfer = async (client: EvmLogClient, config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
+  const cacheKey = `${config.chainId}:${txHash}`
+  const cached = getCachedTokenTransfer(cacheKey)
+  if (cached !== undefined) return cached
 
-  if (config.apiType === 'blockscout') {
-    const url = `${config.explorerUrl}/api/v2/transactions/${txHash}/token-transfers`
-    try {
-      const { data } = await axios.get<BlockscoutTokenTransferResponse>(url)
+  const receipt = await client.getTransactionReceipt(txHash)
+  const transfer = receipt ? getFeeTransferFromReceipt(receipt.logs, config.treasury) : null
+  saveCachedTokenTransfer(cacheKey, transfer)
 
-      for (const transfer of data.items || []) {
-        if (transfer.to?.hash?.toLowerCase() === treasuryLower && transfer.token_type === 'ERC-20') {
-          return {
-            token: transfer.token.address_hash,
-            amount: transfer.total.value,
-            decimals: parseInt(transfer.total.decimals),
-            symbol: transfer.token.symbol || '',
-          }
-        }
-      }
-    } catch {
-      return null
-    }
-  } else {
-    const url = `${config.explorerUrl}/api`
-    const { data } = await axios.get<EtherscanTokenTxResponse>(url, {
-      params: {
-        module: 'account',
-        action: 'tokentx',
-        txhash: txHash,
-      },
-    })
-
-    if (data.status !== '1' || !Array.isArray(data.result)) {
-      return null
-    }
-
-    for (const transfer of data.result) {
-      if (transfer.to.toLowerCase() === treasuryLower) {
-        return {
-          token: transfer.contractAddress,
-          amount: transfer.value,
-          decimals: parseInt(transfer.tokenDecimal),
-          symbol: transfer.tokenSymbol,
-        }
-      }
-    }
-  }
-
-  return null
+  return transfer
 }
 
-const constructFeeFromEvent = async (config: ChainConfig, event: PortalEventData): Promise<Fees | null> => {
-  try {
-    const cacheKey = `${config.chainId}:${event.txHash}`
-    const cached = getCachedTokenTransfer(cacheKey)
+const constructFeeFromEvent = async (client: EvmLogClient, config: ChainConfig, event: PortalEventData): Promise<Fees> => {
+  const feeTransfer = await getFeeTransfer(client, config, event.txHash)
 
-    const feeTransfer =
-      cached !== undefined
-        ? cached
-        : await (async () => {
-            try {
-              const transfer = await getFeeTransferFromExplorer(config, event.txHash)
-              saveCachedTokenTransfer(cacheKey, transfer)
-              return transfer
-            } catch {
-              saveCachedTokenTransfer(cacheKey, null)
-              return null
-            }
-          })()
-
-    if (feeTransfer) {
-      const assetId = buildAssetId(config.chainId, feeTransfer.token ?? zeroAddress)
-
-      return {
-        chainId: config.chainId,
-        assetId,
-        service: 'portals',
-        txHash: event.txHash,
-        timestamp: event.timestamp,
-        amount: feeTransfer.amount,
+  const fee = feeTransfer
+    ? { assetId: buildAssetId(config.chainId, feeTransfer.token), amount: feeTransfer.amount }
+    : {
+        assetId: buildAssetId(config.chainId, event.inputToken ?? zeroAddress),
+        amount: calculateFallbackFee(event.inputAmount, event.timestamp),
       }
-    } else {
-      const inputToken = event.inputToken ?? zeroAddress
-      const assetId = buildAssetId(config.chainId, inputToken)
-      const feeWei = calculateFallbackFee(event.inputAmount, event.timestamp)
 
-      return {
-        chainId: config.chainId,
-        assetId,
-        service: 'portals',
-        txHash: event.txHash,
-        timestamp: event.timestamp,
-        amount: feeWei,
-      }
-    }
-  } catch {
-    return null
-  }
+  return { chainId: config.chainId, service: 'portals', txHash: event.txHash, timestamp: event.timestamp, ...fee }
 }
 
-const fetchFeesForChain = async (
-  config: ChainConfig,
-  startTimestamp: number,
-  endTimestamp: number
-): Promise<Fees[]> => {
-  const events = await getPortalEventsFromExplorer(config, startTimestamp, endTimestamp)
+const fetchFeesForChain = async (config: ChainConfig, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const client = createEvmLogClient(config.chainId, config.rpcUrl, `portals:${config.network}`)
+  const events = await getPortalEvents(client, config, startTimestamp, endTimestamp)
 
-  const feePromises = events.map(event => constructFeeFromEvent(config, event))
-  const feeResults = await Promise.allSettled(feePromises)
-
-  const fees = feeResults
-    .filter((r): r is PromiseFulfilledResult<Fees | null> => r.status === 'fulfilled')
-    .map(r => r.value)
-    .filter((fee): fee is Fees => fee !== null)
+  const fees: Fees[] = []
+  for (let i = 0; i < events.length; i += LOOKUP_CONCURRENCY) {
+    fees.push(
+      ...(await Promise.all(events.slice(i, i + LOOKUP_CONCURRENCY).map(event => constructFeeFromEvent(client, config, event))))
+    )
+  }
 
   return fees.sort((a, b) => b.timestamp - a.timestamp)
 }
@@ -215,7 +117,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
       cacheHits += result.value.cacheHits
       cacheMisses += result.value.cacheMisses
     } else {
-      console.error(`[portals] ${CHAIN_CONFIGS[i].chainId} failed: ${formatError(result.reason)}`)
+      console.error(`[portals] ${CHAIN_CONFIGS[i].network} failed: ${formatError(result.reason)}`)
     }
   })
 

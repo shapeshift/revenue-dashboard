@@ -128,7 +128,7 @@ bun build:frontend  # Outputs to apps/revenue-dashboard/dist/
 
 | Variable               | Description                       | Required           |
 | ---------------------- | --------------------------------- | ------------------ |
-| `ALCHEMY_API_KEY`      | API key for Alchemy (Fynd router logs) | Yes           |
+| `ALCHEMY_API_KEY`      | API key for Alchemy (Fynd, Portals router logs) | Yes  |
 | `BEBOP_API_KEY`        | API key for Bebop trades data     | Yes                |
 | `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer | Yes                |
 | `RELAY_API_KEY`        | API key for Relay requests v3     | Yes                |
