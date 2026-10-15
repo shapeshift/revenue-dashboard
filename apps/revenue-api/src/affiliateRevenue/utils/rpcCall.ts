@@ -23,11 +23,17 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
 
       clearTimeout(timeoutId)
 
+      // Some nodes answer a refused request with an HTTP error status around the JSON-RPC error
+      const data: RpcResponse<T> | undefined = await response.json().catch(() => undefined)
+
       if (!response.ok) {
-        throw new Error(`RPC HTTP error: ${response.status} ${response.statusText}`)
+        const detail = data?.error?.message ? `: ${data.error.message}` : ''
+        throw new Error(`RPC HTTP error: ${response.status} ${response.statusText}${detail}`)
       }
 
-      const data: RpcResponse<T> = await response.json()
+      if (!data) {
+        throw new Error('RPC error: empty response')
+      }
 
       if (data.error) {
         throw new Error(`RPC error: ${data.error.message}`)

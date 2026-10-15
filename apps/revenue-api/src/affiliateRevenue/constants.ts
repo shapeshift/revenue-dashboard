@@ -39,6 +39,8 @@ export const MONAD_CHAIN_ID = 'eip155:143'
 export const HYPEREVM_CHAIN_ID = 'eip155:999'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
 export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
+export const UNICHAIN_CHAIN_ID = 'eip155:130'
+export const ROBINHOOD_CHAIN_ID = 'eip155:4663'
 
 // Slip44 coin type values for native assets
 export const SLIP44 = {
@@ -87,6 +89,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
   'eip155:100': { platform: 'xdai', nativeCoinId: 'xdai' },
   'eip155:137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
+  'eip155:130': { platform: 'unichain', nativeCoinId: 'ethereum' },
   'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
   'eip155:999': { platform: 'hyperevm', nativeCoinId: 'hyperliquid' },
   'eip155:4217': { platform: 'tempo', nativeCoinId: '' },

@@ -16,6 +16,7 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   Portals: 'portals',
   Relay: 'relay',
   Symbiosis: 'symbiosis',
+  Fynd: 'fynd',
   THORChain: 'thorchain',
   '0x': 'zrx',
 }

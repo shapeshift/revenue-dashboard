@@ -24,6 +24,8 @@ const MORALIS_CHAIN_BY_CHAIN_ID: Record<string, string> = {
   'eip155:43114': 'avalanche',
 }
 
+export const hasMoralisChain = (chainId: string): boolean => chainId in MORALIS_CHAIN_BY_CHAIN_ID
+
 /**
  * Resolve a block number for a unix timestamp (seconds) via Moralis' dateToBlock
  * indexer endpoint. Cached per chain+timestamp. Returns null when no API key is

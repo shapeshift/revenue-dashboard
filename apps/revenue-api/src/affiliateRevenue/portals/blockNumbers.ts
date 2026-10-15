@@ -1,8 +1,8 @@
 import axios from 'axios'
 
 import { getCachedBlockNumber, saveCachedBlockNumber } from '../cache'
+import { findBlockByTimestamp } from '../utils'
 
-import { findBlockByTimestamp } from './rpc'
 import type { BlockNumberResponse, ChainConfig } from './types'
 
 const RECENT_THRESHOLD = 3600 // 1 hour in seconds
