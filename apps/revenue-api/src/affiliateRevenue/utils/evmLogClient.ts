@@ -24,8 +24,9 @@ type Block = { number: Hex; timestamp: Hex }
 // Header lookups per node at a time: gentle on public replicas, well inside Alchemy's throughput
 const LOOKUP_CONCURRENCY = 10
 
-// Alchemy caps a call at 10K logs or 2,000 to 10,000 blocks per chain; windows start safe and grow while accepted
 const LOG_CONCURRENCY = 5
+
+// Alchemy caps a call at 10K logs or a per-chain block range (2K to 10K) named only in refusals; windows adapt to it
 const INITIAL_LOG_RANGE = 50_000
 const MIN_LOG_RANGE = 100
 const MAX_LOG_RANGE = 500_000
@@ -118,8 +119,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return block
   }
 
-  // Windows grow while accepted. A refusal keeps the accepted ones before it, shrinks to the named cap (or half)
-  // and stops the growth; narrowing is the retry, so refusals aren't retried as-is. No address scans every contract
+  // Windows grow while accepted; a refusal keeps earlier results, shrinks to the named cap (or half) and stops growing
   const getLogs = async (
     address: string | undefined,
     topics: LogTopics,

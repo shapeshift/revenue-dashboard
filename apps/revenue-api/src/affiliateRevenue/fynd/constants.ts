@@ -10,15 +10,13 @@ import {
   UNICHAIN_CHAIN_ID,
 } from '../constants'
 
-// Fynd client fee receiver: the proxy signs every quote's fee for this address, which the router credits
-// on each swap. Fees stay in the router's vault until swept; the credit itself is what we count.
+// Our fee receiver, credited by the router per swap; fees sit in its vault until swept, so the credit is what we count
 export const FYND_FEE_RECEIVER = '0x4617085877F19102E8308259e2a79bea3f8bE4Ef'
 
 // First fee credited to the receiver (Base 0xca23f7a3…f5d0); nothing precedes it on any chain
 export const FYND_FIRST_FEE_TIMESTAMP = 1792001041
 
-// Emitted once per swap with every fee recipient (Fynd's share and ours) in the buy token.
-// Recipient isn't indexed, so logs are filtered client-side.
+// One per swap, listing each recipient's fee (Fynd's and ours) in the buy token; recipient isn't indexed, so we filter
 export const FEES_TAKEN_EVENT = parseAbiItem([
   'event FeesTaken(address indexed token, FeeRecipient[] fees)',
   'struct FeeRecipient { address recipient; uint256 feeAmount; }',

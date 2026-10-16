@@ -93,7 +93,6 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       service: 'avnu',
       txHash: event.transaction_hash,
       timestamp,
-      // u256 amount from data[0] (low) and data[1] (high)
       amount: parseU256Amount(event.data[0], event.data[1]),
     })
   }

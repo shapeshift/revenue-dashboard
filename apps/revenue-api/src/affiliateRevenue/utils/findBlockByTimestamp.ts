@@ -1,5 +1,4 @@
-// Last block at or before the timestamp (the head when the timestamp is ahead of the chain). Interpolating on
-// block time lands within a few blocks, so a lookup takes a handful of headers rather than log2(height)
+// Last block at or before the timestamp (the head when it's ahead of the chain); interpolation needs only a few headers
 export const findBlockByTimestamp = async (
   getBlockTimestamp: (block: number) => Promise<number>,
   latestBlock: number,
