@@ -2,7 +2,6 @@ import { LRUCache } from 'lru-cache'
 
 import { getDateEndTimestamp, getDateRange, timestampToDate } from '../utils/date'
 
-import type { TokenTransfer } from './portals/types'
 import type { Fees } from './types'
 
 export { getDateEndTimestamp, getDateRange, getDateStartTimestamp, timestampToDate } from '../utils/date'
@@ -22,13 +21,9 @@ export const recentFeeCache = new LRUCache<string, Fees[]>({
   ttl: 1000 * 60 * 60,
 })
 
-export const tokenTransferCache = new LRUCache<string, { transfer: TokenTransfer | null }>({
-  max: 500,
-  ttl: 1000 * 60 * 60 * 24 * 7,
-})
-
+// Block numbers by timestamp and timestamps by block; every block a log scan touches lands here
 export const blockNumberCache = new LRUCache<string, number>({
-  max: 1000,
+  max: 50_000,
   ttl: 1000 * 60 * 60 * 24 * 365, // 1 year default, overridden by saveCachedBlockNumber
   updateAgeOnGet: true,
 })
@@ -86,15 +81,6 @@ export const groupFeesByDate = (fees: Fees[]): Record<string, Fees[]> => {
   }
 
   return feesByDate
-}
-
-export const getCachedTokenTransfer = (key: string): TokenTransfer | null | undefined => {
-  const cached = tokenTransferCache.get(key)
-  return cached ? cached.transfer : undefined
-}
-
-export const saveCachedTokenTransfer = (key: string, transfer: TokenTransfer | null): void => {
-  tokenTransferCache.set(key, { transfer })
 }
 
 export const getBlockCacheKey = (chainId: string, timestamp: number): string => {

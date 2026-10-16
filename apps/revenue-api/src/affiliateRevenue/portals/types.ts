@@ -3,11 +3,12 @@ export type ChainConfig = {
   network: string
   router: string
   treasury: string
-  rpcUrl: string
+  alchemyNetwork: string
 }
 
 export type PortalEventData = {
   txHash: string
+  blockNumber: number
   timestamp: number
   inputToken: string
   inputAmount: string

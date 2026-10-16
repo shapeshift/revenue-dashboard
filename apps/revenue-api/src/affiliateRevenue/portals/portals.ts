@@ -1,47 +1,31 @@
-import { erc20Abi, padHex, toEventSelector, zeroAddress } from 'viem'
+import type { Hex } from 'viem'
+import { padHex, zeroAddress } from 'viem'
 
 import { formatError } from '../../utils/error'
-import { getCachedTokenTransfer, saveCachedTokenTransfer } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import type { EvmLogClient, Log } from '../utils'
-import { createEvmLogClient, getCachedFees } from '../utils'
+import type { EvmLogClient, LogTopics } from '../utils'
+import { createEvmLogClient, ERC20_TRANSFER_TOPIC, getCachedFees } from '../utils'
+import { getAlchemyRpcUrl } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
 import type { ChainConfig, PortalEventData, TokenTransfer } from './types'
 import { buildAssetId, calculateFallbackFee, decodePortalEventData } from './utils'
 
-const ERC20_TRANSFER_TOPIC = toEventSelector(erc20Abi.find(item => item.type === 'event' && item.name === 'Transfer')!)
-const LOOKUP_CONCURRENCY = 10
+// An address as it appears in an indexed log topic
+const addressTopic = (address: string): Hex => padHex(address.toLowerCase() as Hex, { size: 32 })
 
-const treasuryTopic = (config: ChainConfig) => padHex(config.treasury.toLowerCase() as `0x${string}`, { size: 32 })
-
-// The ERC20 the router sent the treasury in this transaction; the fallback covers native fees
-export const getFeeTransferFromReceipt = (logs: Log[], treasury: string): TokenTransfer | null => {
-  const transfer = logs.find(
-    log =>
-      log.topics[0] === ERC20_TRANSFER_TOPIC &&
-      log.topics[2]?.toLowerCase() === padHex(treasury.toLowerCase() as `0x${string}`, { size: 32 }) &&
-      log.data.length > 2
-  )
-  if (!transfer) return null
-
-  return { token: transfer.address, amount: BigInt(transfer.data).toString() }
-}
-
-// Portal events the router emitted with our treasury as the partner, over the window's blocks
+// Portal events the router emitted with our treasury as the partner, within the window
 const getPortalEvents = async (
   client: EvmLogClient,
   config: ChainConfig,
+  fromBlock: number,
+  toBlock: number,
   startTimestamp: number,
   endTimestamp: number
 ): Promise<PortalEventData[]> => {
-  const [fromBlock, toBlock] = await Promise.all([client.resolveBlock(startTimestamp), client.resolveBlock(endTimestamp)])
-  if (fromBlock === null || toBlock === null) {
-    throw new Error(`could not resolve blocks for ${startTimestamp}-${endTimestamp}`)
-  }
-
-  const logs = await client.getLogs(config.router, [PORTAL_EVENT_SIGNATURE, null, null, treasuryTopic(config)], fromBlock, toBlock)
+  const topics: LogTopics = [PORTAL_EVENT_SIGNATURE, null, null, addressTopic(config.treasury)]
+  const logs = await client.getLogs(config.router, topics, fromBlock, toBlock)
   const timestamps = await client.getBlockTimestamps([...new Set(logs.map(log => Number(log.blockNumber)))])
 
   const events: PortalEventData[] = []
@@ -52,29 +36,39 @@ const getPortalEvents = async (
     const decoded = decodePortalEventData(log.data)
     if (!decoded) continue
 
-    events.push({ txHash: log.transactionHash, timestamp, ...decoded })
+    events.push({ txHash: log.transactionHash, blockNumber: Number(log.blockNumber), timestamp, ...decoded })
   }
 
   return events
 }
 
-const getFeeTransfer = async (client: EvmLogClient, config: ChainConfig, txHash: string): Promise<TokenTransfer | null> => {
-  const cacheKey = `${config.chainId}:${txHash}`
-  const cached = getCachedTokenTransfer(cacheKey)
-  if (cached !== undefined) return cached
+// First ERC20 the treasury received per transaction, from one Transfer-log scan over the events' blocks
+const getFeeTransfers = async (
+  client: EvmLogClient,
+  config: ChainConfig,
+  fromBlock: number,
+  toBlock: number
+): Promise<Map<string, TokenTransfer>> => {
+  const logs = await client.getLogs(
+    undefined,
+    [ERC20_TRANSFER_TOPIC, null, addressTopic(config.treasury)],
+    fromBlock,
+    toBlock
+  )
 
-  const receipt = await client.getTransactionReceipt(txHash)
-  const transfer = receipt ? getFeeTransferFromReceipt(receipt.logs, config.treasury) : null
-  saveCachedTokenTransfer(cacheKey, transfer)
+  const transfers = new Map<string, TokenTransfer>()
+  for (const log of logs) {
+    if (log.data.length <= 2 || transfers.has(log.transactionHash)) continue
+    transfers.set(log.transactionHash, { token: log.address, amount: BigInt(log.data).toString() })
+  }
 
-  return transfer
+  return transfers
 }
 
-const constructFeeFromEvent = async (client: EvmLogClient, config: ChainConfig, event: PortalEventData): Promise<Fees> => {
-  const feeTransfer = await getFeeTransfer(client, config, event.txHash)
-
-  const fee = feeTransfer
-    ? { assetId: buildAssetId(config.chainId, feeTransfer.token), amount: feeTransfer.amount }
+// A swap that sent the treasury no token paid in native, so the fee is derived from the input amount
+const constructFee = (config: ChainConfig, event: PortalEventData, transfer: TokenTransfer | undefined): Fees => {
+  const fee = transfer
+    ? { assetId: buildAssetId(config.chainId, transfer.token), amount: transfer.amount }
     : {
         assetId: buildAssetId(config.chainId, event.inputToken ?? zeroAddress),
         amount: calculateFallbackFee(event.inputAmount, event.timestamp),
@@ -83,18 +77,30 @@ const constructFeeFromEvent = async (client: EvmLogClient, config: ChainConfig, 
   return { chainId: config.chainId, service: 'portals', txHash: event.txHash, timestamp: event.timestamp, ...fee }
 }
 
-const fetchFeesForChain = async (config: ChainConfig, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const client = createEvmLogClient(config.chainId, config.rpcUrl, `portals:${config.network}`)
-  const events = await getPortalEvents(client, config, startTimestamp, endTimestamp)
+const fetchFeesForChain = async (
+  config: ChainConfig,
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<Fees[]> => {
+  const client = createEvmLogClient(
+    config.chainId,
+    getAlchemyRpcUrl(config.alchemyNetwork),
+    `portals:${config.network}`
+  )
+  const [fromBlock, toBlock] = await Promise.all([
+    client.resolveBlock(startTimestamp),
+    client.resolveBlock(endTimestamp),
+  ])
 
-  const fees: Fees[] = []
-  for (let i = 0; i < events.length; i += LOOKUP_CONCURRENCY) {
-    fees.push(
-      ...(await Promise.all(events.slice(i, i + LOOKUP_CONCURRENCY).map(event => constructFeeFromEvent(client, config, event))))
-    )
-  }
+  const events = await getPortalEvents(client, config, fromBlock, toBlock, startTimestamp, endTimestamp)
+  if (events.length === 0) return []
 
-  return fees.sort((a, b) => b.timestamp - a.timestamp)
+  const blocks = events.map(event => event.blockNumber)
+  const transfers = await getFeeTransfers(client, config, Math.min(...blocks), Math.max(...blocks))
+
+  return events
+    .map(event => constructFee(config, event, transfers.get(event.txHash)))
+    .sort((a, b) => b.timestamp - a.timestamp)
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {

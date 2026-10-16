@@ -93,6 +93,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
   'eip155:999': { platform: 'hyperevm', nativeCoinId: 'hyperliquid' },
   'eip155:4217': { platform: 'tempo', nativeCoinId: '' },
+  'eip155:4663': { platform: 'robinhood', nativeCoinId: 'ethereum' },
   'eip155:8453': { platform: 'base', nativeCoinId: 'ethereum' },
   'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },
   'eip155:42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },

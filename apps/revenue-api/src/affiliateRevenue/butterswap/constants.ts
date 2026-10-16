@@ -1,4 +1,4 @@
-import { toEventSelector, zeroAddress } from 'viem'
+import { zeroAddress } from 'viem'
 
 import {
   ARBITRUM_CHAIN_ID,
@@ -27,8 +27,6 @@ export const SAME_CHAIN_ROUTERS = new Set(
 export const SAME_CHAIN_FEE_RECEIVERS = new Set(
   ['0x35339070f178dc4119732982c23f5a8d88d3f8a3', '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'].map(a => a.toLowerCase())
 )
-
-export const ERC20_TRANSFER_TOPIC = toEventSelector('Transfer(address,address,uint256)')
 
 // EIP-7528 native-token sentinel (viem has no constant for it; zeroAddress covers the other case).
 const NATIVE_TOKEN_EIP7528 = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'

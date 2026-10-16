@@ -2,12 +2,14 @@ import type { Hex } from 'viem'
 import { decodeEventLog, decodeFunctionResult, encodeFunctionData, erc20Abi, padHex, toEventSelector } from 'viem'
 
 import { assetDataService } from '../../assetData/AssetDataService'
-import { isRetryableError, withRetry } from '../../utils/retry'
+import { mapConcurrently } from '../../utils/concurrency'
+import { withRetry } from '../../utils/retry'
 import { getCachedBlockTimestamp, saveCachedBlockTimestamp } from '../cache'
 import { registerCoingeckoId } from '../coingeckoMappingService'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { buildAssetId, createRpcCaller, getCachedFees } from '../utils'
+import type { Log } from '../utils'
+import { buildAssetId, createRpcCaller, getCachedFees, isRetryableRpcError } from '../utils'
 
 import {
   FEE_COLLECTED_EVENT,
@@ -17,17 +19,12 @@ import {
   SYMBIOSIS_PARTNER_FEE_COLLECTOR,
 } from './constants'
 
-type Log = { topics: [Hex, ...Hex[]]; data: Hex; blockNumber: Hex; transactionHash: Hex }
 type Block = { timestamp: Hex }
 type FeeCollected = { token: string; fee: bigint; blockNumber: number; txHash: string }
 
 const LOOKUP_CONCURRENCY = 10
 
 const rpcCall = createRpcCaller(SYMBIOSIS_CHAIN.rpcUrl)
-
-// The replica answers rate limits and outages as HTTP errors, which the default predicate doesn't retry
-const isRetryableRpcError = (error: unknown): boolean =>
-  isRetryableError(error) || (error instanceof Error && /RPC HTTP error: (429|5\d\d)/.test(error.message))
 
 const retryingRpcCall = <T>(context: string, method: string, params: unknown[]): Promise<T> =>
   withRetry(context, () => rpcCall<T>(method, params), { shouldRetry: isRetryableRpcError })
@@ -110,13 +107,9 @@ const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
 const getBlockTimestamps = async (blockNumbers: number[]): Promise<Map<number, number>> => {
   const timestamps = new Map<number, number>()
 
-  for (let i = 0; i < blockNumbers.length; i += LOOKUP_CONCURRENCY) {
-    await Promise.all(
-      blockNumbers.slice(i, i + LOOKUP_CONCURRENCY).map(async block => {
-        timestamps.set(block, await getBlockTimestamp(block))
-      })
-    )
-  }
+  await mapConcurrently(blockNumbers, LOOKUP_CONCURRENCY, async block => {
+    timestamps.set(block, await getBlockTimestamp(block))
+  })
 
   return timestamps
 }

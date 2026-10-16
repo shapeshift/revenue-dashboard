@@ -126,14 +126,14 @@ bun build:frontend  # Outputs to apps/revenue-dashboard/dist/
 
 ### Backend (Railway)
 
-| Variable               | Description                       | Required           |
-| ---------------------- | --------------------------------- | ------------------ |
-| `ALCHEMY_API_KEY`      | API key for Alchemy (Fynd, Portals router logs) | Yes  |
-| `BEBOP_API_KEY`        | API key for Bebop trades data     | Yes                |
-| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer | Yes                |
-| `RELAY_API_KEY`        | API key for Relay requests v3     | Yes                |
-| `ZRX_API_KEY`          | API key for 0x Trade Analytics    | Yes                |
-| `PORT`                 | Server port                       | No (default: 4200) |
+| Variable               | Description                                     | Required           |
+| ---------------------- | ----------------------------------------------- | ------------------ |
+| `ALCHEMY_API_KEY`      | API key for Alchemy (Fynd, Portals router logs) | Yes                |
+| `BEBOP_API_KEY`        | API key for Bebop trades data                   | Yes                |
+| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer               | Yes                |
+| `RELAY_API_KEY`        | API key for Relay requests v3                   | Yes                |
+| `ZRX_API_KEY`          | API key for 0x Trade Analytics                  | Yes                |
+| `PORT`                 | Server port                                     | No (default: 4200) |
 
 ### Frontend (Vercel)
 

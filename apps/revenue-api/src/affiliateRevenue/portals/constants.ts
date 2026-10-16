@@ -16,7 +16,6 @@ import {
   OPTIMISM_CHAIN_ID,
   POLYGON_CHAIN_ID,
 } from '../constants'
-import { getAlchemyRpcUrl } from '../utils'
 
 import type { ChainConfig } from './types'
 
@@ -35,55 +34,55 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     network: 'ethereum',
     router: '0xbf5a7f3629fb325e2a8453d595ab103465f75e62',
     treasury: DAO_TREASURY_ETHEREUM,
-    rpcUrl: getAlchemyRpcUrl('eth-mainnet'),
+    alchemyNetwork: 'eth-mainnet',
   },
   {
     chainId: ARBITRUM_CHAIN_ID,
     network: 'arbitrum',
     router: '0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d',
     treasury: DAO_TREASURY_ARBITRUM,
-    rpcUrl: getAlchemyRpcUrl('arb-mainnet'),
+    alchemyNetwork: 'arb-mainnet',
   },
   {
     chainId: OPTIMISM_CHAIN_ID,
     network: 'optimism',
     router: '0x43838f0c0d499f5c3101589f0f452b1fc7515178',
     treasury: DAO_TREASURY_OPTIMISM,
-    rpcUrl: getAlchemyRpcUrl('opt-mainnet'),
+    alchemyNetwork: 'opt-mainnet',
   },
   {
     chainId: BASE_CHAIN_ID,
     network: 'base',
     router: '0xb0324286b3ef7dddc93fb2ff7c8b7b8a3524803c',
     treasury: DAO_TREASURY_BASE,
-    rpcUrl: getAlchemyRpcUrl('base-mainnet'),
+    alchemyNetwork: 'base-mainnet',
   },
   {
     chainId: POLYGON_CHAIN_ID,
     network: 'polygon',
     router: '0xC74063fdb47fe6dCE6d029A489BAb37b167Da57f',
     treasury: DAO_TREASURY_POLYGON,
-    rpcUrl: getAlchemyRpcUrl('polygon-mainnet'),
+    alchemyNetwork: 'polygon-mainnet',
   },
   {
     chainId: GNOSIS_CHAIN_ID,
     network: 'gnosis',
     router: '0x8e74454b2cf2f6cc2a06083ef122187551cf391c',
     treasury: DAO_TREASURY_GNOSIS,
-    rpcUrl: getAlchemyRpcUrl('gnosis-mainnet'),
+    alchemyNetwork: 'gnosis-mainnet',
   },
   {
     chainId: BSC_CHAIN_ID,
     network: 'bsc',
     router: '0x34b6a821d2f26c6b7cdb01cd91895170c6574a0d',
     treasury: DAO_TREASURY_BSC,
-    rpcUrl: getAlchemyRpcUrl('bnb-mainnet'),
+    alchemyNetwork: 'bnb-mainnet',
   },
   {
     chainId: AVALANCHE_CHAIN_ID,
     network: 'avalanche',
     router: '0xbf5A7F3629fB325E2a8453D595AB103465F75E62',
     treasury: DAO_TREASURY_AVALANCHE,
-    rpcUrl: getAlchemyRpcUrl('avax-mainnet'),
+    alchemyNetwork: 'avax-mainnet',
   },
 ]

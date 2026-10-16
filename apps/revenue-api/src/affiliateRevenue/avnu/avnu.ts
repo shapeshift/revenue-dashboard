@@ -1,3 +1,4 @@
+import { mapConcurrently } from '../../utils/concurrency'
 import {
   getCachedBlockNumber,
   getCachedBlockTimestamp,
@@ -6,13 +7,13 @@ import {
 } from '../cache'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { getCachedFees } from '../utils'
+import { findBlockByTimestamp, getCachedFees } from '../utils'
 
 import { DAO_STARKNET_TREASURY_ADDRESSES, STARKNET_CHAIN_ID, TRANSFER_SELECTOR } from './constants'
 import type { StarknetBlock, StarknetEvent, StarknetEventsResponse } from './types'
 import { buildAssetId, isAvnuTransfer, parseU256Amount, rpcCall } from './utils'
 
-const MAX_BINARY_SEARCH_ITERATIONS = 30
+const LOOKUP_CONCURRENCY = 10
 
 const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
   const cached = getCachedBlockTimestamp(STARKNET_CHAIN_ID, blockNumber)
@@ -24,31 +25,15 @@ const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
   return timestamp
 }
 
-// Starknet's block time drifts too much to estimate from, so the last block at or before the
-// timestamp is found by searching headers
-const findBlockByTimestamp = async (timestamp: number, latestBlock: number): Promise<number> => {
+// No indexer covers Starknet, so the block is found by searching headers
+const resolveBlock = async (timestamp: number, latestBlock: number): Promise<number> => {
   const cached = getCachedBlockNumber(STARKNET_CHAIN_ID, timestamp)
   if (cached !== undefined) return cached
 
-  let low = 0
-  let high = latestBlock
-  let closest = 0
+  const block = await findBlockByTimestamp(getBlockTimestamp, latestBlock, timestamp)
+  saveCachedBlockNumber(STARKNET_CHAIN_ID, timestamp, block)
 
-  for (let i = 0; i < MAX_BINARY_SEARCH_ITERATIONS && low <= high; i++) {
-    const mid = Math.floor((low + high) / 2)
-    const blockTimestamp = await getBlockTimestamp(mid)
-
-    if (blockTimestamp <= timestamp) {
-      closest = mid
-      low = mid + 1
-    } else {
-      high = mid - 1
-    }
-  }
-
-  saveCachedBlockNumber(STARKNET_CHAIN_ID, timestamp, closest)
-
-  return closest
+  return block
 }
 
 const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Promise<StarknetEvent[]> => {
@@ -85,19 +70,17 @@ const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Prom
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const latestBlock = await rpcCall<number>('starknet_blockNumber', [])
   const [startBlock, endBlock] = await Promise.all([
-    findBlockByTimestamp(startTimestamp, latestBlock),
-    findBlockByTimestamp(endTimestamp, latestBlock),
+    resolveBlock(startTimestamp, latestBlock),
+    resolveBlock(endTimestamp, latestBlock),
   ])
 
   const events = await fetchEventsInBlockRange(startBlock, endBlock)
   const avnuEvents = events.filter(e => isAvnuTransfer(e))
 
   const blockTimestamps = new Map<number, number>()
-  await Promise.all(
-    [...new Set(avnuEvents.map(e => e.block_number))].map(async blockNumber => {
-      blockTimestamps.set(blockNumber, await getBlockTimestamp(blockNumber))
-    })
-  )
+  await mapConcurrently([...new Set(avnuEvents.map(e => e.block_number))], LOOKUP_CONCURRENCY, async blockNumber => {
+    blockTimestamps.set(blockNumber, await getBlockTimestamp(blockNumber))
+  })
 
   const fees: Fees[] = []
   for (const event of avnuEvents) {

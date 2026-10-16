@@ -9,7 +9,6 @@ import {
   ROBINHOOD_CHAIN_ID,
   UNICHAIN_CHAIN_ID,
 } from '../constants'
-import { getAlchemyRpcUrl } from '../utils'
 
 // Fynd client fee receiver: the proxy signs every quote's fee for this address, which the router credits
 // on each swap. Fees stay in the router's vault until swept; the credit itself is what we count.
@@ -29,7 +28,7 @@ export type FyndChain = {
   chainId: string
   network: string
   router: string
-  rpcUrl: string
+  alchemyNetwork: string
 }
 
 // TychoRouterV3 per chain: https://docs.propellerheads.xyz/tycho/for-solvers/execution/contract-addresses
@@ -38,42 +37,42 @@ export const FYND_CHAINS: FyndChain[] = [
     chainId: ETHEREUM_CHAIN_ID,
     network: 'ethereum',
     router: '0x1644D2477f809cc2C71bCCFd6Dc9497E3F83210d',
-    rpcUrl: getAlchemyRpcUrl('eth-mainnet'),
+    alchemyNetwork: 'eth-mainnet',
   },
   {
     chainId: BASE_CHAIN_ID,
     network: 'base',
     router: '0xAbA5B53b03eAfaD1C5fc8BD5Fc765fC85Bb3de67',
-    rpcUrl: getAlchemyRpcUrl('base-mainnet'),
+    alchemyNetwork: 'base-mainnet',
   },
   {
     chainId: ARBITRUM_CHAIN_ID,
     network: 'arbitrum',
     router: '0x924F147c50eA59f5180a26031A8b65B2aA1e81Cd',
-    rpcUrl: getAlchemyRpcUrl('arb-mainnet'),
+    alchemyNetwork: 'arb-mainnet',
   },
   {
     chainId: BSC_CHAIN_ID,
     network: 'bsc',
     router: '0x7f3D12BBaFb8955E51B3ab9588b34c8ad95BDA4e',
-    rpcUrl: getAlchemyRpcUrl('bnb-mainnet'),
+    alchemyNetwork: 'bnb-mainnet',
   },
   {
     chainId: POLYGON_CHAIN_ID,
     network: 'polygon',
     router: '0xbd4e6011F03355C2A377Fd9Af939322A7d0A1bC1',
-    rpcUrl: getAlchemyRpcUrl('polygon-mainnet'),
+    alchemyNetwork: 'polygon-mainnet',
   },
   {
     chainId: UNICHAIN_CHAIN_ID,
     network: 'unichain',
     router: '0xCba5574597Ad00EA250Fd106DAB4Fc7461949635',
-    rpcUrl: getAlchemyRpcUrl('unichain-mainnet'),
+    alchemyNetwork: 'unichain-mainnet',
   },
   {
     chainId: ROBINHOOD_CHAIN_ID,
     network: 'robinhood',
     router: '0x09215a470bD585E59EB3F4B612fBD2678131fF9e',
-    rpcUrl: getAlchemyRpcUrl('robinhood-mainnet'),
+    alchemyNetwork: 'robinhood-mainnet',
   },
 ]

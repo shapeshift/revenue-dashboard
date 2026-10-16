@@ -5,16 +5,17 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { Log } from '../utils'
 import { buildAssetId, createEvmLogClient, getCachedFees } from '../utils'
+import { getAlchemyRpcUrl } from '../utils/alchemy'
 
 import type { FyndChain } from './constants'
 import { FEES_TAKEN_EVENT, FYND_CHAINS, FYND_FEE_RECEIVER, FYND_FIRST_FEE_TIMESTAMP } from './constants'
 
-export type FeeTaken = { token: string; fee: bigint; blockNumber: number; txHash: string }
+type FeeTaken = { token: string; fee: bigint; blockNumber: number; txHash: string }
 
 const FEES_TAKEN_TOPIC = toEventSelector(FEES_TAKEN_EVENT)
 
 // Our share of one swap's fees, or undefined when the swap carried no fee for our receiver
-export const decodeOurFee = (log: Pick<Log, 'topics' | 'data' | 'blockNumber' | 'transactionHash'>): FeeTaken | undefined => {
+const decodeOurFee = (log: Log): FeeTaken | undefined => {
   const { args } = decodeEventLog({ abi: [FEES_TAKEN_EVENT], topics: log.topics, data: log.data })
 
   const fee = args.fees
@@ -26,14 +27,14 @@ export const decodeOurFee = (log: Pick<Log, 'topics' | 'data' | 'blockNumber' | 
 }
 
 const fetchChainFees = async (chain: FyndChain, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const client = createEvmLogClient(chain.chainId, chain.rpcUrl, `fynd:${chain.network}`)
+  const client = createEvmLogClient(chain.chainId, getAlchemyRpcUrl(chain.alchemyNetwork), `fynd:${chain.network}`)
 
-  const [fromBlock, toBlock] = await Promise.all([client.resolveBlock(startTimestamp), client.resolveBlock(endTimestamp)])
-  if (fromBlock === null || toBlock === null) {
-    throw new Error(`could not resolve blocks for ${startTimestamp}-${endTimestamp}`)
-  }
+  const [fromBlock, toBlock] = await Promise.all([
+    client.resolveBlock(startTimestamp),
+    client.resolveBlock(endTimestamp),
+  ])
 
-  // Every FeesTaken on the router, ours or not; recipient isn't indexed so the filter is client-side
+  // Every FeesTaken on the router, ours or not
   const logs = await client.getLogs(chain.router, [FEES_TAKEN_TOPIC], fromBlock, toBlock)
   const events = logs.map(decodeOurFee).filter((event): event is FeeTaken => event !== undefined)
   const timestamps = await client.getBlockTimestamps([...new Set(events.map(event => event.blockNumber))])
@@ -58,9 +59,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
 
   const results = await Promise.allSettled(
     FYND_CHAINS.map(chain =>
-      getCachedFees('fynd', chain.chainId, scanStart, endTimestamp, (start, end) =>
-        fetchChainFees(chain, start, end)
-      )
+      getCachedFees('fynd', chain.chainId, scanStart, endTimestamp, (start, end) => fetchChainFees(chain, start, end))
     )
   )
 

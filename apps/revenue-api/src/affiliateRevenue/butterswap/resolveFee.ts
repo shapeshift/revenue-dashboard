@@ -1,8 +1,9 @@
 import axios from 'axios'
 import { LRUCache } from 'lru-cache'
 
+import { ERC20_TRANSFER_TOPIC } from '../utils'
+
 import {
-  ERC20_TRANSFER_TOPIC,
   isNativeAddress,
   REQUEST_TIMEOUT_MS,
   EVM_CHAIN_BY_SOURCE_CHAIN_ID,

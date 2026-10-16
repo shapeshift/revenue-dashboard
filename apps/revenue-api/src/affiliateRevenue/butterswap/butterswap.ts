@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+import { mapConcurrently } from '../../utils/concurrency'
 import { MAP_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
@@ -215,15 +216,13 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   }
 
   let sameChainCount = 0
-  for (let i = 0; i < sameChainTxs.length; i += LOOKUP_CONCURRENCY) {
-    const results = await Promise.all(
-      sameChainTxs.slice(i, i + LOOKUP_CONCURRENCY).map(({ tx, timestamp }) => sameChainFee(tx, timestamp))
-    )
-    for (const fee of results) {
-      if (!fee) continue
-      fees.push(fee)
-      sameChainCount++
-    }
+  const sameChainFees = await mapConcurrently(sameChainTxs, LOOKUP_CONCURRENCY, ({ tx, timestamp }) =>
+    sameChainFee(tx, timestamp)
+  )
+  for (const fee of sameChainFees) {
+    if (!fee) continue
+    fees.push(fee)
+    sameChainCount++
   }
 
   const duration = Date.now() - startTime
