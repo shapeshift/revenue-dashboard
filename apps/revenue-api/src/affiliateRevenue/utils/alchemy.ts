@@ -8,6 +8,7 @@ export const getAlchemyRpcUrl = (network: string): string => `https://${network}
 const ALCHEMY_BLOCK_RANGE_CAPS: Record<string, number> = {
   'avax-mainnet': 10_000,
   'gnosis-mainnet': 10_000,
+  'plasma-mainnet': 10_000,
   'unichain-mainnet': 10_000,
 }
 

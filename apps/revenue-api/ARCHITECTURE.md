@@ -138,7 +138,7 @@ volume = feeAmount / 0.0055;
 | Jupiter      | RPC      | Solana txs          | 1      | Referral PDA balances          |
 | MayaChain    | API      | Affiliate fees      | 1      | ShapeShift-hosted API          |
 | NEAR Intents | API      | Transaction history | Multi  | Cross-chain intents            |
-| Portals      | RPC      | Alchemy event logs  | 8      | First ERC20 to treasury per tx |
+| Portals      | RPC      | Alchemy event logs  | 10     | First ERC20 to treasury per tx |
 | Relay        | API      | Bridge history      | Multi  | Cross-chain bridges            |
 | THORChain    | API      | Affiliate fees      | 1      | ShapeShift-hosted API          |
 | 0x           | API      | Trade analytics     | Multi  | Decimal amounts (not wei)      |

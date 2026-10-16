@@ -20,7 +20,7 @@ import type { ChainConfig, PortalTx, TokenTransfer } from './types'
 // An address as it appears in an indexed log topic
 const addressTopic = (address: string): Hex => padHex(address.toLowerCase() as Hex, { size: 32 })
 
-// Transactions in the window where the router emitted a Portal event naming our treasury as the partner
+// Transactions in the window with a Portal event naming our treasury as the partner
 const getPortalTxs = async (
   client: EvmLogClient,
   config: ChainConfig,
@@ -30,7 +30,7 @@ const getPortalTxs = async (
   endTimestamp: number
 ): Promise<PortalTx[]> => {
   const topics: LogTopics = [PORTAL_EVENT_SIGNATURE, null, null, addressTopic(config.treasury)]
-  const logs = await client.getLogs(config.router, topics, fromBlock, toBlock)
+  const logs = await client.getLogs(undefined, topics, fromBlock, toBlock)
   const timestamps = await client.getBlockTimestamps([...new Set(logs.map(log => Number(log.blockNumber)))])
 
   // Keyed by tx so a transaction with more than one partner event counts its fee once

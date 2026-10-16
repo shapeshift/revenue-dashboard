@@ -1,7 +1,6 @@
 export type ChainConfig = {
   chainId: string
   network: string
-  router: string
   treasury: string
   alchemyNetwork: string
 }
