@@ -14,6 +14,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   relay: 'Relay',
   jupiter: 'Jupiter',
   symbiosis: 'Symbiosis',
+  fynd: 'Fynd',
 }
 
 export const SERVICE_COLORS: Record<string, string> = {
@@ -32,6 +33,7 @@ export const SERVICE_COLORS: Record<string, string> = {
   nearintents: '#06b6d4',
   jupiter: '#a855f7',
   symbiosis: '#10b981',
+  fynd: '#eab308',
 }
 
 export const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
@@ -54,4 +56,5 @@ export const SERVICE_STACK_ORDER = [
   'bobgateway',
   'across',
   'symbiosis',
+  'fynd',
 ]

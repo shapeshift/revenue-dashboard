@@ -11,14 +11,6 @@ export const AVNU_EXCHANGE = '0x04270219d365d6b017231b52e92b3fb5d7c8378b05e9abc9
 // Transfer event selector (keccak256("Transfer"))
 export const TRANSFER_SELECTOR = '0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9'
 
-// Starknet RPC endpoint
 export const STARKNET_RPC_URL = 'https://api.cartridge.gg/x/starknet/mainnet'
-
-// Starknet block time (calculated from recent blocks: ~2.7s)
-export const STARKNET_BLOCK_TIME_SECONDS = 2.7
-
-// Block estimation buffer (~5 minutes worth of blocks to account for variance)
-const BUFFER_SECONDS = 300 // 5 minutes
-export const BLOCK_ESTIMATION_BUFFER = Math.floor(BUFFER_SECONDS / STARKNET_BLOCK_TIME_SECONDS) // ~111 blocks
 
 export { STARKNET_CHAIN_ID }

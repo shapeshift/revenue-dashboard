@@ -11,6 +11,7 @@ import * as bobgateway from './bobgateway'
 import * as butterswap from './butterswap'
 import * as chainflip from './chainflip'
 import * as cowswap from './cowswap'
+import * as fynd from './fynd'
 import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
@@ -31,6 +32,7 @@ const providerNames: Service[] = [
   'butterswap',
   'chainflip',
   'cowswap',
+  'fynd',
   'jupiter',
   'mayachain',
   'nearintents',
@@ -93,6 +95,7 @@ export class AffiliateRevenue {
       butterswap.getFees(startTimestamp, endTimestamp),
       chainflip.getFees(startTimestamp, endTimestamp),
       cowswap.getFees(startTimestamp, endTimestamp),
+      fynd.getFees(startTimestamp, endTimestamp),
       jupiter.getFees(startTimestamp, endTimestamp),
       mayachain.getFees(startTimestamp, endTimestamp),
       nearintents.getFees(startTimestamp, endTimestamp),

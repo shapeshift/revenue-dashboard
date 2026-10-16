@@ -9,6 +9,7 @@ export const DAO_TREASURY_ARBITRUM = '0x38276553F8fbf2A027D901F8be45f00373d8Dd48
 export const DAO_TREASURY_BASE = '0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502'
 export const DAO_TREASURY_MONAD = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_HYPEREVM = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_PLASMA = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 
 // CAIP-2 Chain IDs (non-EVM chains that need explicit mapping)
 export const BITCOIN_CHAIN_ID = 'bip122:000000000019d6689c085ae165831e93'
@@ -39,6 +40,8 @@ export const MONAD_CHAIN_ID = 'eip155:143'
 export const HYPEREVM_CHAIN_ID = 'eip155:999'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
 export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
+export const UNICHAIN_CHAIN_ID = 'eip155:130'
+export const ROBINHOOD_CHAIN_ID = 'eip155:4663'
 
 // Slip44 coin type values for native assets
 export const SLIP44 = {
@@ -76,9 +79,6 @@ export const getAffiliateFeeRate = (timestamp?: number): number => {
   return getAffiliateBps(timestamp) / FEE_BPS_DENOMINATOR
 }
 
-// Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
-export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
-
 // CoinGecko platform IDs and native coin IDs by CAIP-2 chain id
 // Used for price lookups and token metadata
 export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {
@@ -87,9 +87,11 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:56': { platform: 'binance-smart-chain', nativeCoinId: 'binancecoin' },
   'eip155:100': { platform: 'xdai', nativeCoinId: 'xdai' },
   'eip155:137': { platform: 'polygon-pos', nativeCoinId: 'matic-network' },
+  'eip155:130': { platform: 'unichain', nativeCoinId: 'ethereum' },
   'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
   'eip155:999': { platform: 'hyperevm', nativeCoinId: 'hyperliquid' },
   'eip155:4217': { platform: 'tempo', nativeCoinId: '' },
+  'eip155:4663': { platform: 'robinhood', nativeCoinId: 'ethereum' },
   'eip155:8453': { platform: 'base', nativeCoinId: 'ethereum' },
   'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },
   'eip155:42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },

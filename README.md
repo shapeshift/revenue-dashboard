@@ -44,6 +44,7 @@ shapeshift-revenue-dashboard/
   - Bebop
   - ButterSwap
   - Chainflip
+  - Fynd
   - MayaChain
   - NEAR Intents
   - Portals
@@ -87,7 +88,7 @@ cp apps/revenue-api/.env.example apps/revenue-api/.env
 cp apps/revenue-dashboard/.env.example apps/revenue-dashboard/.env
 
 # Edit apps/revenue-api/.env with your API keys
-# Required: BEBOP_API_KEY, NEAR_INTENTS_API_KEY, RELAY_API_KEY, ZRX_API_KEY
+# Required: ALCHEMY_API_KEY, BEBOP_API_KEY, NEAR_INTENTS_API_KEY, RELAY_API_KEY, ZRX_API_KEY
 ```
 
 ### Running Locally
@@ -125,13 +126,14 @@ bun build:frontend  # Outputs to apps/revenue-dashboard/dist/
 
 ### Backend (Railway)
 
-| Variable               | Description                       | Required           |
-| ---------------------- | --------------------------------- | ------------------ |
-| `BEBOP_API_KEY`        | API key for Bebop trades data     | Yes                |
-| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer | Yes                |
-| `RELAY_API_KEY`        | API key for Relay requests v3     | Yes                |
-| `ZRX_API_KEY`          | API key for 0x Trade Analytics    | Yes                |
-| `PORT`                 | Server port                       | No (default: 4200) |
+| Variable               | Description                                     | Required           |
+| ---------------------- | ----------------------------------------------- | ------------------ |
+| `ALCHEMY_API_KEY`      | API key for Alchemy (Fynd, Portals router logs) | Yes                |
+| `BEBOP_API_KEY`        | API key for Bebop trades data                   | Yes                |
+| `NEAR_INTENTS_API_KEY` | API key for NEAR Intents explorer               | Yes                |
+| `RELAY_API_KEY`        | API key for Relay requests v3                   | Yes                |
+| `ZRX_API_KEY`          | API key for 0x Trade Analytics                  | Yes                |
+| `PORT`                 | Server port                                     | No (default: 4200) |
 
 ### Frontend (Vercel)
 
@@ -210,6 +212,7 @@ Response:
 3. Select "Deploy from GitHub" and choose this repository
 4. Railway auto-detects `railway.json` configuration
 5. Add environment variables in Railway dashboard:
+   - `ALCHEMY_API_KEY`
    - `BEBOP_API_KEY`
    - `NEAR_INTENTS_API_KEY`
    - `RELAY_API_KEY`

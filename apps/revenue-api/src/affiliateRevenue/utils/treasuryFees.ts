@@ -4,8 +4,8 @@ import type { Service } from '../../types'
 import { withRetry } from '../../utils/retry'
 import type { Fees } from '../types'
 
+import { createAlchemyClient } from './alchemy'
 import { buildAssetId } from './asset'
-import { getBlockByTimestamp } from './dateToBlock'
 import { getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
@@ -44,14 +44,11 @@ export const getTreasuryFees = async ({
   const senderSet = new Set([...senders].map(sender => sender.toLowerCase()))
   const treasuryAddress = treasury.toLowerCase()
 
+  const client = createAlchemyClient(chainId, service)
   const [fromBlock, toBlock] = await Promise.all([
-    getBlockByTimestamp(chainId, startTimestamp),
-    getBlockByTimestamp(chainId, endTimestamp),
+    client.resolveBlock(startTimestamp),
+    client.resolveBlock(endTimestamp),
   ])
-
-  if (fromBlock === null || toBlock === null) {
-    throw new Error(`Failed to resolve ${chainId} block range for timestamps ${startTimestamp}-${endTimestamp}`)
-  }
 
   const effectiveFromBlock = firstBlock === undefined ? fromBlock : Math.max(fromBlock, firstBlock)
   if (effectiveFromBlock > toBlock) return []
