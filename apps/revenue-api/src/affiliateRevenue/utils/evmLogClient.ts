@@ -21,61 +21,45 @@ export const ERC20_TRANSFER_TOPIC = toEventSelector('Transfer(address,address,ui
 
 type Block = { number: Hex; timestamp: Hex }
 
-// Header lookups per node at a time: gentle on public replicas, well inside Alchemy's throughput
-const LOOKUP_CONCURRENCY = 10
-
-const LOG_CONCURRENCY = 5
-
-// Alchemy caps a call at 10K logs or a per-chain block range (2K to 10K) named only in refusals; windows adapt to it
-const INITIAL_LOG_RANGE = 50_000
-const MIN_LOG_RANGE = 100
-const MAX_LOG_RANGE = 500_000
-
-// No RPC exposes a node's block-range limit, so caps named in outright refusals are kept per endpoint
-const learnedRangeCaps = new Map<string, number>()
-
-// Alchemy meters one key across all its networks, so every client on that key shares one in-flight budget
+// Requests in flight per endpoint key: Alchemy meters one key across all its networks, so every client shares it
 const ENDPOINT_CONCURRENCY = 10
 const endpointLimiters = new Map<string, ReturnType<typeof createSemaphore>>()
 
-const limiterKey = (rpcUrl: string): string => {
-  const url = new URL(rpcUrl)
-  return url.hostname.endsWith('.g.alchemy.com') ? `alchemy${url.pathname}` : url.origin
-}
-
 const getEndpointLimiter = (rpcUrl: string) => {
-  const key = limiterKey(rpcUrl)
+  const url = new URL(rpcUrl)
+  const key = url.hostname.endsWith('.g.alchemy.com') ? `alchemy${url.pathname}` : url.origin
   let limiter = endpointLimiters.get(key)
   if (!limiter) endpointLimiters.set(key, (limiter = createSemaphore(ENDPOINT_CONCURRENCY)))
   return limiter
 }
 
+// Header lookups and capped log windows in flight per scan
+const LOOKUP_CONCURRENCY = 10
+const LOG_CONCURRENCY = 5
+
+// A refusal of a window this narrow isn't about the range, so it propagates instead of narrowing further
+const MIN_LOG_RANGE = 100
+
 const toHex = (n: number): Hex => `0x${n.toString(16)}`
 
-const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? '') : '')
+const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? error.message) : '')
 
-// Width, weight and timeout refusals are retried narrower; rate limits and outages as-is; the rest fail the scan
-const isRangeRefusal = (error: unknown): boolean => {
-  if (!(error instanceof RpcError) || isRateLimited(error) || (error.status ?? 0) >= 500) return false
-  return /block range|response size|returned more than|too many|too large|too big|too wide|timeout/i.test(
-    error.rpcMessage ?? error.message
-  )
+// Size and timeout refusals are retried narrower; rate limits and outages as-is; anything else fails the scan
+export const isRangeRefusal = (error: unknown): boolean =>
+  error instanceof RpcError &&
+  !isRateLimited(error) &&
+  (error.status ?? 0) < 500 &&
+  /block range|response size|too big|timeout/i.test(refusalText(error))
+
+// Alchemy's size refusal names the range that would have fit: "this block range should work: [0x0, 0x18ccd8a]"
+export const getSuggestedEnd = (error: unknown): number | undefined => {
+  const match = refusalText(error).match(/should work: \[0x[0-9a-f]+, (0x[0-9a-f]+)\]/i)
+  return match ? Number(BigInt(match[1])) : undefined
 }
 
-// Nodes name their cap ("up to a 10,000 block range", "2K block range", "block range: 5000"); size refusals don't
-const getRangeCap = (error: unknown): number | undefined => {
-  const match = refusalText(error).match(/(\d[\d,]*)\s*(k)?\s*blocks? range|block range(?: of|:|\s*is)?\s*(\d[\d,]*)/i)
-  if (!match) return
-
-  const cap = Number((match[1] ?? match[3]).replace(/,/g, ''))
-  return match[2] ? cap * 1000 : cap
-}
-
-// A size refusal quotes a width that would fit, not the endpoint's limit; only an outright range refusal is that
-const isUnconditionalCap = (error: unknown): boolean => !/response size/i.test(refusalText(error))
-
-// Reads one EVM chain's logs and block metadata through its node, with the shared caches
-export const createEvmLogClient = (chainId: string, rpcUrl: string, context: string) => {
+// Reads one EVM chain's logs and block metadata through its node, with the shared caches. Alchemy serves any block
+// range under 10K logs and names the range that fits when refusing; `blockRangeCap` is for the networks it caps outright
+export const createEvmLogClient = (chainId: string, rpcUrl: string, context: string, blockRangeCap?: number) => {
   const rpcCall = createRpcCaller(rpcUrl)
   const limit = getEndpointLimiter(rpcUrl)
   const call = <T>(method: string, params: unknown[], shouldRetry = isRetryableRpcError): Promise<T> =>
@@ -137,60 +121,51 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return block
   }
 
-  // Windows grow while accepted; a refusal keeps earlier results, shrinks to the named cap (or half) and stops growing
+  // Asks for everything left; a refusal narrows to the node's suggested end (or half), then asks for the rest again
+  const scan = async (address: string | undefined, topics: LogTopics, from: number, to: number): Promise<Log[]> => {
+    const logs: Log[] = []
+    let cursor = from
+    let end = to
+
+    while (cursor <= to) {
+      try {
+        const batch = await call<Log[]>(
+          'eth_getLogs',
+          [{ address, fromBlock: toHex(cursor), toBlock: toHex(end), topics }],
+          error => isRetryableRpcError(error) && !isRangeRefusal(error)
+        )
+        logs.push(...batch)
+        cursor = end + 1
+        end = to
+      } catch (error) {
+        if (!isRangeRefusal(error) || end - cursor < MIN_LOG_RANGE) throw error
+
+        const suggested = getSuggestedEnd(error)
+        end =
+          suggested !== undefined && suggested >= cursor && suggested < end
+            ? suggested
+            : cursor + Math.floor((end - cursor) / 2)
+      }
+    }
+
+    return logs
+  }
+
   const getLogs = async (
     address: string | undefined,
     topics: LogTopics,
     fromBlock: number,
     toBlock: number
   ): Promise<Log[]> => {
-    const logs: Log[] = []
-    let ceiling = learnedRangeCaps.get(rpcUrl) ?? MAX_LOG_RANGE
-    let range = Math.min(INITIAL_LOG_RANGE, ceiling)
-    let from = fromBlock
+    if (blockRangeCap === undefined) return scan(address, topics, fromBlock, toBlock)
 
-    while (from <= toBlock) {
-      const windows: [number, number][] = []
-      for (let start = from; start <= toBlock && windows.length < LOG_CONCURRENCY; start += range) {
-        windows.push([start, Math.min(start + range - 1, toBlock)])
-      }
-
-      const results = await Promise.allSettled(
-        windows.map(([start, end]) =>
-          call<Log[]>(
-            'eth_getLogs',
-            [{ address, fromBlock: toHex(start), toBlock: toHex(end), topics }],
-            error => isRetryableRpcError(error) && !isRangeRefusal(error)
-          )
-        )
-      )
-
-      const refused = results.findIndex(result => result.status === 'rejected')
-      for (const result of refused === -1 ? results : results.slice(0, refused)) {
-        if (result.status === 'fulfilled') logs.push(...result.value)
-      }
-
-      if (refused === -1) {
-        from = windows[windows.length - 1][1] + 1
-        range = Math.min(range * 2, ceiling)
-        continue
-      }
-
-      const error = (results[refused] as PromiseRejectedResult).reason
-      if (!isRangeRefusal(error) || range <= MIN_LOG_RANGE) throw error
-
-      from = windows[refused][0]
-      const cap = getRangeCap(error)
-      if (cap !== undefined && cap >= MIN_LOG_RANGE && cap < range) {
-        range = cap
-        if (isUnconditionalCap(error)) learnedRangeCaps.set(rpcUrl, cap)
-      } else {
-        range = Math.floor(range / 2)
-      }
-      ceiling = range
+    const windows: [number, number][] = []
+    for (let start = fromBlock; start <= toBlock; start += blockRangeCap) {
+      windows.push([start, Math.min(start + blockRangeCap - 1, toBlock)])
     }
+    const perWindow = await mapConcurrently(windows, LOG_CONCURRENCY, ([from, to]) => scan(address, topics, from, to))
 
-    return logs
+    return perWindow.flat()
   }
 
   return { resolveBlock, getLogs, getBlockTimestamps }

@@ -44,7 +44,10 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
       })
 
       // Some nodes answer a refused request with an HTTP error status around the JSON-RPC error
-      const data: RpcResponse<T> | undefined = await response.json().catch(() => undefined)
+      const data: RpcResponse<T> | undefined = await response.json().catch((error: unknown) => {
+        if (controller.signal.aborted) throw error
+        return undefined
+      })
 
       if (!response.ok) {
         const detail = data?.error?.message ? `: ${data.error.message}` : ''
@@ -65,9 +68,7 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
 
       return data.result
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new RpcError(`RPC request timeout after ${timeoutMs}ms`)
-      }
+      if (controller.signal.aborted) throw new RpcError(`RPC request timeout after ${timeoutMs}ms`)
       throw error
     } finally {
       // Cleared only once the body is read, so a node that sends headers and then stalls still times out

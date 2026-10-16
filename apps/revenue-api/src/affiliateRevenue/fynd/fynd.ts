@@ -4,7 +4,7 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { Log } from '../utils'
 import { buildAssetId, createEvmLogClient, getCachedFees, settleChains } from '../utils'
-import { getAlchemyRpcUrl } from '../utils/alchemy'
+import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
 
 import type { FyndChain } from './constants'
 import { FEES_TAKEN_EVENT, FYND_CHAINS, FYND_FEE_RECEIVER, FYND_FIRST_FEE_TIMESTAMP } from './constants'
@@ -26,7 +26,12 @@ const decodeOurFee = (log: Log): FeeTaken | undefined => {
 }
 
 const fetchChainFees = async (chain: FyndChain, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const client = createEvmLogClient(chain.chainId, getAlchemyRpcUrl(chain.alchemyNetwork), `fynd:${chain.network}`)
+  const client = createEvmLogClient(
+    chain.chainId,
+    getAlchemyRpcUrl(chain.alchemyNetwork),
+    `fynd:${chain.network}`,
+    getAlchemyBlockRangeCap(chain.alchemyNetwork)
+  )
 
   const [fromBlock, toBlock] = await Promise.all([
     client.resolveBlock(startTimestamp),

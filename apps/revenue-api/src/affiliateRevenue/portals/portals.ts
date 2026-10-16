@@ -5,7 +5,7 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { EvmLogClient, LogTopics } from '../utils'
 import { createEvmLogClient, ERC20_TRANSFER_TOPIC, getCachedFees, settleChains } from '../utils'
-import { getAlchemyRpcUrl } from '../utils/alchemy'
+import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
 import type { ChainConfig, PortalEventData, TokenTransfer } from './types'
@@ -84,7 +84,8 @@ const fetchFeesForChain = async (
   const client = createEvmLogClient(
     config.chainId,
     getAlchemyRpcUrl(config.alchemyNetwork),
-    `portals:${config.network}`
+    `portals:${config.network}`,
+    getAlchemyBlockRangeCap(config.alchemyNetwork)
   )
   const [fromBlock, toBlock] = await Promise.all([
     client.resolveBlock(startTimestamp),
