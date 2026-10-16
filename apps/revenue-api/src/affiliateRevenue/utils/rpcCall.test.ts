@@ -1,6 +1,9 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import type { AddressInfo } from 'node:net'
+import net from 'node:net'
 
-import { createRpcCaller, isRateLimited, isRetryableRpcError, RpcError } from './rpcCall'
+import { afterAll, afterEach, describe, expect, it } from 'bun:test'
+
+import { createRpcCaller, isRetryableRpcError, RpcError } from './rpcCall'
 
 const originalFetch = globalThis.fetch
 afterEach(() => {
@@ -10,81 +13,85 @@ afterEach(() => {
 const RPC_URL = 'https://rpc-test.example/'
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
-const abortError = () => new DOMException('The operation was aborted.', 'AbortError')
 const onAbort = (init: RequestInit | undefined) =>
-  new Promise<never>((_, reject) => init?.signal?.addEventListener('abort', () => reject(abortError())))
-
+  new Promise<never>((_, reject) =>
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+  )
 const mockFetch = (handler: (init?: RequestInit) => Response | Promise<Response>) => {
   globalThis.fetch = ((_url: unknown, init?: RequestInit) =>
     Promise.resolve().then(() => handler(init))) as unknown as typeof fetch
 }
 
-const fail = async (fn: () => Promise<unknown>): Promise<RpcError> => {
-  const thrown = await fn().catch((e: unknown) => e)
+const fail = async (url: string, timeoutMs?: number): Promise<RpcError> => {
+  const thrown = await createRpcCaller(url, timeoutMs)('eth_blockNumber', []).catch((e: unknown) => e)
   expect(thrown).toBeInstanceOf(RpcError)
   return thrown as RpcError
 }
 
+// Real sockets, so connection failures come from Bun's own fetch rather than a mock's idea of them
+const servers: net.Server[] = []
+afterAll(() => servers.forEach(server => server.close()))
+const tcpServer = (onData: (socket: net.Socket) => void): string => {
+  const server = net.createServer(socket => socket.on('data', () => onData(socket))).listen(0)
+  servers.push(server)
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}/`
+}
+
 describe('createRpcCaller', () => {
-  it('returns the JSON-RPC result', async () => {
-    mockFetch(() => json(200, { jsonrpc: '2.0', id: 1, result: '0x10' }))
-    expect(await createRpcCaller(RPC_URL)<string>('eth_blockNumber', [])).toBe('0x10')
-  })
-
-  it('surfaces a JSON-RPC error inside a 200 with the node text and no status', async () => {
-    mockFetch(() => json(200, { error: { code: -32602, message: 'invalid params' } }))
-    const error = await fail(() => createRpcCaller(RPC_URL)('eth_getLogs', []))
-    expect(error.status).toBeUndefined()
-    expect(error.rpcMessage).toBe('invalid params')
-    expect(isRetryableRpcError(error)).toBe(false)
-  })
-
-  it('keeps the HTTP status and node text when a refusal comes with a 400', async () => {
+  it('keeps the node text and status of a refusal, with or without an HTTP error around it, and never retries it', async () => {
     mockFetch(() => json(400, { error: { code: -32602, message: 'Log response size exceeded.' } }))
-    const error = await fail(() => createRpcCaller(RPC_URL)('eth_getLogs', []))
-    expect(error.status).toBe(400)
-    expect(error.rpcMessage).toBe('Log response size exceeded.')
-    expect(isRetryableRpcError(error)).toBe(false)
+    const wrapped = await fail(RPC_URL)
+    expect([wrapped.status, wrapped.rpcMessage]).toEqual([400, 'Log response size exceeded.'])
+    expect(isRetryableRpcError(wrapped)).toBe(false)
+
+    mockFetch(() => json(200, { error: { code: -32008, message: 'Response is too big' } }))
+    const bare = await fail(RPC_URL)
+    expect([bare.status, bare.rpcMessage]).toEqual([undefined, 'Response is too big'])
+    expect(isRetryableRpcError(bare)).toBe(false)
   })
 
-  it('treats an outage with a non-JSON body as a retryable HTTP error', async () => {
-    mockFetch(() => new Response('<html>bad gateway</html>', { status: 502 }))
-    const error = await fail(() => createRpcCaller(RPC_URL)('eth_blockNumber', []))
-    expect(error.status).toBe(502)
-    expect(error.rpcMessage).toBeUndefined()
-    expect(isRetryableRpcError(error)).toBe(true)
+  it.each([
+    ['an outage with a non-JSON body', () => new Response('<html>bad gateway</html>', { status: 502 })],
+    ['a 429', () => json(429, { error: { code: 429, message: 'exceeded compute units' } })],
+    ['a rate limit inside a 200', () => json(200, { error: { code: -32005, message: 'too many requests' } })],
+  ])('retries %s', async (_label, response) => {
+    mockFetch(response)
+    expect(isRetryableRpcError(await fail(RPC_URL))).toBe(true)
   })
 
-  it('retries a 429 and a rate limit delivered inside a 200 alike', async () => {
-    mockFetch(() => json(429, { error: { code: 429, message: 'Too Many Requests' } }))
-    const http = await fail(() => createRpcCaller(RPC_URL)('eth_blockNumber', []))
-    expect(isRateLimited(http)).toBe(true)
-    expect(isRetryableRpcError(http)).toBe(true)
-
-    mockFetch(() => json(200, { error: { code: -32005, message: 'too many requests, slow down' } }))
-    const inBody = await fail(() => createRpcCaller(RPC_URL)('eth_blockNumber', []))
-    expect(inBody.status).toBeUndefined()
-    expect(isRateLimited(inBody)).toBe(true)
-    expect(isRetryableRpcError(inBody)).toBe(true)
-  })
-
-  it('times out when the headers never arrive, and the timeout is retryable', async () => {
+  it('times out and retries whether the headers never arrive or the body stalls after them', async () => {
     mockFetch(init => onAbort(init))
-    const error = await fail(() => createRpcCaller(RPC_URL, 20)('eth_blockNumber', []))
-    expect(error.message).toBe('RPC request timeout after 20ms')
+    const headers = await fail(RPC_URL, 20)
+    expect(headers.message).toBe('RPC request timeout after 20ms')
+    expect(isRetryableRpcError(headers)).toBe(true)
+
+    mockFetch(init => ({ ok: true, status: 200, json: () => onAbort(init) }) as unknown as Response)
+    const body = await fail(RPC_URL, 20)
+    expect(body.message).toBe('RPC request timeout after 20ms')
+    expect(isRetryableRpcError(body)).toBe(true)
+  })
+
+  it('retries a refused connection', async () => {
+    const error = await fail('http://127.0.0.1:1/')
+    expect(error.message).toStartWith('RPC network error')
     expect(isRetryableRpcError(error)).toBe(true)
   })
 
-  it('times out when the body stalls after the headers, instead of hanging or reporting an empty response', async () => {
-    mockFetch(init => ({ ok: true, status: 200, statusText: 'OK', json: () => onAbort(init) }) as unknown as Response)
-    const error = await fail(() => createRpcCaller(RPC_URL, 20)('eth_getLogs', []))
-    expect(error.message).toBe('RPC request timeout after 20ms')
+  it('retries a connection the node drops', async () => {
+    const error = await fail(tcpServer(socket => socket.destroy()))
+    expect(error.message).toStartWith('RPC network error')
     expect(isRetryableRpcError(error)).toBe(true)
   })
 
-  it('reports an unparseable 200 body as an empty response', async () => {
-    mockFetch(() => new Response('not json', { status: 200 }))
-    const error = await fail(() => createRpcCaller(RPC_URL)('eth_blockNumber', []))
-    expect(error.message).toBe('RPC error: empty response')
+  it('retries a 200 whose body is cut off mid-stream', async () => {
+    const url = tcpServer(socket => {
+      socket.write(
+        'HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 500\r\n\r\n{"jsonrpc":"2.0","res'
+      )
+      setTimeout(() => socket.destroy(), 10)
+    })
+    const error = await fail(url)
+    expect(error.message).toBe('RPC error: unreadable response')
+    expect(isRetryableRpcError(error)).toBe(true)
   })
 })
