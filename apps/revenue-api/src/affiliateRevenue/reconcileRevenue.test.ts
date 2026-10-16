@@ -76,7 +76,16 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
     expectExcluded({ affiliateFeeAmountCryptoBaseUnit: null }, 'no on-chain'))
   test('no verified bps', () => expectExcluded({ verifiedBps: null }, 'no verified'))
   test('fee anomaly', () => expectExcluded({ feeUsd: '100', partnerFeeUsd: '50' }, 'anomaly'))
-  test('unmapped swapper', () => expectExcluded({ swapperName: 'Across' }, 'unmapped swapper'))
+  test('unmapped swapper', () => expectExcluded({ swapperName: 'Nonexistent' }, 'unmapped swapper'))
+
+  test.each([
+    ['Across', 'across'],
+    ['BOB Gateway', 'bobgateway'],
+  ] as const)('deducts %s swaps against the %s tracker', (swapperName, service) => {
+    const res = reconcilePartnerRevenue([], [swap({ swapperName })], [])
+    expect(res.netFees.find(f => f.synthetic)!.service).toBe(service)
+    expect(res.excluded).toEqual([])
+  })
 
   test('provider that failed this run (would deduct against missing gross)', () => {
     const res = reconcilePartnerRevenue([], [swap({})], ['thorchain'])

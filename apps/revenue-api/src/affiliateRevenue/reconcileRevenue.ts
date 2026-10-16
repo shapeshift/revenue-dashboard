@@ -6,8 +6,10 @@ import { getPayablePartnerFee } from './payablePartnerFee'
 import type { ExcludedPartnerSwap, Fees, PartnerSwap, ReconciliationResult } from './types'
 
 const SWAPPER_TO_SERVICE: Record<string, Service> = {
+  Across: 'across',
   AVNU: 'avnu',
   Bebop: 'bebop',
+  'BOB Gateway': 'bobgateway',
   ButterSwap: 'butterswap',
   Chainflip: 'chainflip',
   'CoW Swap': 'cowswap',

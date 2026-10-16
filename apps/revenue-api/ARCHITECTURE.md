@@ -57,7 +57,7 @@ AffiliateRevenue.getAffiliateRevenue()
 **Integration Types**:
 
 - **API-based**: Bebop, Chainflip, Relay, THORChain, MayaChain, NEAR Intents, 0x
-- **RPC-based**: AVNU, ButterSwap, Jupiter, Portals
+- **RPC-based**: AVNU, ButterSwap, Portals
 - **Explorer-based**: CowSwap
 
 ---
@@ -135,7 +135,6 @@ volume = feeAmount / 0.0055;
 | ButterSwap   | RPC      | Contract balance    | 1      | Differential balance snapshots |
 | Chainflip    | API      | GraphQL             | Multi  | USD values provided            |
 | CowSwap      | Explorer | Internal txs        | 1      | Blockscout API, WETH only      |
-| Jupiter      | RPC      | Solana txs          | 1      | Referral PDA balances          |
 | MayaChain    | API      | Affiliate fees      | 1      | ShapeShift-hosted API          |
 | NEAR Intents | API      | Transaction history | Multi  | Cross-chain intents            |
 | Portals      | RPC      | Alchemy event logs  | 10     | First ERC20 to treasury per tx |
