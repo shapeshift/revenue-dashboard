@@ -1,6 +1,6 @@
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { getCachedFees, getTreasuryFees } from '../utils'
+import { getCachedFees, getTreasuryFees, settleChains } from '../utils'
 
 import { ACROSS_CHAINS, ACROSS_HANDLERS_BY_CHAIN_ID } from './constants'
 
@@ -32,14 +32,13 @@ const getFeesForChain = async (
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
 
-  const perChain = await Promise.all(
-    ACROSS_CHAINS.map(({ chainId, treasury }) =>
-      getFeesForChain(chainId, treasury, startTimestamp, endTimestamp).catch(error => {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`[across] ${chainId} failed: ${message}`)
-        return [] as Fees[]
-      })
-    )
+  const results = await Promise.allSettled(
+    ACROSS_CHAINS.map(({ chainId, treasury }) => getFeesForChain(chainId, treasury, startTimestamp, endTimestamp))
+  )
+  const perChain = settleChains(
+    'across',
+    ACROSS_CHAINS.map(({ chainId }) => chainId),
+    results
   )
 
   const allFees = perChain.flat().sort((a, b) => b.timestamp - a.timestamp)

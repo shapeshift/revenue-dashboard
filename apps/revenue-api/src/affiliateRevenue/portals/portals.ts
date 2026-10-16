@@ -1,11 +1,10 @@
 import type { Hex } from 'viem'
 import { padHex, zeroAddress } from 'viem'
 
-import { formatError } from '../../utils/error'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { EvmLogClient, LogTopics } from '../utils'
-import { createEvmLogClient, ERC20_TRANSFER_TOPIC, getCachedFees } from '../utils'
+import { createEvmLogClient, ERC20_TRANSFER_TOPIC, getCachedFees, settleChains } from '../utils'
 import { getAlchemyRpcUrl } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -42,10 +41,7 @@ const getPortalEvents = async (
   return events
 }
 
-// First ERC20 the treasury received per transaction, from one Transfer-log scan over the events' blocks.
-// The router pays the fee in whichever token it holds at that point (input, output or an intermediate
-// like WETH), so the token can't be predicted from the event; the fee transfer is always the first one,
-// ahead of the swap output when the treasury is also the recipient.
+// The fee is the first ERC20 the treasury receives per tx; its token varies (input, output or intermediate WETH)
 const getFeeTransfers = async (
   client: EvmLogClient,
   config: ChainConfig,
@@ -108,10 +104,6 @@ const fetchFeesForChain = async (
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
-  const allFees: Fees[] = []
-  const failedChains: string[] = []
-  let cacheHits = 0
-  let cacheMisses = 0
 
   const results = await Promise.allSettled(
     CHAIN_CONFIGS.map(config =>
@@ -121,19 +113,14 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     )
   )
 
-  results.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      allFees.push(...result.value.fees)
-      cacheHits += result.value.cacheHits
-      cacheMisses += result.value.cacheMisses
-    } else {
-      failedChains.push(CHAIN_CONFIGS[i].network)
-      console.error(`[portals] ${CHAIN_CONFIGS[i].network} failed: ${formatError(result.reason)}`)
-    }
-  })
-
-  // A missing chain must fail the provider, or reconciliation deducts partner fees against gross we never collected
-  if (failedChains.length > 0) throw new Error(`[portals] ${failedChains.join(', ')} failed`)
+  const perChain = settleChains(
+    'portals',
+    CHAIN_CONFIGS.map(config => config.network),
+    results
+  )
+  const allFees = perChain.flatMap(result => result.fees)
+  const cacheHits = perChain.reduce((sum, result) => sum + result.cacheHits, 0)
+  const cacheMisses = perChain.reduce((sum, result) => sum + result.cacheMisses, 0)
 
   console.log(
     `[portals] Total: ${allFees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`

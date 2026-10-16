@@ -1,10 +1,9 @@
 import { decodeEventLog, isAddressEqual, toEventSelector } from 'viem'
 
-import { formatError } from '../../utils/error'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { Log } from '../utils'
-import { buildAssetId, createEvmLogClient, getCachedFees } from '../utils'
+import { buildAssetId, createEvmLogClient, getCachedFees, settleChains } from '../utils'
 import { getAlchemyRpcUrl } from '../utils/alchemy'
 
 import type { FyndChain } from './constants'
@@ -63,21 +62,12 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     )
   )
 
-  const fees: Fees[] = []
-  const failedChains: string[] = []
-  results.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      fees.push(...result.value.fees)
-    } else {
-      failedChains.push(FYND_CHAINS[i].network)
-      console.error(`[fynd] ${FYND_CHAINS[i].network} failed: ${formatError(result.reason)}`)
-    }
-  })
-
-  // A missing chain must fail the provider, or reconciliation deducts partner fees against gross we never collected
-  if (failedChains.length > 0) throw new Error(`[fynd] ${failedChains.join(', ')} failed`)
-
-  const sorted = fees.sort((a, b) => b.timestamp - a.timestamp)
+  const perChain = settleChains(
+    'fynd',
+    FYND_CHAINS.map(chain => chain.network),
+    results
+  )
+  const sorted = perChain.flatMap(result => result.fees).sort((a, b) => b.timestamp - a.timestamp)
 
   console.log(`[fynd] Total: ${sorted.length} fees in ${Date.now() - startTime}ms`)
 
