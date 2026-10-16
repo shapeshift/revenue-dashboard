@@ -56,16 +56,12 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
   const scanStart = Math.max(startTimestamp, FYND_FIRST_FEE_TIMESTAMP)
   if (endTimestamp < scanStart) return []
 
-  const results = await Promise.allSettled(
-    FYND_CHAINS.map(chain =>
-      getCachedFees('fynd', chain.chainId, scanStart, endTimestamp, (start, end) => fetchChainFees(chain, start, end))
-    )
-  )
-
-  const perChain = settleChains(
+  const perChain = await settleChains(
     'fynd',
-    FYND_CHAINS.map(chain => chain.network),
-    results
+    FYND_CHAINS,
+    chain => chain.network,
+    chain =>
+      getCachedFees('fynd', chain.chainId, scanStart, endTimestamp, (start, end) => fetchChainFees(chain, start, end))
   )
   const sorted = perChain.flatMap(result => result.fees).sort((a, b) => b.timestamp - a.timestamp)
 

@@ -32,13 +32,11 @@ const getFeesForChain = async (
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
 
-  const results = await Promise.allSettled(
-    ACROSS_CHAINS.map(({ chainId, treasury }) => getFeesForChain(chainId, treasury, startTimestamp, endTimestamp))
-  )
-  const perChain = settleChains(
+  const perChain = await settleChains(
     'across',
-    ACROSS_CHAINS.map(({ chainId }) => chainId),
-    results
+    ACROSS_CHAINS,
+    ({ chainId }) => chainId,
+    ({ chainId, treasury }) => getFeesForChain(chainId, treasury, startTimestamp, endTimestamp)
   )
 
   const allFees = perChain.flat().sort((a, b) => b.timestamp - a.timestamp)

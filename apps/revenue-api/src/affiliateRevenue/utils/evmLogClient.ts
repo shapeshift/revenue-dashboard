@@ -1,7 +1,7 @@
 import type { Hex } from 'viem'
 import { toEventSelector } from 'viem'
 
-import { mapConcurrently } from '../../utils/concurrency'
+import { createSemaphore, mapConcurrently } from '../../utils/concurrency'
 import { withRetry } from '../../utils/retry'
 import {
   getCachedBlockNumber,
@@ -12,7 +12,7 @@ import {
 
 import { getBlockByTimestamp, hasMoralisChain } from './dateToBlock'
 import { findBlockByTimestamp } from './findBlockByTimestamp'
-import { createRpcCaller, isRetryableRpcError, RpcError } from './rpcCall'
+import { createRpcCaller, isRateLimited, isRetryableRpcError, RpcError } from './rpcCall'
 
 export type Log = { address: Hex; topics: [Hex, ...Hex[]]; data: Hex; blockNumber: Hex; transactionHash: Hex }
 export type LogTopics = (Hex | Hex[] | null)[]
@@ -34,13 +34,29 @@ const MAX_LOG_RANGE = 500_000
 // No RPC exposes a node's block-range limit, so caps named in outright refusals are kept per endpoint
 const learnedRangeCaps = new Map<string, number>()
 
+// Alchemy meters one key across all its networks, so every client on that key shares one in-flight budget
+const ENDPOINT_CONCURRENCY = 10
+const endpointLimiters = new Map<string, ReturnType<typeof createSemaphore>>()
+
+const limiterKey = (rpcUrl: string): string => {
+  const url = new URL(rpcUrl)
+  return url.hostname.endsWith('.g.alchemy.com') ? `alchemy${url.pathname}` : url.origin
+}
+
+const getEndpointLimiter = (rpcUrl: string) => {
+  const key = limiterKey(rpcUrl)
+  let limiter = endpointLimiters.get(key)
+  if (!limiter) endpointLimiters.set(key, (limiter = createSemaphore(ENDPOINT_CONCURRENCY)))
+  return limiter
+}
+
 const toHex = (n: number): Hex => `0x${n.toString(16)}`
 
 const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? '') : '')
 
 // Width, weight and timeout refusals are retried narrower; rate limits and outages as-is; the rest fail the scan
 const isRangeRefusal = (error: unknown): boolean => {
-  if (!(error instanceof RpcError) || error.status === 429 || (error.status ?? 0) >= 500) return false
+  if (!(error instanceof RpcError) || isRateLimited(error) || (error.status ?? 0) >= 500) return false
   return /block range|response size|returned more than|too many|too large|too big|too wide|timeout/i.test(
     error.rpcMessage ?? error.message
   )
@@ -61,8 +77,9 @@ const isUnconditionalCap = (error: unknown): boolean => !/response size/i.test(r
 // Reads one EVM chain's logs and block metadata through its node, with the shared caches
 export const createEvmLogClient = (chainId: string, rpcUrl: string, context: string) => {
   const rpcCall = createRpcCaller(rpcUrl)
+  const limit = getEndpointLimiter(rpcUrl)
   const call = <T>(method: string, params: unknown[], shouldRetry = isRetryableRpcError): Promise<T> =>
-    withRetry(`${context}/${method}`, () => rpcCall<T>(method, params), { shouldRetry })
+    withRetry(`${context}/${method}`, () => limit(() => rpcCall<T>(method, params)), { shouldRetry })
 
   // Header fetches in flight, so concurrent searches share a probe instead of repeating it
   const pendingTimestamps = new Map<number, Promise<number>>()
@@ -109,6 +126,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
   const resolveBlock = async (timestamp: number): Promise<number> => {
     const cached = getCachedBlockNumber(chainId, timestamp)
     if (cached !== undefined) return cached
+    if (timestamp >= Math.floor(Date.now() / 1000)) return getLatestBlock()
 
     const indexed = hasMoralisChain(chainId) ? await getBlockByTimestamp(chainId, timestamp) : null
     if (indexed !== null) return indexed
@@ -163,7 +181,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
 
       from = windows[refused][0]
       const cap = getRangeCap(error)
-      if (cap !== undefined && cap < range) {
+      if (cap !== undefined && cap >= MIN_LOG_RANGE && cap < range) {
         range = cap
         if (isUnconditionalCap(error)) learnedRangeCaps.set(rpcUrl, cap)
       } else {

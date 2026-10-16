@@ -17,10 +17,13 @@ export class RpcError extends Error {
   }
 }
 
+// Some nodes rate-limit with a 429, others with a JSON-RPC error inside a 200
+export const isRateLimited = (error: unknown): boolean =>
+  error instanceof RpcError && (error.status === 429 || /rate limit|too many requests/i.test(error.rpcMessage ?? ''))
+
 // Nodes answer rate limits and outages as HTTP errors, which the default predicate doesn't retry
 export const isRetryableRpcError = (error: unknown): boolean =>
-  isRetryableError(error) ||
-  (error instanceof RpcError && error.status !== undefined && (error.status === 429 || error.status >= 500))
+  isRetryableError(error) || isRateLimited(error) || (error instanceof RpcError && (error.status ?? 0) >= 500)
 
 export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
   return async <T>(method: string, params: unknown[]): Promise<T> => {
@@ -39,8 +42,6 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
         }),
         signal: controller.signal,
       })
-
-      clearTimeout(timeoutId)
 
       // Some nodes answer a refused request with an HTTP error status around the JSON-RPC error
       const data: RpcResponse<T> | undefined = await response.json().catch(() => undefined)
@@ -64,11 +65,13 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
 
       return data.result
     } catch (error) {
-      clearTimeout(timeoutId)
       if (error instanceof Error && error.name === 'AbortError') {
         throw new RpcError(`RPC request timeout after ${timeoutMs}ms`)
       }
       throw error
+    } finally {
+      // Cleared only once the body is read, so a node that sends headers and then stalls still times out
+      clearTimeout(timeoutId)
     }
   }
 }

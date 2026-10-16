@@ -105,18 +105,14 @@ const fetchFeesForChain = async (
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
 
-  const results = await Promise.allSettled(
-    CHAIN_CONFIGS.map(config =>
+  const perChain = await settleChains(
+    'portals',
+    CHAIN_CONFIGS,
+    config => config.network,
+    config =>
       getCachedFees('portals', config.chainId, startTimestamp, endTimestamp, (start, end) =>
         fetchFeesForChain(config, start, end)
       )
-    )
-  )
-
-  const perChain = settleChains(
-    'portals',
-    CHAIN_CONFIGS.map(config => config.network),
-    results
   )
   const allFees = perChain.flatMap(result => result.fees)
   const cacheHits = perChain.reduce((sum, result) => sum + result.cacheHits, 0)

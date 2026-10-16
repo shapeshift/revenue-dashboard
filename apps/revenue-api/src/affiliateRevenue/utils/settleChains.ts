@@ -1,7 +1,13 @@
 import { formatError } from '../../utils/error'
 
-// Every chain's result, or a provider failure naming the chains that failed (each logged for debugging)
-export const settleChains = <T>(service: string, chains: string[], results: PromiseSettledResult<T>[]): T[] => {
+// Runs every chain and returns their results in order, or fails the provider naming the chains that failed
+export const settleChains = async <C, T>(
+  service: string,
+  chains: C[],
+  name: (chain: C) => string,
+  run: (chain: C) => Promise<T>
+): Promise<T[]> => {
+  const results = await Promise.allSettled(chains.map(run))
   const values: T[] = []
   const failed: string[] = []
 
@@ -9,8 +15,8 @@ export const settleChains = <T>(service: string, chains: string[], results: Prom
     if (result.status === 'fulfilled') {
       values.push(result.value)
     } else {
-      failed.push(chains[i])
-      console.error(`[${service}] ${chains[i]} failed: ${formatError(result.reason)}`)
+      failed.push(name(chains[i]))
+      console.error(`[${service}] ${name(chains[i])} failed: ${formatError(result.reason)}`)
     }
   })
 

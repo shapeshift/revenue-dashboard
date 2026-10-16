@@ -14,3 +14,22 @@ export const mapConcurrently = async <T, R>(items: T[], limit: number, fn: (item
 
   return results
 }
+
+// At most `limit` calls in flight; later callers wait their turn in arrival order
+export const createSemaphore = (limit: number) => {
+  let active = 0
+  const waiting: (() => void)[] = []
+
+  return async <T>(fn: () => Promise<T>): Promise<T> => {
+    if (active < limit) active++
+    else await new Promise<void>(resolve => waiting.push(resolve))
+
+    try {
+      return await fn()
+    } finally {
+      const next = waiting.shift()
+      if (next) next()
+      else active--
+    }
+  }
+}

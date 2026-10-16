@@ -1,9 +1,14 @@
-import { createRpcCaller } from '../utils/rpcCall'
+import { withRetry } from '../../utils/retry'
+import { createRpcCaller, isRetryableRpcError } from '../utils/rpcCall'
 
 import { AVNU_EXCHANGE, DAO_STARKNET_TREASURY_ADDRESSES, STARKNET_CHAIN_ID, STARKNET_RPC_URL } from './constants'
 import type { StarknetEvent } from './types'
 
-export const rpcCall = createRpcCaller(STARKNET_RPC_URL, 30000)
+const call = createRpcCaller(STARKNET_RPC_URL, 30000)
+
+// A header search makes a dozen calls per window, so one transient node error retries instead of failing the provider
+export const rpcCall = <T>(method: string, params: unknown[]): Promise<T> =>
+  withRetry(`avnu/${method}`, () => call<T>(method, params), { shouldRetry: isRetryableRpcError })
 
 export const parseU256Amount = (low: string, high: string): string => {
   const lowBN = BigInt(low)
