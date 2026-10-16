@@ -42,7 +42,10 @@ const getPortalEvents = async (
   return events
 }
 
-// First ERC20 the treasury received per transaction, from one Transfer-log scan over the events' blocks
+// First ERC20 the treasury received per transaction, from one Transfer-log scan over the events' blocks.
+// The router pays the fee in whichever token it holds at that point (input, output or an intermediate
+// like WETH), so the token can't be predicted from the event; the fee transfer is always the first one,
+// ahead of the swap output when the treasury is also the recipient.
 const getFeeTransfers = async (
   client: EvmLogClient,
   config: ChainConfig,
@@ -106,6 +109,7 @@ const fetchFeesForChain = async (
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startTime = Date.now()
   const allFees: Fees[] = []
+  const failedChains: string[] = []
   let cacheHits = 0
   let cacheMisses = 0
 
@@ -123,9 +127,13 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
       cacheHits += result.value.cacheHits
       cacheMisses += result.value.cacheMisses
     } else {
+      failedChains.push(CHAIN_CONFIGS[i].network)
       console.error(`[portals] ${CHAIN_CONFIGS[i].network} failed: ${formatError(result.reason)}`)
     }
   })
+
+  // A missing chain must fail the provider, or reconciliation deducts partner fees against gross we never collected
+  if (failedChains.length > 0) throw new Error(`[portals] ${failedChains.join(', ')} failed`)
 
   console.log(
     `[portals] Total: ${allFees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`

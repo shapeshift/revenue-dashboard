@@ -63,11 +63,20 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     )
   )
 
-  const fees = results.flatMap((result, i) => {
-    if (result.status === 'fulfilled') return result.value.fees
-    console.error(`[fynd] ${FYND_CHAINS[i].network} failed: ${formatError(result.reason)}`)
-    return []
+  const fees: Fees[] = []
+  const failedChains: string[] = []
+  results.forEach((result, i) => {
+    if (result.status === 'fulfilled') {
+      fees.push(...result.value.fees)
+    } else {
+      failedChains.push(FYND_CHAINS[i].network)
+      console.error(`[fynd] ${FYND_CHAINS[i].network} failed: ${formatError(result.reason)}`)
+    }
   })
+
+  // A missing chain must fail the provider, or reconciliation deducts partner fees against gross we never collected
+  if (failedChains.length > 0) throw new Error(`[fynd] ${failedChains.join(', ')} failed`)
+
   const sorted = fees.sort((a, b) => b.timestamp - a.timestamp)
 
   console.log(`[fynd] Total: ${sorted.length} fees in ${Date.now() - startTime}ms`)
