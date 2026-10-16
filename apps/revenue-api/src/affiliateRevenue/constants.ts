@@ -78,9 +78,6 @@ export const getAffiliateFeeRate = (timestamp?: number): number => {
   return getAffiliateBps(timestamp) / FEE_BPS_DENOMINATOR
 }
 
-// Portals.fi - PortalsMulticall sends fee tokens to treasury after each swap
-export const PORTALS_MULTICALL = '0x89c30E3Af15D210736b2918fbD655c9842Fd74f7'
-
 // CoinGecko platform IDs and native coin IDs by CAIP-2 chain id
 // Used for price lookups and token metadata
 export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: string }> = {

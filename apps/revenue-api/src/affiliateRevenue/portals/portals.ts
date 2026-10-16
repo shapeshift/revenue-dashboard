@@ -1,10 +1,11 @@
 import type { Hex } from 'viem'
-import { padHex, zeroAddress } from 'viem'
+import { padHex } from 'viem'
 
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { EvmLogClient, LogTopics } from '../utils'
 import {
+  buildAssetId,
   createEvmLogClient,
   END_BOUND_MARGIN_SECONDS,
   ERC20_TRANSFER_TOPIC,
@@ -14,37 +15,34 @@ import {
 import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
-import type { ChainConfig, PortalEventData, TokenTransfer } from './types'
-import { buildAssetId, calculateFallbackFee, decodePortalEventData } from './utils'
+import type { ChainConfig, PortalTx, TokenTransfer } from './types'
 
 // An address as it appears in an indexed log topic
 const addressTopic = (address: string): Hex => padHex(address.toLowerCase() as Hex, { size: 32 })
 
-// Portal events the router emitted with our treasury as the partner, within the window
-const getPortalEvents = async (
+// Transactions in the window where the router emitted a Portal event naming our treasury as the partner
+const getPortalTxs = async (
   client: EvmLogClient,
   config: ChainConfig,
   fromBlock: number,
   toBlock: number,
   startTimestamp: number,
   endTimestamp: number
-): Promise<PortalEventData[]> => {
+): Promise<PortalTx[]> => {
   const topics: LogTopics = [PORTAL_EVENT_SIGNATURE, null, null, addressTopic(config.treasury)]
   const logs = await client.getLogs(config.router, topics, fromBlock, toBlock)
   const timestamps = await client.getBlockTimestamps([...new Set(logs.map(log => Number(log.blockNumber)))])
 
-  const events: PortalEventData[] = []
+  // Keyed by tx so a transaction with more than one partner event counts its fee once
+  const txs = new Map<string, PortalTx>()
   for (const log of logs) {
     const timestamp = timestamps.get(Number(log.blockNumber))!
     if (timestamp < startTimestamp || timestamp > endTimestamp) continue
 
-    const decoded = decodePortalEventData(log.data)
-    if (!decoded) continue
-
-    events.push({ txHash: log.transactionHash, blockNumber: Number(log.blockNumber), timestamp, ...decoded })
+    txs.set(log.transactionHash, { txHash: log.transactionHash, blockNumber: Number(log.blockNumber), timestamp })
   }
 
-  return events
+  return [...txs.values()]
 }
 
 // The fee is the first ERC20 the treasury receives per tx; its token varies (input, output or intermediate WETH)
@@ -70,18 +68,6 @@ const getFeeTransfers = async (
   return transfers
 }
 
-// A swap that sent the treasury no token paid in native, so the fee is derived from the input amount
-const constructFee = (config: ChainConfig, event: PortalEventData, transfer: TokenTransfer | undefined): Fees => {
-  const fee = transfer
-    ? { assetId: buildAssetId(config.chainId, transfer.token), amount: transfer.amount }
-    : {
-        assetId: buildAssetId(config.chainId, event.inputToken ?? zeroAddress),
-        amount: calculateFallbackFee(event.inputAmount, event.timestamp),
-      }
-
-  return { chainId: config.chainId, service: 'portals', txHash: event.txHash, timestamp: event.timestamp, ...fee }
-}
-
 const fetchFeesForChain = async (
   config: ChainConfig,
   startTimestamp: number,
@@ -98,15 +84,26 @@ const fetchFeesForChain = async (
     client.resolveBlock(endTimestamp + END_BOUND_MARGIN_SECONDS),
   ])
 
-  const events = await getPortalEvents(client, config, fromBlock, toBlock, startTimestamp, endTimestamp)
-  if (events.length === 0) return []
+  const txs = await getPortalTxs(client, config, fromBlock, toBlock, startTimestamp, endTimestamp)
+  if (txs.length === 0) return []
 
-  const blocks = events.map(event => event.blockNumber)
+  const blocks = txs.map(tx => tx.blockNumber)
   const transfers = await getFeeTransfers(client, config, Math.min(...blocks), Math.max(...blocks))
 
-  return events
-    .map(event => constructFee(config, event, transfers.get(event.txHash)))
-    .sort((a, b) => b.timestamp - a.timestamp)
+  // Portals pays fees in ERC20 (wrapping native first), so a swap with no transfer paid none: wraps, unwraps, waived dust
+  return txs.flatMap(tx => {
+    const transfer = transfers.get(tx.txHash)
+    if (!transfer) return []
+
+    return {
+      chainId: config.chainId,
+      assetId: buildAssetId(config.chainId, transfer.token),
+      service: 'portals' as const,
+      txHash: tx.txHash,
+      timestamp: tx.timestamp,
+      amount: transfer.amount,
+    }
+  })
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -121,7 +118,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
         fetchFeesForChain(config, start, end)
       )
   )
-  const allFees = perChain.flatMap(result => result.fees)
+  const allFees = perChain.flatMap(result => result.fees).sort((a, b) => b.timestamp - a.timestamp)
   const cacheHits = perChain.reduce((sum, result) => sum + result.cacheHits, 0)
   const cacheMisses = perChain.reduce((sum, result) => sum + result.cacheMisses, 0)
 

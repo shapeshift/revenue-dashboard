@@ -20,14 +20,6 @@ import {
 import type { ChainConfig } from './types'
 
 export const PORTAL_EVENT_SIGNATURE = '0x5915121ae705c6baa1bd6698f437ff30eb4b7dbd20e1f7d83c2f1a8be09a1f03'
-export const PORTAL_EVENT_ABI = [
-  { type: 'address', name: 'inputToken' },
-  { type: 'uint256', name: 'inputAmount' },
-  { type: 'address', name: 'outputToken' },
-  { type: 'uint256', name: 'outputAmount' },
-  { type: 'address', name: 'recipient' },
-] as const
-
 export const CHAIN_CONFIGS: ChainConfig[] = [
   {
     chainId: ETHEREUM_CHAIN_ID,

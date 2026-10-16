@@ -6,24 +6,13 @@ export type ChainConfig = {
   alchemyNetwork: string
 }
 
-export type PortalEventData = {
+export type PortalTx = {
   txHash: string
   blockNumber: number
   timestamp: number
-  inputToken: string
-  inputAmount: string
-  outputToken: string
-  outputAmount: string
 }
 
 export type TokenTransfer = {
   token: string
   amount: string
-}
-
-export type DecodedPortalEvent = {
-  inputToken: string
-  inputAmount: string
-  outputToken: string
-  outputAmount: string
 }
