@@ -4,15 +4,8 @@ import { padHex } from 'viem'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { EvmLogClient, LogTopics } from '../utils'
-import {
-  buildAssetId,
-  createEvmLogClient,
-  END_BOUND_MARGIN_SECONDS,
-  ERC20_TRANSFER_TOPIC,
-  getCachedFees,
-  settleChains,
-} from '../utils'
-import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
+import { buildAssetId, ERC20_TRANSFER_TOPIC, getCachedFees, settleChains } from '../utils'
+import { createAlchemyClient } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
 import type { ChainConfig, PortalTx, TokenTransfer } from './types'
@@ -73,15 +66,10 @@ const fetchFeesForChain = async (
   startTimestamp: number,
   endTimestamp: number
 ): Promise<Fees[]> => {
-  const client = createEvmLogClient(
-    config.chainId,
-    getAlchemyRpcUrl(config.alchemyNetwork),
-    `portals:${config.network}`,
-    getAlchemyBlockRangeCap(config.alchemyNetwork)
-  )
+  const client = createAlchemyClient(config.chainId, `portals:${config.network}`)
   const [fromBlock, toBlock] = await Promise.all([
     client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp + END_BOUND_MARGIN_SECONDS),
+    client.resolveBlock(endTimestamp),
   ])
 
   const txs = await getPortalTxs(client, config, fromBlock, toBlock, startTimestamp, endTimestamp)

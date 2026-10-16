@@ -2,7 +2,6 @@ export type ChainConfig = {
   chainId: string
   network: string
   treasury: string
-  alchemyNetwork: string
 }
 
 export type PortalTx = {

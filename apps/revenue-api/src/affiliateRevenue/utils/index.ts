@@ -1,7 +1,6 @@
 export * from './amount'
 export * from './asset'
 export * from './cachedFees'
-export * from './dateToBlock'
 export * from './evmLogClient'
 export * from './findBlockByTimestamp'
 export * from './rpcCall'

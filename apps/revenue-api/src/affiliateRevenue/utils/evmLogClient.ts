@@ -10,7 +10,6 @@ import {
   saveCachedBlockTimestamp,
 } from '../cache'
 
-import { getBlockByTimestamp, hasMoralisChain } from './dateToBlock'
 import { findBlockByTimestamp } from './findBlockByTimestamp'
 import { createRpcCaller, isRateLimited, isRetryableRpcError, RpcError } from './rpcCall'
 
@@ -121,14 +120,11 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
       return number
     }))
 
-  // Moralis where it indexes the chain (it caches its own answers), else a header search; a future time is the head
+  // Last block at or before the time, so it serves as either bound; a future time is the head
   const resolveBlock = async (timestamp: number): Promise<number> => {
     const cached = getCachedBlockNumber(chainId, timestamp)
     if (cached !== undefined) return cached
     if (timestamp >= Math.floor(Date.now() / 1000)) return getLatestBlock()
-
-    const indexed = hasMoralisChain(chainId) ? await getBlockByTimestamp(chainId, timestamp) : null
-    if (indexed !== null) return indexed
 
     const block = await findBlockByTimestamp(getBlockTimestamp, await getLatestBlock(), timestamp)
     saveCachedBlockNumber(chainId, timestamp, block)

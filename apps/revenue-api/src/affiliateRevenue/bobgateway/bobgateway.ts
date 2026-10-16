@@ -4,15 +4,9 @@ import { withRetry } from '../../utils/retry'
 import { DAO_TREASURY_ETHEREUM, ETHEREUM_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import {
-  buildAssetId,
-  END_BOUND_MARGIN_SECONDS,
-  getBlockByTimestamp,
-  getCachedFees,
-  getUnchainedBaseUrl,
-  UNCHAINED_PAGE_SIZE,
-} from '../utils'
+import { buildAssetId, getCachedFees, getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from '../utils'
 import type { UnchainedTxHistoryResponse } from '../utils'
+import { createAlchemyClient } from '../utils/alchemy'
 
 export const UNCHAINED_BASE_URL = getUnchainedBaseUrl(ETHEREUM_CHAIN_ID)
 
@@ -25,14 +19,11 @@ export const BOB_GATEWAY_METHOD_SELECTORS: Record<string, string> = {
 const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
 
+  const client = createAlchemyClient(ETHEREUM_CHAIN_ID, 'bobgateway')
   const [fromBlock, toBlock] = await Promise.all([
-    getBlockByTimestamp(ETHEREUM_CHAIN_ID, startTimestamp),
-    getBlockByTimestamp(ETHEREUM_CHAIN_ID, endTimestamp + END_BOUND_MARGIN_SECONDS),
+    client.resolveBlock(startTimestamp),
+    client.resolveBlock(endTimestamp),
   ])
-
-  if (fromBlock === null || toBlock === null) {
-    throw new Error(`Failed to resolve block range for timestamps ${startTimestamp}-${endTimestamp}`)
-  }
 
   // Skip everything before BOB's first fee; bail early if the window predates it entirely.
   const effectiveFromBlock = Math.max(fromBlock, BOB_GATEWAY_FIRST_FEE_BLOCK)

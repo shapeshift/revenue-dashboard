@@ -3,8 +3,8 @@ import { decodeEventLog, isAddressEqual, toEventSelector } from 'viem'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { Log } from '../utils'
-import { buildAssetId, createEvmLogClient, END_BOUND_MARGIN_SECONDS, getCachedFees, settleChains } from '../utils'
-import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
+import { buildAssetId, getCachedFees, settleChains } from '../utils'
+import { createAlchemyClient } from '../utils/alchemy'
 
 import type { FyndChain } from './constants'
 import { FEES_TAKEN_EVENT, FYND_CHAINS, FYND_FEE_RECEIVER, FYND_FIRST_FEE_TIMESTAMP } from './constants'
@@ -26,16 +26,10 @@ const decodeOurFee = (log: Log): FeeTaken | undefined => {
 }
 
 const fetchChainFees = async (chain: FyndChain, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const client = createEvmLogClient(
-    chain.chainId,
-    getAlchemyRpcUrl(chain.alchemyNetwork),
-    `fynd:${chain.network}`,
-    getAlchemyBlockRangeCap(chain.alchemyNetwork)
-  )
-
+  const client = createAlchemyClient(chain.chainId, `fynd:${chain.network}`)
   const [fromBlock, toBlock] = await Promise.all([
     client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp + END_BOUND_MARGIN_SECONDS),
+    client.resolveBlock(endTimestamp),
   ])
 
   // Every FeesTaken on the router, ours or not
