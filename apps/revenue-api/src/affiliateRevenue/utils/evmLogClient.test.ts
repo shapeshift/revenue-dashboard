@@ -77,6 +77,14 @@ describe('getLogs', () => {
     expect(blocks(logs)).toEqual(sequence(0, 3_999))
   })
 
+  it('grows from the last accepted width rather than halving down from the whole remainder every window', async () => {
+    const node = mockNode(1_000, () => refuse(200, 'Response is too big'))
+    const logs = await client().getLogs(undefined, [], 0, 7_999)
+    const firstAccepted = node.requests.findIndex(([from, to]) => to - from + 1 <= 1_000)
+    expect(node.requests.slice(firstAccepted + 1).every(([from, to]) => to - from + 1 <= 2_000)).toBe(true)
+    expect(blocks(logs)).toEqual(sequence(0, 7_999))
+  })
+
   it('fans cap-wide windows out on a capped network, with no refusal and results in order', async () => {
     const node = mockNode(2_000, () => refuse(400, 'You can make eth_getLogs requests with up to a 2000 block range.'))
     const logs = await client(2_000).getLogs(undefined, [], 0, 6_999)
@@ -140,6 +148,10 @@ describe('refusal classification', () => {
     expect(isRangeRefusal(rpc('Too Many Requests', 429))).toBe(false)
     expect(isRangeRefusal(rpc('block range too large', 503))).toBe(false)
     expect(isRangeRefusal(new Error('block range'))).toBe(false)
+    expect(isRangeRefusal(rpc('query returned more than 10000 results'))).toBe(true)
+    expect(isRangeRefusal(rpc('Response too large'))).toBe(true)
+    // Our own deadline carries no node text, so it is retried as-is rather than narrowed
+    expect(isRangeRefusal(new RpcError('RPC request timeout after 30000ms'))).toBe(false)
   })
 
   it('reads the suggested end out of a size refusal', () => {

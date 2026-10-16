@@ -27,6 +27,8 @@ const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
 
 // No indexer covers Starknet, so the block is found by searching headers
 const resolveBlock = async (timestamp: number, latestBlock: number): Promise<number> => {
+  if (timestamp >= Math.floor(Date.now() / 1000)) return latestBlock
+
   const cached = getCachedBlockNumber(STARKNET_CHAIN_ID, timestamp)
   if (cached !== undefined) return cached
 

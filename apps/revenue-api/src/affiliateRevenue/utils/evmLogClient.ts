@@ -42,14 +42,15 @@ const MIN_LOG_RANGE = 100
 
 const toHex = (n: number): Hex => `0x${n.toString(16)}`
 
-const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? error.message) : '')
+// The node's own words only: our client-side timeout is a blip to retry, not a refusal to narrow
+const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? '') : '')
 
 // Size and timeout refusals are retried narrower; rate limits and outages as-is; anything else fails the scan
 export const isRangeRefusal = (error: unknown): boolean =>
   error instanceof RpcError &&
   !isRateLimited(error) &&
   (error.status ?? 0) < 500 &&
-  /block range|response size|too big|timeout/i.test(refusalText(error))
+  /block range|response size|returned more than|too large|too big|timeout/i.test(refusalText(error))
 
 // Alchemy's size refusal names the range that would have fit: "this block range should work: [0x0, 0x18ccd8a]"
 export const getSuggestedEnd = (error: unknown): number | undefined => {
@@ -121,7 +122,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return block
   }
 
-  // Asks for everything left; a refusal narrows to the node's suggested end (or half), then asks for the rest again
+  // Asks for everything first; a refusal narrows to the node's suggested end (or half), and windows grow back from there
   const scan = async (address: string | undefined, topics: LogTopics, from: number, to: number): Promise<Log[]> => {
     const logs: Log[] = []
     let cursor = from
@@ -135,8 +136,10 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
           error => isRetryableRpcError(error) && !isRangeRefusal(error)
         )
         logs.push(...batch)
+        // Next window is twice the one just accepted, so a halving chain isn't repeated from the top every window
+        const width = end - cursor + 1
         cursor = end + 1
-        end = to
+        end = Math.min(to, cursor + width * 2 - 1)
       } catch (error) {
         if (!isRangeRefusal(error) || end - cursor < MIN_LOG_RANGE) throw error
 
