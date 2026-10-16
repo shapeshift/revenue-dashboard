@@ -26,10 +26,12 @@ const withPause = [
   ...Array.from({ length: 500_000 }, (_, i) => 1_700_000_000 + i),
 ]
 const zeroGenesis = [0, ...Array.from({ length: 999_999 }, (_, i) => 1_600_000_000 + i * 3)]
+// Several blocks a second, as on Arbitrum: the answer must be the last block of the second, not the first
+const subSecond = Array.from({ length: 1_000_000 }, (_, i) => 1_600_000_000 + Math.floor(i / 4))
 
 describe('findBlockByTimestamp', () => {
   test('is exact on every chain shape, including targets between blocks', async () => {
-    for (const timestamps of [steady, withPause, zeroGenesis]) {
+    for (const timestamps of [steady, withPause, zeroGenesis, subSecond]) {
       for (const block of [1, 2, 12_345, 499_999, 500_000, 777_777, timestamps.length - 2]) {
         for (const target of [timestamps[block], timestamps[block] + 1]) {
           const c = chain(timestamps)
@@ -37,6 +39,11 @@ describe('findBlockByTimestamp', () => {
         }
       }
     }
+  })
+
+  test('lands on the last block of a second that several blocks share', async () => {
+    const c = chain(subSecond)
+    expect(await findBlockByTimestamp(c.getBlockTimestamp, c.latest, subSecond[400_001])).toBe(400_003)
   })
 
   test('resolves a timestamp past the head to the latest block', async () => {
