@@ -4,7 +4,14 @@ import { withRetry } from '../../utils/retry'
 import { DAO_TREASURY_ETHEREUM, ETHEREUM_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { buildAssetId, getBlockByTimestamp, getCachedFees, getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from '../utils'
+import {
+  buildAssetId,
+  END_BOUND_MARGIN_SECONDS,
+  getBlockByTimestamp,
+  getCachedFees,
+  getUnchainedBaseUrl,
+  UNCHAINED_PAGE_SIZE,
+} from '../utils'
 import type { UnchainedTxHistoryResponse } from '../utils'
 
 export const UNCHAINED_BASE_URL = getUnchainedBaseUrl(ETHEREUM_CHAIN_ID)
@@ -20,7 +27,7 @@ const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: numb
 
   const [fromBlock, toBlock] = await Promise.all([
     getBlockByTimestamp(ETHEREUM_CHAIN_ID, startTimestamp),
-    getBlockByTimestamp(ETHEREUM_CHAIN_ID, endTimestamp),
+    getBlockByTimestamp(ETHEREUM_CHAIN_ID, endTimestamp + END_BOUND_MARGIN_SECONDS),
   ])
 
   if (fromBlock === null || toBlock === null) {

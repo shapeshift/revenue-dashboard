@@ -5,7 +5,7 @@ import { withRetry } from '../../utils/retry'
 import type { Fees } from '../types'
 
 import { buildAssetId } from './asset'
-import { getBlockByTimestamp } from './dateToBlock'
+import { END_BOUND_MARGIN_SECONDS, getBlockByTimestamp } from './dateToBlock'
 import { getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
@@ -46,7 +46,7 @@ export const getTreasuryFees = async ({
 
   const [fromBlock, toBlock] = await Promise.all([
     getBlockByTimestamp(chainId, startTimestamp),
-    getBlockByTimestamp(chainId, endTimestamp),
+    getBlockByTimestamp(chainId, endTimestamp + END_BOUND_MARGIN_SECONDS),
   ])
 
   if (fromBlock === null || toBlock === null) {

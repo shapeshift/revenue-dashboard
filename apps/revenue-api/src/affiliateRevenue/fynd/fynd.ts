@@ -3,7 +3,7 @@ import { decodeEventLog, isAddressEqual, toEventSelector } from 'viem'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { Log } from '../utils'
-import { buildAssetId, createEvmLogClient, getCachedFees, settleChains } from '../utils'
+import { buildAssetId, createEvmLogClient, END_BOUND_MARGIN_SECONDS, getCachedFees, settleChains } from '../utils'
 import { getAlchemyBlockRangeCap, getAlchemyRpcUrl } from '../utils/alchemy'
 
 import type { FyndChain } from './constants'
@@ -35,7 +35,7 @@ const fetchChainFees = async (chain: FyndChain, startTimestamp: number, endTimes
 
   const [fromBlock, toBlock] = await Promise.all([
     client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
+    client.resolveBlock(endTimestamp + END_BOUND_MARGIN_SECONDS),
   ])
 
   // Every FeesTaken on the router, ours or not

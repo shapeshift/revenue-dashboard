@@ -7,6 +7,10 @@ const MORALIS_DATE_TO_BLOCK_URL = 'https://deep-index.moralis.io/api/v2.2/dateTo
 
 export const MORALIS_API_KEY = process.env.MORALIS_API_KEY
 
+// Moralis answers with the first block of the latest second at or before the time, so on chains with several blocks a
+// second an end bound resolved there drops the rest of that second; a minute later clears it and callers filter by time
+export const END_BOUND_MARGIN_SECONDS = 60
+
 type MoralisDateToBlockResponse = {
   block: number
   timestamp: number
