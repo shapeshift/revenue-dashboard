@@ -28,10 +28,13 @@ export const blockNumberCache = new LRUCache<string, number>({
   updateAgeOnGet: true,
 })
 
+// A day is final only once nodes and indexers (unchained trails the head) have caught up past its end
+const SETTLE_DELAY_SECONDS = 15 * 60
+
 export const getCacheableThreshold = (): number => {
-  const today = new Date()
-  today.setUTCHours(0, 0, 0, 0)
-  return Math.floor(today.getTime() / 1000)
+  const settledDay = new Date(Date.now() - SETTLE_DELAY_SECONDS * 1000)
+  settledDay.setUTCHours(0, 0, 0, 0)
+  return Math.floor(settledDay.getTime() / 1000)
 }
 
 export const getCacheKey = (service: string, chainId: string, date: string): string => {
