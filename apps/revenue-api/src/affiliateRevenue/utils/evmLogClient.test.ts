@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { createEvmLogClient, getSuggestedEnd, isRangeRefusal } from './evmLogClient'
+import { createEvmLogClient, getSuggestedEnd, isBehindHead, isRangeRefusal } from './evmLogClient'
 import { RpcError } from './rpcCall'
 
 const originalFetch = globalThis.fetch
@@ -122,6 +122,27 @@ describe('getLogs', () => {
     expect(logs).toHaveLength(1)
   })
 
+  it('follows a named range even below the floor', async () => {
+    const node = mockNode(10, (from, to) => refuse(400, ALCHEMY_SIZE(from, Math.min(to, from + 9))))
+    const logs = await client().getLogs(undefined, [], 0, 49)
+    expect(node.requests.slice(0, 2)).toEqual([
+      [0, 49],
+      [0, 9],
+    ])
+    expect(blocks(logs)).toEqual(sequence(0, 49))
+  })
+
+  it('retries a node that has not reached the head yet with the same window', async () => {
+    let calls = 0
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        ++calls === 1 ? refuse(200, 'block range extends beyond current head block') : ok([{ blockNumber: '0x1' }])
+      )) as unknown as typeof fetch
+    const logs = await client().getLogs(undefined, [], 0, 9_999)
+    expect(calls).toBe(2)
+    expect(logs).toHaveLength(1)
+  })
+
   it('makes no request for an empty range', async () => {
     const node = mockNode(10_000, () => refuse(400, 'unused'))
     expect(await client().getLogs(undefined, [], 10, 9)).toEqual([])
@@ -134,6 +155,17 @@ describe('resolveBlock', () => {
     const node = mockNode(10_000, () => refuse(400, 'unused'))
     expect(await client().resolveBlock(Math.floor(Date.now() / 1000) + 3_600)).toBe(100)
     expect(node.requests).toEqual([])
+  })
+})
+
+describe('getBlockTimestamps', () => {
+  it('retries a block the node has not seen yet instead of failing on null', async () => {
+    let calls = 0
+    globalThis.fetch = (() =>
+      Promise.resolve(ok(++calls === 1 ? null : { number: '0x5', timestamp: '0x64' }))) as unknown as typeof fetch
+    const timestamps = await client().getBlockTimestamps([5])
+    expect(calls).toBe(2)
+    expect(timestamps.get(5)).toBe(100)
   })
 })
 
@@ -150,6 +182,8 @@ describe('refusal classification', () => {
     expect(isRangeRefusal(new Error('block range'))).toBe(false)
     expect(isRangeRefusal(rpc('query returned more than 10000 results'))).toBe(true)
     expect(isRangeRefusal(rpc('Response too large'))).toBe(true)
+    expect(isRangeRefusal(rpc('block range extends beyond current head block'))).toBe(false)
+    expect(isBehindHead(rpc('block range extends beyond current head block'))).toBe(true)
     // Our own deadline carries no node text, so it is retried as-is rather than narrowed
     expect(isRangeRefusal(new RpcError('RPC request timeout after 30000ms'))).toBe(false)
   })

@@ -37,7 +37,7 @@ const getEndpointLimiter = (rpcUrl: string) => {
 const LOOKUP_CONCURRENCY = 10
 const LOG_CONCURRENCY = 5
 
-// A refusal of a window this narrow isn't about the range, so it propagates instead of narrowing further
+// A refusal of a window this narrow that names no range to use isn't about the range, so it propagates
 const MIN_LOG_RANGE = 100
 
 const toHex = (n: number): Hex => `0x${n.toString(16)}`
@@ -45,10 +45,14 @@ const toHex = (n: number): Hex => `0x${n.toString(16)}`
 // The node's own words only: our client-side timeout is a blip to retry, not a refusal to narrow
 const refusalText = (error: unknown): string => (error instanceof RpcError ? (error.rpcMessage ?? '') : '')
 
-// Size and timeout refusals are retried narrower; rate limits and outages as-is; anything else fails the scan
+// A balanced node behind the one that gave us the head refuses blocks it hasn't seen yet; it catches up within a retry
+export const isBehindHead = (error: unknown): boolean => /beyond current head/i.test(refusalText(error))
+
+// Size and timeout refusals are retried narrower; rate limits, outages and lagging nodes as-is; anything else fails
 export const isRangeRefusal = (error: unknown): boolean =>
   error instanceof RpcError &&
   !isRateLimited(error) &&
+  !isBehindHead(error) &&
   (error.status ?? 0) < 500 &&
   /block range|response size|returned more than|too large|too big|timeout/i.test(refusalText(error))
 
@@ -63,8 +67,18 @@ export const getSuggestedEnd = (error: unknown): number | undefined => {
 export const createEvmLogClient = (chainId: string, rpcUrl: string, context: string, blockRangeCap?: number) => {
   const rpcCall = createRpcCaller(rpcUrl)
   const limit = getEndpointLimiter(rpcUrl)
+  // A null result is a lagging node that hasn't seen the block yet, so it's retried like an outage
   const call = <T>(method: string, params: unknown[], shouldRetry = isRetryableRpcError): Promise<T> =>
-    withRetry(`${context}/${method}`, () => limit(() => rpcCall<T>(method, params)), { shouldRetry })
+    withRetry(
+      `${context}/${method}`,
+      () =>
+        limit(async () => {
+          const result = await rpcCall<T | null>(method, params)
+          if (result === null) throw new RpcError(`RPC error: ${method} returned null`, undefined, undefined, true)
+          return result
+        }),
+      { shouldRetry }
+    )
 
   // Header fetches in flight, so concurrent searches share a probe instead of repeating it
   const pendingTimestamps = new Map<number, Promise<number>>()
@@ -133,7 +147,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
         const batch = await call<Log[]>(
           'eth_getLogs',
           [{ address, fromBlock: toHex(cursor), toBlock: toHex(end), topics }],
-          error => isRetryableRpcError(error) && !isRangeRefusal(error)
+          error => isBehindHead(error) || (isRetryableRpcError(error) && !isRangeRefusal(error))
         )
         logs.push(...batch)
         // Next window is twice the one just accepted, so a halving chain isn't repeated from the top every window
@@ -141,13 +155,12 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
         cursor = end + 1
         end = Math.min(to, cursor + width * 2 - 1)
       } catch (error) {
-        if (!isRangeRefusal(error) || end - cursor < MIN_LOG_RANGE) throw error
+        if (!isRangeRefusal(error)) throw error
 
         const suggested = getSuggestedEnd(error)
-        end =
-          suggested !== undefined && suggested >= cursor && suggested < end
-            ? suggested
-            : cursor + Math.floor((end - cursor) / 2)
+        if (suggested !== undefined && suggested >= cursor && suggested < end) end = suggested
+        else if (end - cursor >= MIN_LOG_RANGE) end = cursor + Math.floor((end - cursor) / 2)
+        else throw error
       }
     }
 
