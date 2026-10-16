@@ -20,6 +20,7 @@ const MORALIS_CHAIN_BY_CHAIN_ID: Record<string, string> = {
   'eip155:100': 'gnosis',
   'eip155:137': 'polygon',
   'eip155:8453': 'base',
+  'eip155:4663': 'robinhood',
   'eip155:42161': 'arbitrum',
   'eip155:43114': 'avalanche',
 }
