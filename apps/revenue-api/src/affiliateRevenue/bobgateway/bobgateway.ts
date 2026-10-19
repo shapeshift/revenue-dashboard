@@ -56,7 +56,8 @@ const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: numb
       const feeTransfer = tx.tokenTransfers?.find(t => t.to.toLowerCase() === DAO_TREASURY_ETHEREUM.toLowerCase())
 
       if (!feeTransfer) {
-        throw new Error(`no ERC-20 affiliate fee to treasury in ${tx.txid} (${method}) — fee asset may have changed`)
+        console.warn(`[bobgateway] no affiliate fee detected for ${tx.txid} (${method})`)
+        continue
       }
 
       if (feeTransfer.contract.toLowerCase() !== BOB_GATEWAY_FEE_TOKEN) {
