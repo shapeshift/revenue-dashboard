@@ -25,27 +25,13 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   '0x': 'zrx',
 }
 
-// Chains a tracker scans, for trackers that can't see every chain their swapper pays on. A partner
-// deduction on any other chain would net against gross we never counted, so it's excluded instead.
-//
-// TODO: known coverage gaps vs web's swappers (audit 2026-10-19, from code, volume unchecked):
-// - deBridge and STON.fi pay the treasury but have no tracker (their swaps fall to "unmapped swapper")
-// - cowswap doesn't scan BSC or Plasma, which web supports; add them here or to the tracker
-// - butterswap same-chain fees to the default referrer go untracked, and none on Robinhood/Tron/Solana
-// - across can't scan Plasma, MegaETH, Robinhood, Monad or HyperEVM (no unchained host)
-// - zrx counts only integratorFee, not the trade surplus web also sends to the treasury
-// - bebop may drop Solana trades (assetIds are built as eip155)
+// Chains these trackers scan; a partner fee paid elsewhere has no counted gross to net against.
 const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
   across: new Set(ACROSS_CHAINS.map(({ chainId }) => chainId)),
   bobgateway: new Set([ETHEREUM_CHAIN_ID]),
 }
 
-// Subtract each partner's payable share (`partnerFeeUsd` + its on-chain crypto share) from gross
-// fees for ShapeShift-net revenue, attributed to the affiliate-fee asset. Only payable swaps (see
-// getPayablePartnerFee) are deducted; a swap is excluded — never silently — when it isn't payable,
-// its swapper isn't mapped, its tracker doesn't scan the fee's chain, or its provider failed this
-// run (so we'd deduct against absent gross).
-// Excluded swaps that carry a partner fee are returned for audit logging.
+// Nets each payable partner share out of gross as a synthetic fee; swaps that can't be netted are returned as excluded.
 export function reconcilePartnerRevenue(
   fees: Fees[],
   partnerSwaps: PartnerSwap[],
@@ -72,8 +58,7 @@ export function reconcilePartnerRevenue(
       continue
     }
 
-    // A verified 0-bps swap is payable but its share is $0 — there's nothing to deduct from gross,
-    // so emit no synthetic adjustment (an empty-assetId $0 entry would only add noise downstream).
+    // a verified 0-bps swap is payable but owes the partner nothing to net out
     if (bnOrZero(fee.partnerFeeUsd).lte(0)) continue
 
     const service = SWAPPER_TO_SERVICE[swap.swapperName]
