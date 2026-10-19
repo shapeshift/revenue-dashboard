@@ -12,7 +12,6 @@ import * as butterswap from './butterswap'
 import * as chainflip from './chainflip'
 import * as cowswap from './cowswap'
 import * as fynd from './fynd'
-import * as jupiter from './jupiter'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
@@ -24,24 +23,23 @@ import * as thorchain from './thorchain'
 import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
 
-const providerNames: Service[] = [
-  'across',
-  'avnu',
-  'bebop',
-  'bobgateway',
-  'butterswap',
-  'chainflip',
-  'cowswap',
-  'fynd',
-  'jupiter',
-  'mayachain',
-  'nearintents',
-  'portals',
-  'relay',
-  'symbiosis',
-  'thorchain',
-  'zrx',
-]
+const providers: Record<Service, { getFees: (startTimestamp: number, endTimestamp: number) => Promise<Fees[]> }> = {
+  across,
+  avnu,
+  bebop,
+  bobgateway,
+  butterswap,
+  chainflip,
+  cowswap,
+  fynd,
+  mayachain,
+  nearintents,
+  portals,
+  relay,
+  symbiosis,
+  thorchain,
+  zrx,
+}
 
 const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
   if (excluded.length === 0) return
@@ -87,30 +85,14 @@ export class AffiliateRevenue {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
 
-    const results = await Promise.allSettled([
-      across.getFees(startTimestamp, endTimestamp),
-      avnu.getFees(startTimestamp, endTimestamp),
-      bebop.getFees(startTimestamp, endTimestamp),
-      bobgateway.getFees(startTimestamp, endTimestamp),
-      butterswap.getFees(startTimestamp, endTimestamp),
-      chainflip.getFees(startTimestamp, endTimestamp),
-      cowswap.getFees(startTimestamp, endTimestamp),
-      fynd.getFees(startTimestamp, endTimestamp),
-      jupiter.getFees(startTimestamp, endTimestamp),
-      mayachain.getFees(startTimestamp, endTimestamp),
-      nearintents.getFees(startTimestamp, endTimestamp),
-      portals.getFees(startTimestamp, endTimestamp),
-      relay.getFees(startTimestamp, endTimestamp),
-      symbiosis.getFees(startTimestamp, endTimestamp),
-      thorchain.getFees(startTimestamp, endTimestamp),
-      zrx.getFees(startTimestamp, endTimestamp),
-    ])
+    const entries = Object.entries(providers) as Array<[Service, (typeof providers)[Service]]>
+    const results = await Promise.allSettled(entries.map(([, p]) => p.getFees(startTimestamp, endTimestamp)))
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         fees.push(...result.value)
       } else {
-        const provider = providerNames[index]
+        const [provider] = entries[index]
         failedProviders.push(provider)
         console.error(`[AffiliateRevenue] ${provider} failed: ${formatError(result.reason)}`)
       }

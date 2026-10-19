@@ -2,12 +2,16 @@ import { bnOrZero } from '../lib/bignumber'
 import type { Service } from '../types'
 import { getDateStartTimestamp } from '../utils/date'
 
+import { ACROSS_CHAINS } from './across/constants'
+import { ETHEREUM_CHAIN_ID } from './constants'
 import { getPayablePartnerFee } from './payablePartnerFee'
 import type { ExcludedPartnerSwap, Fees, PartnerSwap, ReconciliationResult } from './types'
 
 const SWAPPER_TO_SERVICE: Record<string, Service> = {
+  Across: 'across',
   AVNU: 'avnu',
   Bebop: 'bebop',
+  'BOB Gateway': 'bobgateway',
   ButterSwap: 'butterswap',
   Chainflip: 'chainflip',
   'CoW Swap': 'cowswap',
@@ -21,11 +25,13 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   '0x': 'zrx',
 }
 
-// Subtract each partner's payable share (`partnerFeeUsd` + its on-chain crypto share) from gross
-// fees for ShapeShift-net revenue, attributed to the affiliate-fee asset. Only payable swaps (see
-// getPayablePartnerFee) are deducted; a swap is excluded — never silently — when it isn't payable,
-// its swapper isn't mapped, or its provider failed this run (so we'd deduct against absent gross).
-// Excluded swaps that carry a partner fee are returned for audit logging.
+// Chains these trackers scan; a partner fee paid elsewhere has no counted gross to net against.
+const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
+  across: new Set(ACROSS_CHAINS.map(({ chainId }) => chainId)),
+  bobgateway: new Set([ETHEREUM_CHAIN_ID]),
+}
+
+// Nets each payable partner share out of gross as a synthetic fee; swaps that can't be netted are returned as excluded.
 export function reconcilePartnerRevenue(
   fees: Fees[],
   partnerSwaps: PartnerSwap[],
@@ -52,8 +58,7 @@ export function reconcilePartnerRevenue(
       continue
     }
 
-    // A verified 0-bps swap is payable but its share is $0 — there's nothing to deduct from gross,
-    // so emit no synthetic adjustment (an empty-assetId $0 entry would only add noise downstream).
+    // a verified 0-bps swap is payable but owes the partner nothing to net out
     if (bnOrZero(fee.partnerFeeUsd).lte(0)) continue
 
     const service = SWAPPER_TO_SERVICE[swap.swapperName]
@@ -67,12 +72,18 @@ export function reconcilePartnerRevenue(
       continue
     }
 
+    const chainId = fee.assetId.split('/')[0] ?? ''
+    if (TRACKED_CHAIN_IDS[service] && !TRACKED_CHAIN_IDS[service].has(chainId)) {
+      exclude(swap, `${service} tracker doesn't scan ${chainId}`)
+      continue
+    }
+
     netFees.push({
       synthetic: true,
       amount: bnOrZero(fee.partnerFeeCryptoBaseUnit).negated().toFixed(0),
       amountUsd: (-fee.partnerFeeUsd).toString(),
       assetId: fee.assetId,
-      chainId: fee.assetId.split('/')[0] ?? '',
+      chainId,
       service,
       timestamp: getDateStartTimestamp(swap.date),
       txHash: '',

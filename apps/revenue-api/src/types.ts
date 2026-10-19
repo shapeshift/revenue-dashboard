@@ -9,7 +9,6 @@ export const services = [
   'chainflip',
   'cowswap',
   'fynd',
-  'jupiter',
   'mayachain',
   'nearintents',
   'portals',

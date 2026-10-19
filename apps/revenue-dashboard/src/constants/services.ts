@@ -12,7 +12,6 @@ export const SERVICE_LABELS: Record<string, string> = {
   portals: 'Portals',
   cowswap: 'CoW Swap',
   relay: 'Relay',
-  jupiter: 'Jupiter',
   symbiosis: 'Symbiosis',
   fynd: 'Fynd',
 }
@@ -31,7 +30,6 @@ export const SERVICE_COLORS: Record<string, string> = {
   relay: '#f97316',
   butterswap: '#84cc16',
   nearintents: '#06b6d4',
-  jupiter: '#a855f7',
   symbiosis: '#10b981',
   fynd: '#eab308',
 }
@@ -46,7 +44,6 @@ export const SERVICE_STACK_ORDER = [
   'bebop',
   'mayachain',
   'avnu',
-  'jupiter',
   'chainflip',
   'portals',
   'cowswap',
