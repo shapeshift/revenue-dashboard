@@ -87,6 +87,13 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
     expect(res.excluded).toEqual([])
   })
 
+  test.each([
+    ['Across', 'eip155:143/slip44:60'],
+    ['BOB Gateway', 'bip122:000000000019d6689c085ae165831e93/slip44:0'],
+  ] as const)('%s swap paid on a chain its tracker does not scan (%s)', (swapperName, affiliateFeeAssetId) =>
+    expectExcluded({ swapperName, affiliateFeeAssetId }, "tracker doesn't scan")
+  )
+
   test('provider that failed this run (would deduct against missing gross)', () => {
     const res = reconcilePartnerRevenue([], [swap({})], ['thorchain'])
     expect(res.netFees.find(f => f.synthetic)).toBeUndefined()

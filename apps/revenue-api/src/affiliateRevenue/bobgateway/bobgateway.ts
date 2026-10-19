@@ -15,6 +15,8 @@ export const BOB_GATEWAY_METHOD_SELECTORS: Record<string, string> = {
   '0xd7ff3ef6': 'releaseFundsAndCallStrategy',
   '0xf6a1eaad': 'finalizeOfframpOrder',
 }
+// BOB pays every affiliate fee in USDT on Ethereum; anything else means the tracker's assumptions broke
+export const BOB_GATEWAY_FEE_TOKEN = '0xdac17f958d2ee523a2206206994597c13d831ec7'
 
 const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
@@ -54,8 +56,13 @@ const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: numb
       const feeTransfer = tx.tokenTransfers?.find(t => t.to.toLowerCase() === DAO_TREASURY_ETHEREUM.toLowerCase())
 
       if (!feeTransfer) {
-        console.warn(`[bobgateway] no affiliate fee detected for ${tx.txid} (${method})`)
-        continue
+        throw new Error(`no ERC-20 affiliate fee to treasury in ${tx.txid} (${method}) — fee asset may have changed`)
+      }
+
+      if (feeTransfer.contract.toLowerCase() !== BOB_GATEWAY_FEE_TOKEN) {
+        throw new Error(
+          `affiliate fee in ${feeTransfer.symbol} (${feeTransfer.contract}) instead of USDT in ${tx.txid} (${method}) — fee asset changed`
+        )
       }
 
       fees.push({
