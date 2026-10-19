@@ -27,6 +27,14 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
 
 // Chains a tracker scans, for trackers that can't see every chain their swapper pays on. A partner
 // deduction on any other chain would net against gross we never counted, so it's excluded instead.
+//
+// TODO: known coverage gaps vs web's swappers (audit 2026-10-19, from code, volume unchecked):
+// - deBridge and STON.fi pay the treasury but have no tracker (their swaps fall to "unmapped swapper")
+// - cowswap doesn't scan BSC or Plasma, which web supports; add them here or to the tracker
+// - butterswap same-chain fees to the default referrer go untracked, and none on Robinhood/Tron/Solana
+// - across can't scan Plasma, MegaETH, Robinhood, Monad or HyperEVM (no unchained host)
+// - zrx counts only integratorFee, not the trade surplus web also sends to the treasury
+// - bebop may drop Solana trades (assetIds are built as eip155)
 const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
   across: new Set(ACROSS_CHAINS.map(({ chainId }) => chainId)),
   bobgateway: new Set([ETHEREUM_CHAIN_ID]),
