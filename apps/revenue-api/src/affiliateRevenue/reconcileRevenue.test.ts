@@ -79,10 +79,10 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
   test('unmapped swapper', () => expectExcluded({ swapperName: 'Nonexistent' }, 'unmapped swapper'))
 
   test.each([
-    ['Across', 'across'],
-    ['BOB Gateway', 'bobgateway'],
-  ] as const)('deducts %s swaps against the %s tracker', (swapperName, service) => {
-    const res = reconcilePartnerRevenue([], [swap({ swapperName })], [])
+    ['Across', 'across', 'eip155:1/slip44:60'],
+    ['BOB Gateway', 'bobgateway', 'eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7'], // USDT, BOB's fee asset
+  ] as const)('deducts %s swaps against the %s tracker', (swapperName, service, affiliateFeeAssetId) => {
+    const res = reconcilePartnerRevenue([], [swap({ swapperName, affiliateFeeAssetId })], [])
     expect(res.netFees.find(f => f.synthetic)!.service).toBe(service)
     expect(res.excluded).toEqual([])
   })
