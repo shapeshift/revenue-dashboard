@@ -1,13 +1,22 @@
 import axios from 'axios'
 
 import { assetDataService } from '../../assetData/AssetDataService'
-import { FEE_BPS_DENOMINATOR } from '../constants'
+import { FEE_BPS_DENOMINATOR, SOLANA_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { buildAssetId, decimalToBaseUnit, getCachedFees } from '../utils'
 
-import { BEBOP_API_KEY, BEBOP_API_URL, NANOSECONDS_PER_SECOND, SHAPESHIFT_REFERRER } from './constants'
+import {
+  BEBOP_API_KEY,
+  BEBOP_API_URL,
+  BEBOP_SOLANA_CHAIN_ID,
+  NANOSECONDS_PER_SECOND,
+  SHAPESHIFT_REFERRER,
+} from './constants'
 import type { TradesResponse } from './types'
+
+const toChainId = (bebopChainId: number): string =>
+  bebopChainId === BEBOP_SOLANA_CHAIN_ID ? SOLANA_CHAIN_ID : `eip155:${bebopChainId}`
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
@@ -21,13 +30,17 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   })
 
   for (const trade of data.results) {
-    if (!trade.partnerFeeBps || !trade.partnerFeeNative) continue
+    // fee fields come back as "0.0" strings when nothing was charged
+    if (!(Number(trade.partnerFeeBps) > 0) || !(Number(trade.partnerFeeNative) > 0)) continue
 
-    const chainId = `eip155:${trade.chain_id}`
+    const chainId = toChainId(trade.chain_id)
     const assetId = buildAssetId(chainId)
 
     const asset = await assetDataService.getAsset(assetId)
-    if (!asset) continue
+    if (!asset) {
+      console.warn(`[bebop] UNCOUNTED fee: no asset for ${assetId} (chain_id ${trade.chain_id}, tx ${trade.txHash})`)
+      continue
+    }
 
     const amount = decimalToBaseUnit(String(trade.partnerFeeNative), asset.precision)
 

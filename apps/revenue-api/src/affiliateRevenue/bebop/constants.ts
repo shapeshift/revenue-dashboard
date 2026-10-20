@@ -3,5 +3,7 @@ export const BEBOP_API_KEY = process.env.BEBOP_API_KEY
 if (!BEBOP_API_KEY) throw new Error('BEBOP_API_KEY env var not set')
 
 export const BEBOP_API_URL = 'https://api.bebop.xyz/history/v2/trades'
+// Bebop's own chain id for Solana, not an EVM chain id
+export const BEBOP_SOLANA_CHAIN_ID = 2
 export const SHAPESHIFT_REFERRER = 'shapeshift'
 export const NANOSECONDS_PER_SECOND = 1_000_000_000
