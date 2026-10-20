@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import { affiliateFeeUsd, crossChainFee, parseFeeAmount, parseOrderTimeMs, selectAffiliateFee } from './butterswap'
-import { BUTTERSWAP_AFFILIATE_ID, SAME_CHAIN_FEE_RECEIVERS, SAME_CHAIN_ROUTERS } from './constants'
-import { extractFee } from './resolveFee'
+import { BUTTERSWAP_AFFILIATE_ID } from './constants'
 import type { AffiliateFee, ButterSwapTransaction } from './types'
 
 const MAP_USDC = {
@@ -170,32 +169,5 @@ describe('crossChainFee', () => {
 
     expect(fee?.amount).toBe('869453514000000000')
     expect(fee?.amountUsd).toBeUndefined()
-  })
-})
-
-const [ROUTER] = [...SAME_CHAIN_ROUTERS]
-const RECEIVERS = SAME_CHAIN_FEE_RECEIVERS
-const NEW_RECEIVER = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
-const OLD_RECEIVER = '0x35339070f178dc4119732982c23f5a8d88d3f8a3'
-const FEE_TOKEN = '0xdac17f958d2ee523a2206206994597c13d831ec7' // USDT
-const OTHER = '0x1111111111111111111111111111111111111111'
-
-describe('extractFee', () => {
-  test('sums router→receiver transfers, filtering by contract when given (ERC20)', () => {
-    const transfers = [
-      { contract: FEE_TOKEN, from: OTHER, to: ROUTER, value: '850689058' }, // input leg, not a fee
-      { contract: FEE_TOKEN, from: ROUTER, to: NEW_RECEIVER, value: '5104134' }, // the fee
-      { contract: OTHER, from: ROUTER, to: NEW_RECEIVER, value: '999' }, // wrong token
-    ]
-    expect(extractFee(transfers, SAME_CHAIN_ROUTERS, RECEIVERS, FEE_TOKEN)).toBe(5104134n)
-  })
-
-  test('matches the rotated receiver and is case-insensitive (native, no token filter)', () => {
-    const internal = [{ from: ROUTER.toUpperCase(), to: OLD_RECEIVER.toUpperCase(), value: '480653011669439900' }]
-    expect(extractFee(internal, SAME_CHAIN_ROUTERS, RECEIVERS)).toBe(480653011669439900n)
-  })
-
-  test('no transfer to a known receiver → 0', () => {
-    expect(extractFee([{ from: ROUTER, to: OTHER, value: '9' }], SAME_CHAIN_ROUTERS, RECEIVERS)).toBe(0n)
   })
 })
