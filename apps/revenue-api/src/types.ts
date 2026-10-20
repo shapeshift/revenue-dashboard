@@ -8,6 +8,7 @@ export const services = [
   'butterswap',
   'chainflip',
   'cowswap',
+  'debridge',
   'fynd',
   'mayachain',
   'nearintents',

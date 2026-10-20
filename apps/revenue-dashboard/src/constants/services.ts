@@ -11,6 +11,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   bebop: 'Bebop',
   portals: 'Portals',
   cowswap: 'CoW Swap',
+  debridge: 'deBridge',
   relay: 'Relay',
   symbiosis: 'Symbiosis',
   fynd: 'Fynd',
@@ -27,6 +28,7 @@ export const SERVICE_COLORS: Record<string, string> = {
   bebop: '#ec4899',
   portals: '#14b8a6',
   cowswap: '#8b5cf6',
+  debridge: '#a855f7',
   relay: '#f97316',
   butterswap: '#84cc16',
   nearintents: '#06b6d4',
@@ -54,4 +56,5 @@ export const SERVICE_STACK_ORDER = [
   'across',
   'symbiosis',
   'fynd',
+  'debridge',
 ]
