@@ -59,7 +59,13 @@ const fetchTransactions = async (startTimestamp: number, endTimestamp: number): 
 
     transactions.push(...data)
     if (data.length < PAGE_SIZE) break
-    cursor = data[data.length - 1].depositAddressAndMemo
+
+    // without a fresh cursor the next request would refetch the same page forever
+    const nextCursor = data[data.length - 1].depositAddressAndMemo
+    if (!nextCursor || nextCursor === cursor) {
+      throw new Error(`[nearIntents] Invalid or unchanged pagination cursor: ${JSON.stringify(nextCursor)}`)
+    }
+    cursor = nextCursor
   }
 
   return transactions
