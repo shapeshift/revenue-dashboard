@@ -26,9 +26,10 @@ import {
 export const NEAR_INTENTS_API_KEY = process.env.NEAR_INTENTS_API_KEY
 if (!NEAR_INTENTS_API_KEY) throw new Error('NEAR_INTENTS_API_KEY env var not set')
 
-export const TRANSACTIONS_API = 'https://explorer.near-intents.org/api/v0/transactions-pages'
+// /transactions-pages is deprecated and now rate limited to ~1 request/min; /transactions allows ~1 per 5s
+export const TRANSACTIONS_API = 'https://explorer.near-intents.org/api/v0/transactions'
 export const PAGE_SIZE = 1000
-export const REQUEST_INTERVAL_MS = 10_000
+export const REQUEST_INTERVAL_MS = 6_000
 
 export const DAO_NEAR_TREASURY_ADDRESSES = [
   'f471d0b0f90593d85125f38aaf5458748d6f23fd5b437b844d293d8e87557070',
