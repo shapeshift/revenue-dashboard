@@ -20,7 +20,11 @@ import { parseNearIntentsAsset } from './utils'
 
 const throttle = createThrottle(REQUEST_INTERVAL_MS)
 
-const fetchPage = async (page: number, startTimestamp: number, endTimestamp: number): Promise<TransactionsResponse> => {
+const fetchPage = async (
+  cursor: string | undefined,
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<TransactionsResponse> => {
   return withRetry(
     'nearIntents',
     async () => {
@@ -28,8 +32,8 @@ const fetchPage = async (page: number, startTimestamp: number, endTimestamp: num
       const { data } = await axios.get<TransactionsResponse>(TRANSACTIONS_API, {
         params: {
           referral: 'shapeshift',
-          page,
-          perPage: PAGE_SIZE,
+          numberOfTransactions: PAGE_SIZE,
+          ...(cursor && { lastDepositAddressAndMemo: cursor, direction: 'next' }),
           statuses: 'SUCCESS',
           startTimestampUnix: startTimestamp,
           endTimestampUnix: endTimestamp,
@@ -44,18 +48,18 @@ const fetchPage = async (page: number, startTimestamp: number, endTimestamp: num
 
 const fetchTransactions = async (startTimestamp: number, endTimestamp: number): Promise<NearIntentsTransaction[]> => {
   const transactions: NearIntentsTransaction[] = []
-  let page: number | undefined = 1
+  let cursor: string | undefined
 
-  while (page) {
-    const data = await fetchPage(page, startTimestamp, endTimestamp)
+  for (;;) {
+    const data = await fetchPage(cursor, startTimestamp, endTimestamp)
 
-    if (!data || !Array.isArray(data.data)) {
-      console.error(`[nearIntents] Invalid API response structure on page ${page}`, data)
-      break
+    if (!Array.isArray(data)) {
+      throw new Error(`[nearIntents] Invalid API response structure: ${JSON.stringify(data).slice(0, 200)}`)
     }
 
-    transactions.push(...data.data)
-    page = data.nextPage
+    transactions.push(...data)
+    if (data.length < PAGE_SIZE) break
+    cursor = data[data.length - 1].depositAddressAndMemo
   }
 
   return transactions

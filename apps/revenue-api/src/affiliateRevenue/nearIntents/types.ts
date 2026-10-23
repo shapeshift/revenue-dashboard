@@ -4,6 +4,7 @@ export type NearIntentsTransaction = {
   originAsset: string
   destinationAsset: string
   depositAddress: string
+  depositAddressAndMemo: string
   recipient: string
   status: string
   createdAt: string
@@ -26,12 +27,5 @@ export type NearIntentsTransaction = {
   refundTo: string
 }
 
-export type TransactionsResponse = {
-  data: NearIntentsTransaction[]
-  totalPages: number
-  page: number
-  perPage: number
-  total: number
-  nextPage?: number
-  prevPage?: number
-}
+// Bare array, newest first; page by passing the last item's depositAddressAndMemo as the cursor
+export type TransactionsResponse = NearIntentsTransaction[]
