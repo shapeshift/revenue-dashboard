@@ -22,14 +22,21 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
   const fees: Fees[] = []
 
   const start = startTimestamp * NANOSECONDS_PER_SECOND
-  const end = endTimestamp * NANOSECONDS_PER_SECOND
+  // results come newest first, capped at 500; nextAvailableTimestamp is the inclusive end for the next page
+  let end: number | string | undefined = endTimestamp * NANOSECONDS_PER_SECOND
+  const trades: TradesResponse['results'] = []
 
-  const { data } = await axios.get<TradesResponse>(BEBOP_API_URL, {
-    params: { source: SHAPESHIFT_REFERRER, start, end },
-    headers: { 'source-auth': BEBOP_API_KEY },
-  })
+  while (end !== undefined) {
+    const { data }: { data: TradesResponse } = await axios.get<TradesResponse>(BEBOP_API_URL, {
+      params: { source: SHAPESHIFT_REFERRER, start, end },
+      headers: { 'source-auth': BEBOP_API_KEY },
+    })
 
-  for (const trade of data.results) {
+    trades.push(...data.results)
+    end = data.nextAvailableTimestamp
+  }
+
+  for (const trade of trades) {
     // fee fields come back as "0.0" strings when nothing was charged
     if (!(Number(trade.partnerFeeBps) > 0) || !(Number(trade.partnerFeeNative) > 0)) continue
 
