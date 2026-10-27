@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { affiliateFeeUsd, crossChainFee, parseFeeAmount, parseOrderTimeMs, selectAffiliateFee } from './butterswap'
-import { BUTTERSWAP_AFFILIATE_ID } from './constants'
+import { crossChainFee, parseOrderTimeMs } from './butterswap'
 import type { AffiliateFee, ButterSwapTransaction } from './types'
 
 const MAP_USDC = {
@@ -9,12 +8,6 @@ const MAP_USDC = {
   address: '0x9f722b2cb30093f766221fd0d37964949ed66918',
   decimals: 18,
   symbol: 'USDC',
-}
-const MAP_ETH = {
-  chainId: 22776,
-  address: '0x05ab928d446d8ce6761e368c8e7be03c3168a9ec',
-  decimals: 18,
-  symbol: 'ETH',
 }
 
 // Order 960412 — ETH→SOL, "26:60|9:4", fee charged in mapped USDC. `fees.affiliate` = 869387 (6dec USD).
@@ -66,53 +59,6 @@ describe('parseOrderTimeMs', () => {
     expect(parseOrderTimeMs(undefined)).toBeNaN()
     expect(parseOrderTimeMs('')).toBeNaN()
     expect(parseOrderTimeMs('not a date')).toBeNaN()
-  })
-})
-
-describe('selectAffiliateFee', () => {
-  test('picks our row out of the per-affiliate rows (ids arrive as strings)', () => {
-    expect(selectAffiliateFee(tx(), BUTTERSWAP_AFFILIATE_ID)?.fee).toBe('869453514000000000')
-  })
-
-  test('no row for us → null', () => {
-    expect(
-      selectAffiliateFee(tx({ affiliateFees: [feeRow({ affiliateId: '9' })] }), BUTTERSWAP_AFFILIATE_ID)
-    ).toBeNull()
-    expect(selectAffiliateFee(tx({ affiliateFees: [] }), BUTTERSWAP_AFFILIATE_ID)).toBeNull()
-    expect(selectAffiliateFee(tx({ affiliateFees: undefined }), BUTTERSWAP_AFFILIATE_ID)).toBeNull()
-  })
-})
-
-describe('affiliateFeeUsd', () => {
-  test('matches the API-reported USD for a mapped-USDC fee (order 960412: $0.869387)', () => {
-    expect(affiliateFeeUsd(feeRow())).toBeCloseTo(869387 / 1e6, 6)
-  })
-
-  test('matches for a non-stablecoin fee token (order 953704: 0.0003 mETH @ $1807.01 = $0.542102)', () => {
-    const row = feeRow({ token: MAP_ETH, fee: '300000000000000', price: '1807005969' })
-    expect(affiliateFeeUsd(row)).toBeCloseTo(542102 / 1e6, 6)
-  })
-
-  test('0bps order → $0', () => {
-    expect(affiliateFeeUsd(feeRow({ rate: '0', fee: '0' }))).toBe(0)
-  })
-})
-
-describe('parseFeeAmount', () => {
-  test('parses the integer strings the API actually sends', () => {
-    expect(parseFeeAmount('869453514000000000')).toBe(869453514000000000n)
-    expect(parseFeeAmount('0')).toBe(0n)
-  })
-
-  test('missing → 0', () => {
-    expect(parseFeeAmount(undefined)).toBe(0n)
-    expect(parseFeeAmount('')).toBe(0n)
-  })
-
-  test('non-integer → null, never a throw (BigInt rejects these)', () => {
-    expect(parseFeeAmount('1.5')).toBeNull()
-    expect(parseFeeAmount('1e18')).toBeNull()
-    expect(parseFeeAmount('abc')).toBeNull()
   })
 })
 

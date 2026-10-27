@@ -26,18 +26,18 @@ export const parseOrderTimeMs = (value: string | number | undefined): number => 
 }
 
 // Our fee row for an order. The API writes one row per affiliate, so pick ours by id.
-export const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: number): AffiliateFee | null =>
+const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: number): AffiliateFee | null =>
   tx.affiliateFees?.find(fee => Number(fee.affiliateId) === affiliateId) ?? null
 
 // USD value at the time of the swap: fee (token base units) × the row's token price (6 decimals).
 // NaN when the row is missing a price or decimals — callers must not emit that as a USD string.
-export const affiliateFeeUsd = (row: AffiliateFee): number =>
+const affiliateFeeUsd = (row: AffiliateFee): number =>
   (Number(row.fee) / 10 ** row.token.decimals) * (Number(row.price) / 10 ** USD_DECIMALS)
 
 // Amounts arrive as integer strings; BigInt throws on anything else (a decimal point, an exponent).
 // Null rather than throw: an unparseable row is one skipped order, not a reason to abort the batch
 // and take the whole provider down with it.
-export const parseFeeAmount = (fee: string | undefined): bigint | null => {
+const parseFeeAmount = (fee: string | undefined): bigint | null => {
   try {
     return BigInt(fee || '0')
   } catch {

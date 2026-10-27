@@ -35,3 +35,5 @@ export type TradesResponse = {
     >
   }
 }
+
+export type Trade = TradesResponse['results'][number]

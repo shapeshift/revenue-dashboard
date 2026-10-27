@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 import { assetDataService } from '../../assetData/AssetDataService'
-import { FEE_BPS_DENOMINATOR, SOLANA_CHAIN_ID } from '../constants'
+import { withRetry } from '../../utils/retry'
+import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { buildAssetId, decimalToBaseUnit, getCachedFees } from '../utils'
@@ -9,36 +10,44 @@ import { buildAssetId, decimalToBaseUnit, getCachedFees } from '../utils'
 import {
   BEBOP_API_KEY,
   BEBOP_API_URL,
-  BEBOP_SOLANA_CHAIN_ID,
   NANOSECONDS_PER_SECOND,
+  REQUEST_TIMEOUT_MS,
   SHAPESHIFT_REFERRER,
 } from './constants'
-import type { TradesResponse } from './types'
+import type { Trade, TradesResponse } from './types'
+import { isChargedTrade, nextPageEnd, toChainId } from './utils'
 
-const toChainId = (bebopChainId: number): string =>
-  bebopChainId === BEBOP_SOLANA_CHAIN_ID ? SOLANA_CHAIN_ID : `eip155:${bebopChainId}`
+// Results come newest first, at most 500 per request; nextAvailableTimestamp is the inclusive end of the next page
+const fetchTrades = async (startTimestamp: number, endTimestamp: number): Promise<Trade[]> => {
+  const start = BigInt(startTimestamp) * BigInt(NANOSECONDS_PER_SECOND)
+  let end: bigint | undefined = BigInt(endTimestamp) * BigInt(NANOSECONDS_PER_SECOND)
+  const trades = new Map<string, Trade>()
+
+  while (end !== undefined) {
+    const cursor = end
+    const { data } = await withRetry('bebop/trades', () =>
+      axios.get<TradesResponse>(BEBOP_API_URL, {
+        params: { source: SHAPESHIFT_REFERRER, start: start.toString(), end: cursor.toString() },
+        headers: { 'source-auth': BEBOP_API_KEY },
+        timeout: REQUEST_TIMEOUT_MS,
+      })
+    )
+
+    // keyed on the whole row so a trade repeated across a page boundary counts once
+    for (const trade of data.results) trades.set(JSON.stringify(trade), trade)
+
+    end = nextPageEnd(data.nextAvailableTimestamp, cursor, start)
+  }
+
+  return [...trades.values()]
+}
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
-
-  const start = startTimestamp * NANOSECONDS_PER_SECOND
-  // results come newest first, capped at 500; nextAvailableTimestamp is the inclusive end for the next page
-  let end: number | string | undefined = endTimestamp * NANOSECONDS_PER_SECOND
-  const trades: TradesResponse['results'] = []
-
-  while (end !== undefined) {
-    const { data }: { data: TradesResponse } = await axios.get<TradesResponse>(BEBOP_API_URL, {
-      params: { source: SHAPESHIFT_REFERRER, start, end },
-      headers: { 'source-auth': BEBOP_API_KEY },
-    })
-
-    trades.push(...data.results)
-    end = data.nextAvailableTimestamp
-  }
+  const trades = await fetchTrades(startTimestamp, endTimestamp)
 
   for (const trade of trades) {
-    // fee fields come back as "0.0" strings when nothing was charged
-    if (!(Number(trade.partnerFeeBps) > 0) || !(Number(trade.partnerFeeNative) > 0)) continue
+    if (!isChargedTrade(trade)) continue
 
     const chainId = toChainId(trade.chain_id)
     const assetId = buildAssetId(chainId)
