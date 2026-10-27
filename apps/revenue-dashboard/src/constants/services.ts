@@ -17,23 +17,24 @@ export const SERVICE_LABELS: Record<string, string> = {
   fynd: 'Fynd',
 }
 
+// Brand colors from each logo, or the site's accent where the logo is too dark for the dashboard; 0x and Bebop are black/white brands
 export const SERVICE_COLORS: Record<string, string> = {
-  across: '#3b82f6',
-  avnu: '#8b5cf6',
-  bobgateway: '#ef4444',
-  thorchain: '#0095FF',
-  mayachain: '#6366f1',
-  chainflip: '#22c55e',
-  zrx: '#f59e0b',
-  bebop: '#ec4899',
-  portals: '#14b8a6',
-  cowswap: '#8b5cf6',
-  debridge: '#a855f7',
-  relay: '#f97316',
-  butterswap: '#84cc16',
-  nearintents: '#06b6d4',
-  symbiosis: '#10b981',
-  fynd: '#eab308',
+  across: '#6cf9d8',
+  avnu: '#3761f6',
+  bobgateway: '#f25c00',
+  thorchain: '#00ccff',
+  mayachain: '#21c49e',
+  chainflip: '#fe519e',
+  zrx: '#f4f4f5',
+  bebop: '#a1a1aa',
+  portals: '#6a19fe',
+  cowswap: '#65d9ff',
+  debridge: '#fbff3a',
+  relay: '#c84aff',
+  butterswap: '#fabd00',
+  nearintents: '#00ec97',
+  symbiosis: '#8bf934',
+  fynd: '#ff4e2c',
 }
 
 export const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service

@@ -17,32 +17,14 @@ import {
   POLYGON_CHAIN_ID,
 } from '../constants'
 
-/**
- * deBridge pays our affiliate cut on the SELL chain.
- *
- * shapeshift/web's DebridgeSwapper sends `affiliateFeePercent` +
- * `affiliateFeeRecipient` (the sell chain's DAO treasury, only on treasury
- * chains). The fee arrives in the sell token, native or ERC20, from one of two
- * contracts:
- *   - same-chain swaps: DeBridgeRouter transfers it during the swap
- *   - cross-chain DLN orders: DlnSource transfers it when a solver unlocks the
- *     filled order, typically hours after the swap
- *
- * deBridge's stats API can't attribute these: orders only filter by
- * referralCode (web sends none) and same-chain swaps have no list endpoint.
- *
- * DlnSource sends native fees with a 2300 gas stipend, which our Safe
- * treasuries can't always accept; those stay in DlnSource until claimed via
- * withdrawUnclaimedAffiliateFees (0.0006 ETH on ethereum as of 2026-10-20).
- *
- * KNOWN GAP — Monad, HyperEVM, Plasma, MegaETH, Robinhood and BOB are deBridge
- * treasury chains with no unchained host.
- */
+// Fees go to the sell chain's treasury; deBridge's stats API can't list them (referralCode filter only, no same-chain list)
+// DlnSource sends native fees with a 2300-gas stipend; ones a Safe rejects sit uncounted in unclaimedAffiliateETHFees until withdrawn
 export const DEBRIDGE_FEE_SENDERS = [
-  '0x663dc15d3c1ac63ff12e45ab68fea3f0a883c251', // DeBridgeRouter (same-chain)
-  '0xef4fb24ad0916217251f553c0596f8edc630eb66', // DlnSource (cross-chain)
+  '0x663dc15d3c1ac63ff12e45ab68fea3f0a883c251', // DeBridgeRouter: same-chain, paid in the buy token during the swap
+  '0xef4fb24ad0916217251f553c0596f8edc630eb66', // DlnSource: cross-chain, paid in the order's input token on unlock
 ]
 
+// Monad, HyperEVM, Plasma, MegaETH, Robinhood and BOB are untracked (no unchained host)
 export const DEBRIDGE_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: ETHEREUM_CHAIN_ID, treasury: DAO_TREASURY_ETHEREUM },
   { chainId: OPTIMISM_CHAIN_ID, treasury: DAO_TREASURY_OPTIMISM },
