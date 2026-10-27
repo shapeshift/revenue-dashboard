@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { affiliateFeeUsd, crossChainFee, parseFeeAmount, parseOrderTimeMs, selectAffiliateFee } from './butterswap'
-import { BUTTERSWAP_AFFILIATE_ID, SAME_CHAIN_FEE_RECEIVERS, SAME_CHAIN_ROUTERS } from './constants'
-import { extractFee } from './resolveFee'
+import { crossChainFee, parseOrderTimeMs, receiverRanges } from './butterswap'
 import type { AffiliateFee, ButterSwapTransaction } from './types'
 
 const MAP_USDC = {
@@ -10,12 +8,6 @@ const MAP_USDC = {
   address: '0x9f722b2cb30093f766221fd0d37964949ed66918',
   decimals: 18,
   symbol: 'USDC',
-}
-const MAP_ETH = {
-  chainId: 22776,
-  address: '0x05ab928d446d8ce6761e368c8e7be03c3168a9ec',
-  decimals: 18,
-  symbol: 'ETH',
 }
 
 // Order 960412 — ETH→SOL, "26:60|9:4", fee charged in mapped USDC. `fees.affiliate` = 869387 (6dec USD).
@@ -67,53 +59,6 @@ describe('parseOrderTimeMs', () => {
     expect(parseOrderTimeMs(undefined)).toBeNaN()
     expect(parseOrderTimeMs('')).toBeNaN()
     expect(parseOrderTimeMs('not a date')).toBeNaN()
-  })
-})
-
-describe('selectAffiliateFee', () => {
-  test('picks our row out of the per-affiliate rows (ids arrive as strings)', () => {
-    expect(selectAffiliateFee(tx(), BUTTERSWAP_AFFILIATE_ID)?.fee).toBe('869453514000000000')
-  })
-
-  test('no row for us → null', () => {
-    expect(
-      selectAffiliateFee(tx({ affiliateFees: [feeRow({ affiliateId: '9' })] }), BUTTERSWAP_AFFILIATE_ID)
-    ).toBeNull()
-    expect(selectAffiliateFee(tx({ affiliateFees: [] }), BUTTERSWAP_AFFILIATE_ID)).toBeNull()
-    expect(selectAffiliateFee(tx({ affiliateFees: undefined }), BUTTERSWAP_AFFILIATE_ID)).toBeNull()
-  })
-})
-
-describe('affiliateFeeUsd', () => {
-  test('matches the API-reported USD for a mapped-USDC fee (order 960412: $0.869387)', () => {
-    expect(affiliateFeeUsd(feeRow())).toBeCloseTo(869387 / 1e6, 6)
-  })
-
-  test('matches for a non-stablecoin fee token (order 953704: 0.0003 mETH @ $1807.01 = $0.542102)', () => {
-    const row = feeRow({ token: MAP_ETH, fee: '300000000000000', price: '1807005969' })
-    expect(affiliateFeeUsd(row)).toBeCloseTo(542102 / 1e6, 6)
-  })
-
-  test('0bps order → $0', () => {
-    expect(affiliateFeeUsd(feeRow({ rate: '0', fee: '0' }))).toBe(0)
-  })
-})
-
-describe('parseFeeAmount', () => {
-  test('parses the integer strings the API actually sends', () => {
-    expect(parseFeeAmount('869453514000000000')).toBe(869453514000000000n)
-    expect(parseFeeAmount('0')).toBe(0n)
-  })
-
-  test('missing → 0', () => {
-    expect(parseFeeAmount(undefined)).toBe(0n)
-    expect(parseFeeAmount('')).toBe(0n)
-  })
-
-  test('non-integer → null, never a throw (BigInt rejects these)', () => {
-    expect(parseFeeAmount('1.5')).toBeNull()
-    expect(parseFeeAmount('1e18')).toBeNull()
-    expect(parseFeeAmount('abc')).toBeNull()
   })
 })
 
@@ -173,29 +118,24 @@ describe('crossChainFee', () => {
   })
 })
 
-const [ROUTER] = [...SAME_CHAIN_ROUTERS]
-const RECEIVERS = SAME_CHAIN_FEE_RECEIVERS
-const NEW_RECEIVER = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
-const OLD_RECEIVER = '0x35339070f178dc4119732982c23f5a8d88d3f8a3'
-const FEE_TOKEN = '0xdac17f958d2ee523a2206206994597c13d831ec7' // USDT
-const OTHER = '0x1111111111111111111111111111111111111111'
+describe('receiverRanges', () => {
+  const OLD = '0x35339070f178dc4119732982c23f5a8d88d3f8a3'
+  const NEW = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
+  const at = (date: string) => Date.parse(date) / 1000
 
-describe('extractFee', () => {
-  test('sums router→receiver transfers, filtering by contract when given (ERC20)', () => {
-    const transfers = [
-      { contract: FEE_TOKEN, from: OTHER, to: ROUTER, value: '850689058' }, // input leg, not a fee
-      { contract: FEE_TOKEN, from: ROUTER, to: NEW_RECEIVER, value: '5104134' }, // the fee
-      { contract: OTHER, from: ROUTER, to: NEW_RECEIVER, value: '999' }, // wrong token
-    ]
-    expect(extractFee(transfers, SAME_CHAIN_ROUTERS, RECEIVERS, FEE_TOKEN)).toBe(5104134n)
+  test('scans only the receiver that was being paid', () => {
+    expect(receiverRanges(at('2025-09-01'), at('2025-10-01')).map(r => r.address)).toEqual([OLD])
+    expect(receiverRanges(at('2026-09-01'), at('2026-10-01')).map(r => r.address)).toEqual([NEW])
   })
 
-  test('matches the rotated receiver and is case-insensitive (native, no token filter)', () => {
-    const internal = [{ from: ROUTER.toUpperCase(), to: OLD_RECEIVER.toUpperCase(), value: '480653011669439900' }]
-    expect(extractFee(internal, SAME_CHAIN_ROUTERS, RECEIVERS)).toBe(480653011669439900n)
+  test('scans both across the April 2026 handover, each clamped to its period', () => {
+    expect(receiverRanges(at('2026-03-01'), at('2026-06-01'))).toEqual([
+      { address: OLD, start: at('2026-03-01'), end: at('2026-05-01') },
+      { address: NEW, start: at('2026-04-01'), end: at('2026-06-01') },
+    ])
   })
 
-  test('no transfer to a known receiver → 0', () => {
-    expect(extractFee([{ from: ROUTER, to: OTHER, value: '9' }], SAME_CHAIN_ROUTERS, RECEIVERS)).toBe(0n)
+  test('scans nothing before the first receiver', () => {
+    expect(receiverRanges(at('2025-01-01'), at('2025-07-01'))).toEqual([])
   })
 })

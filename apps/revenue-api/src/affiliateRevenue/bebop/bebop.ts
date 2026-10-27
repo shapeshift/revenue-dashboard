@@ -1,33 +1,62 @@
 import axios from 'axios'
 
 import { assetDataService } from '../../assetData/AssetDataService'
+import { withRetry } from '../../utils/retry'
 import { FEE_BPS_DENOMINATOR } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { buildAssetId, decimalToBaseUnit, getCachedFees } from '../utils'
 
-import { BEBOP_API_KEY, BEBOP_API_URL, NANOSECONDS_PER_SECOND, SHAPESHIFT_REFERRER } from './constants'
-import type { TradesResponse } from './types'
+import {
+  BEBOP_API_KEY,
+  BEBOP_API_URL,
+  NANOSECONDS_PER_SECOND,
+  REQUEST_TIMEOUT_MS,
+  SHAPESHIFT_REFERRER,
+} from './constants'
+import type { Trade, TradesResponse } from './types'
+import { isChargedTrade, nextPageEnd, toChainId } from './utils'
+
+// Results come newest first, at most 500 per request; nextAvailableTimestamp is the inclusive end of the next page
+const fetchTrades = async (startTimestamp: number, endTimestamp: number): Promise<Trade[]> => {
+  const start = BigInt(startTimestamp) * BigInt(NANOSECONDS_PER_SECOND)
+  let end: bigint | undefined = BigInt(endTimestamp) * BigInt(NANOSECONDS_PER_SECOND)
+  const trades = new Map<string, Trade>()
+
+  while (end !== undefined) {
+    const cursor = end
+    const { data } = await withRetry('bebop/trades', () =>
+      axios.get<TradesResponse>(BEBOP_API_URL, {
+        params: { source: SHAPESHIFT_REFERRER, start: start.toString(), end: cursor.toString() },
+        headers: { 'source-auth': BEBOP_API_KEY },
+        timeout: REQUEST_TIMEOUT_MS,
+      })
+    )
+
+    // one order settles per tx, so a trade repeated across a page boundary counts once
+    for (const trade of data.results) trades.set(`${trade.chain_id}:${trade.txHash}`, trade)
+
+    end = nextPageEnd(data.nextAvailableTimestamp, cursor, start)
+  }
+
+  return [...trades.values()]
+}
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fees: Fees[] = []
+  const trades = await fetchTrades(startTimestamp, endTimestamp)
 
-  const start = startTimestamp * NANOSECONDS_PER_SECOND
-  const end = endTimestamp * NANOSECONDS_PER_SECOND
+  for (const trade of trades) {
+    if (!isChargedTrade(trade)) continue
 
-  const { data } = await axios.get<TradesResponse>(BEBOP_API_URL, {
-    params: { source: SHAPESHIFT_REFERRER, start, end },
-    headers: { 'source-auth': BEBOP_API_KEY },
-  })
-
-  for (const trade of data.results) {
-    if (!trade.partnerFeeBps || !trade.partnerFeeNative) continue
-
-    const chainId = `eip155:${trade.chain_id}`
+    const chainId = toChainId(trade.chain_id)
     const assetId = buildAssetId(chainId)
 
     const asset = await assetDataService.getAsset(assetId)
-    if (!asset) continue
+    if (!asset) {
+      console.warn(`[bebop] UNCOUNTED fee: no asset for ${assetId} (chain_id ${trade.chain_id}, tx ${trade.txHash})`)
+      continue
+    }
 
     const amount = decimalToBaseUnit(String(trade.partnerFeeNative), asset.precision)
 

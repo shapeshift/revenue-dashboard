@@ -1,26 +1,23 @@
 import axios from 'axios'
 
-import { mapConcurrently } from '../../utils/concurrency'
 import { MAP_CHAIN_ID } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { buildAssetId } from '../utils'
+import { buildAssetId, getCachedFees, getTreasuryFees, settleChains } from '../utils'
 
 import {
   API_SUCCESS_CODE,
   BUTTERSWAP_AFFILIATE_ID,
-  isNativeAddress,
   MAP_RELAY_CHAIN_ID,
   PAGE_SIZE,
-  USD_DECIMALS,
   REQUEST_TIMEOUT_MS,
-  EVM_CHAIN_BY_SOURCE_CHAIN_ID,
+  SAME_CHAIN_CHAIN_IDS,
+  SAME_CHAIN_FEE_RECEIVERS,
+  SAME_CHAIN_ROUTERS,
   TRANSACTIONS_API,
+  USD_DECIMALS,
 } from './constants'
-import { resolveSameChainFee } from './resolveFee'
 import type { AffiliateFee, ButterSwapTransaction, TransactionsResponse } from './types'
-
-const LOOKUP_CONCURRENCY = 10
 
 // Order timestamps are ISO-8601 strings; tolerate epoch ms in case the field flips back.
 export const parseOrderTimeMs = (value: string | number | undefined): number => {
@@ -29,18 +26,18 @@ export const parseOrderTimeMs = (value: string | number | undefined): number => 
 }
 
 // Our fee row for an order. The API writes one row per affiliate, so pick ours by id.
-export const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: number): AffiliateFee | null =>
+const selectAffiliateFee = (tx: ButterSwapTransaction, affiliateId: number): AffiliateFee | null =>
   tx.affiliateFees?.find(fee => Number(fee.affiliateId) === affiliateId) ?? null
 
 // USD value at the time of the swap: fee (token base units) × the row's token price (6 decimals).
 // NaN when the row is missing a price or decimals — callers must not emit that as a USD string.
-export const affiliateFeeUsd = (row: AffiliateFee): number =>
+const affiliateFeeUsd = (row: AffiliateFee): number =>
   (Number(row.fee) / 10 ** row.token.decimals) * (Number(row.price) / 10 ** USD_DECIMALS)
 
 // Amounts arrive as integer strings; BigInt throws on anything else (a decimal point, an exponent).
 // Null rather than throw: an unparseable row is one skipped order, not a reason to abort the batch
 // and take the whole provider down with it.
-export const parseFeeAmount = (fee: string | undefined): bigint | null => {
+const parseFeeAmount = (fee: string | undefined): bigint | null => {
   try {
     return BigInt(fee || '0')
   } catch {
@@ -124,71 +121,44 @@ export const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fee
   }
 }
 
-// Same-chain fees are taken on the source chain (API reports 26:0 and no fee row), so we read the
-// actual amount on-chain and denominate in the source token. Never assume a rate — skip + warn if
-// it can't be read.
-const sameChainFee = async (tx: ButterSwapTransaction, timestamp: number): Promise<Fees | null> => {
-  const sourceChainId = String(tx.raw.sourceChainId)
-  const volumeUsd = Number(tx.volume) / 10 ** USD_DECIMALS
+// Each receiver's slice of the window, skipping receivers that weren't being paid in it
+export const receiverRanges = (start: number, end: number) =>
+  SAME_CHAIN_FEE_RECEIVERS.map(({ address, from, until = Infinity }) => ({
+    address,
+    start: Math.max(start, from),
+    end: Math.min(end, until),
+  })).filter(range => range.start <= range.end)
 
-  const { chainId } = EVM_CHAIN_BY_SOURCE_CHAIN_ID[sourceChainId] ?? {}
-  if (!chainId) {
-    console.warn(
-      `[butterswap] UNCOUNTED same-chain fee on unsupported chain ${sourceChainId} — order ${tx.orderId}. Add ${sourceChainId} to EVM_CHAIN_BY_SOURCE_CHAIN_ID + non-EVM branch in resolveSameChainFee.`
+const getSameChainFees = async (chainId: string, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
+  const fetchRange = async (start: number, end: number) => {
+    const perReceiver = await Promise.all(
+      receiverRanges(start, end).map(range =>
+        getTreasuryFees({
+          service: 'butterswap',
+          chainId,
+          treasury: range.address,
+          senders: SAME_CHAIN_ROUTERS,
+          startTimestamp: range.start,
+          endTimestamp: range.end,
+        })
+      )
     )
-    return null
+    return perReceiver.flat()
   }
 
-  const amount = await resolveSameChainFee(sourceChainId, tx.raw.sourceHash, tx.raw.sourceTokenAddress)
+  const { fees } = await getCachedFees('butterswap', chainId, startTimestamp, endTimestamp, fetchRange)
 
-  if (amount === null) {
-    console.warn(
-      `[butterswap] UNCOUNTED same-chain fee: no on-chain read for order ${tx.orderId} on chain ${sourceChainId}.`
-    )
-    return null
-  }
-
-  if (amount <= BigInt(0)) {
-    console.warn(
-      `[butterswap] UNCOUNTED same-chain fee: no transfer to a known receiver for order ${tx.orderId} on chain ${sourceChainId}. Receiver may have rotated — add it to SAME_CHAIN_FEE_RECEIVERS.`
-    )
-    return null
-  }
-
-  const assetId = buildAssetId(
-    chainId,
-    isNativeAddress(tx.raw.sourceTokenAddress) ? undefined : tx.raw.sourceTokenAddress
-  )
-
-  // Emit the real source-chain token; enrichment values it at current price. Don't derive USD from
-  // the API `volume` (0 on many older records) — it's only a fallback originalUsdValue when present.
-  const sourceAmount = Number(tx.raw.sourceAmount || '0')
-  const originalUsd =
-    volumeUsd > 0 && sourceAmount > 0 ? (volumeUsd * (Number(amount) / sourceAmount)).toString() : undefined
-
-  return {
-    service: 'butterswap',
-    amount: amount.toString(),
-    amountUsd: originalUsd,
-    chainId,
-    assetId,
-    timestamp,
-    txHash: tx.raw.sourceHash || tx.orderId,
-  }
+  return fees
 }
 
-export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Array<Fees>> => {
-  const startTime = Date.now()
-
+const getCrossChainFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const startMs = startTimestamp * 1000
   const endMs = endTimestamp * 1000
   const transactions = await fetchTransactions(startMs, endMs)
 
   const fees: Fees[] = []
-  const sameChainTxs: Array<{ tx: ButterSwapTransaction; timestamp: number }> = []
-
   const seen = new Set<string>()
-  let crossCount = 0
+
   for (const tx of transactions) {
     // The API's window is fuzzy at the upper bound (it can return orders sent after `end`), so
     // filter on the order's own send time.
@@ -201,33 +171,34 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     if (seen.has(tx.orderId)) continue
     seen.add(tx.orderId)
 
-    const timestamp = Math.floor(sourceMs / 1000)
+    // same-chain fees are counted from the receiver inflows instead
+    if (String(tx.raw.sourceChainId) === String(tx.raw.destinationChainId)) continue
 
-    if (String(tx.raw.sourceChainId) === String(tx.raw.destinationChainId)) {
-      sameChainTxs.push({ tx, timestamp })
-      continue
-    }
-
-    const fee = crossChainFee(tx, timestamp)
-    if (fee) {
-      fees.push(fee)
-      crossCount++
-    }
+    const fee = crossChainFee(tx, Math.floor(sourceMs / 1000))
+    if (fee) fees.push(fee)
   }
 
-  let sameChainCount = 0
-  const sameChainFees = await mapConcurrently(sameChainTxs, LOOKUP_CONCURRENCY, ({ tx, timestamp }) =>
-    sameChainFee(tx, timestamp)
-  )
-  for (const fee of sameChainFees) {
-    if (!fee) continue
-    fees.push(fee)
-    sameChainCount++
-  }
+  return fees
+}
+
+export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Array<Fees>> => {
+  const startTime = Date.now()
+
+  const [crossChainFees, sameChainFees] = await Promise.all([
+    getCrossChainFees(startTimestamp, endTimestamp),
+    settleChains(
+      'butterswap',
+      SAME_CHAIN_CHAIN_IDS,
+      chainId => chainId,
+      chainId => getSameChainFees(chainId, startTimestamp, endTimestamp)
+    ).then(perChain => perChain.flat()),
+  ])
+
+  const fees = [...crossChainFees, ...sameChainFees]
 
   const duration = Date.now() - startTime
   console.log(
-    `[butterswap] Total: ${fees.length} fees (${crossCount} cross-chain, ${sameChainCount} same-chain on-chain) from ${transactions.length} txns in ${duration}ms`
+    `[butterswap] Total: ${fees.length} fees (${crossChainFees.length} cross-chain, ${sameChainFees.length} same-chain) in ${duration}ms`
   )
 
   return enrichFeesWithUsdPrices(fees)

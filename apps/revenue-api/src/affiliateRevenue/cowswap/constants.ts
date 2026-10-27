@@ -2,9 +2,11 @@ import {
   ARBITRUM_CHAIN_ID,
   AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
+  BSC_CHAIN_ID,
   DAO_TREASURY_ARBITRUM,
   DAO_TREASURY_AVALANCHE,
   DAO_TREASURY_BASE,
+  DAO_TREASURY_BSC,
   DAO_TREASURY_ETHEREUM,
   DAO_TREASURY_GNOSIS,
   DAO_TREASURY_POLYGON,
@@ -26,7 +28,7 @@ import {
 // 0x22af3D38E50ddedeb7C47f36faB321eC3Bb72A76 in the same tx). Extend if CoW rolls
 // out a new payouts Safe (symptom would be revenue silently dropping to zero).
 export const COW_PAYOUT_SAFES = new Set<string>([
-  '0xa03be496e67ec29bc62f01a428683d7f9c204930', // ethereum, base, avalanche
+  '0xa03be496e67ec29bc62f01a428683d7f9c204930', // ethereum, base, avalanche, bsc
   '0x66331f0b9cb30d38779c786bda5a3d57d12fba50', // arbitrum, polygon
 ])
 
@@ -37,4 +39,5 @@ export const COW_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: POLYGON_CHAIN_ID, treasury: DAO_TREASURY_POLYGON },
   { chainId: AVALANCHE_CHAIN_ID, treasury: DAO_TREASURY_AVALANCHE },
   { chainId: GNOSIS_CHAIN_ID, treasury: DAO_TREASURY_GNOSIS },
+  { chainId: BSC_CHAIN_ID, treasury: DAO_TREASURY_BSC },
 ]

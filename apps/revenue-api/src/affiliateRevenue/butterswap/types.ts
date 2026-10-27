@@ -63,11 +63,3 @@ export type TransactionsResponse = {
     size: number
   }
 }
-
-// Normalized value transfer (from/to/value, optional token contract). Native fees come from the
-// unchained tx `internalTxs`; ERC20 fees are decoded from receipt logs into this same shape.
-export type Transfer = { from?: string; to?: string; value?: string; contract?: string }
-
-export type EvmLog = { address: string; topics: string[]; data: string }
-export type TransactionReceipt = { logs: EvmLog[] }
-export type UnchainedTx = { internalTxs?: Transfer[] }
