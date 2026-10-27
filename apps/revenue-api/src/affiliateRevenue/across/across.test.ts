@@ -48,6 +48,39 @@ const fill = (depositor: Hex): Log => {
   }
 }
 
+const V3_ABI = parseAbi([
+  'event FilledV3Relay(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 repaymentChainId, uint256 indexed originChainId, uint32 indexed depositId, uint32 fillDeadline, uint32 exclusivityDeadline, address exclusiveRelayer, address indexed relayer, address depositor, address recipient, bytes message, (address updatedRecipient, bytes updatedMessage, uint256 updatedOutputAmount, uint8 fillType) relayExecutionInfo)',
+])
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+const v3Fill = (depositor: Hex): Log => {
+  const topics = encodeEventTopics({
+    abi: V3_ABI,
+    eventName: 'FilledV3Relay',
+    args: { originChainId: 42161n, depositId: 1, relayer: ZERO_ADDRESS },
+  })
+  const data = encodeAbiParameters(
+    parseAbiParameters(
+      'address, address, uint256, uint256, uint256, uint32, uint32, address, address, address, bytes, (address updatedRecipient, bytes updatedMessage, uint256 updatedOutputAmount, uint8 fillType)'
+    ),
+    [
+      ZERO_ADDRESS,
+      ZERO_ADDRESS,
+      1n,
+      1n,
+      1n,
+      0,
+      0,
+      ZERO_ADDRESS,
+      depositor,
+      HANDLER,
+      '0x',
+      { updatedRecipient: HANDLER, updatedMessage: '0x', updatedOutputAmount: 1n, fillType: 0 },
+    ]
+  )
+  return { ...fill(USER), topics: topics as Log['topics'], data }
+}
+
 const transferLog: Log = {
   address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
   topics: [toEventSelector('Transfer(address,address,uint256)'), ZERO, ZERO],
@@ -63,20 +96,32 @@ describe('isTreasuryDeposit', () => {
     expect(await isTreasuryDeposit('0x1', clientWith([transferLog, fill(DAO_TREASURY_ARBITRUM as Hex)]))).toBe(true)
   })
 
+  it('flags a treasury deposit filled under the older FilledV3Relay event', async () => {
+    expect(await isTreasuryDeposit('0x1', clientWith([transferLog, v3Fill(DAO_TREASURY_ARBITRUM as Hex)]))).toBe(true)
+  })
+
   it('flags a batch where any fill is a treasury deposit', async () => {
     expect(await isTreasuryDeposit('0x1', clientWith([fill(USER), fill(DAO_TREASURY_ARBITRUM as Hex)]))).toBe(true)
   })
 
-  it("passes a user's fill", async () => {
+  it("passes a user's fill under either event", async () => {
     expect(await isTreasuryDeposit('0x1', clientWith([transferLog, fill(USER)]))).toBe(false)
+    expect(await isTreasuryDeposit('0x1', clientWith([transferLog, v3Fill(USER)]))).toBe(false)
   })
 
-  it("passes another contract's log that shares the topic", async () => {
+  it("ignores another contract's log that shares the topic", async () => {
     const lookalike = { ...fill(DAO_TREASURY_ARBITRUM as Hex), data: ZERO }
-    expect(await isTreasuryDeposit('0x1', clientWith([lookalike]))).toBe(false)
+    expect(await isTreasuryDeposit('0x1', clientWith([lookalike, fill(USER)]))).toBe(false)
   })
 
-  it('passes a tx with no fill', async () => {
-    expect(await isTreasuryDeposit('0x1', clientWith([transferLog]))).toBe(false)
+  describe('with no recognisable fill, skips the tx rather than risk counting bridge output', () => {
+    it('when the receipt has no fill event', async () => {
+      expect(await isTreasuryDeposit('0x1', clientWith([transferLog]))).toBe(true)
+    })
+
+    it('when the only fill-topic log does not decode', async () => {
+      const lookalike = { ...fill(USER), data: ZERO }
+      expect(await isTreasuryDeposit('0x1', clientWith([lookalike]))).toBe(true)
+    })
   })
 })
