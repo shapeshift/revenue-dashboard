@@ -17,7 +17,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   fynd: 'Fynd',
 }
 
-// Brand colors from each logo, or the site's accent where the logo is too dark for the dashboard; 0x and Bebop are black/white brands
+// Brand colors; logos too dark for the dashboard use their site's accent
 export const SERVICE_COLORS: Record<string, string> = {
   across: '#6cf9d8',
   avnu: '#3761f6',

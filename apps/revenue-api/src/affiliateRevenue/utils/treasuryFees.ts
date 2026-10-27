@@ -6,6 +6,7 @@ import type { Fees } from '../types'
 
 import { createAlchemyClient } from './alchemy'
 import { buildAssetId } from './asset'
+import type { EvmLogClient } from './evmLogClient'
 import { getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
@@ -19,18 +20,11 @@ export type TreasuryFeesParams = {
   endTimestamp: number
   // Skip blocks before the service's first possible fee
   firstBlock?: number
+  // A cross-chain swap the treasury made pays out in a tx it never touches; checked only on txs that pay a fee
+  isOwnSwap?: (txid: string, client: EvmLogClient) => Promise<boolean>
 }
 
-/**
- * Fetch the fees a service paid into a treasury, by scanning the treasury's
- * tx history for transfers sent by a known set of contracts.
- *
- * Sender + recipient is the whole discriminator: anything one of these contracts
- * sends the treasury is our fee, whether it arrives as native (an internal tx) or
- * as an ERC20 (a token transfer). Services differ in which of the two they
- * normally use, but not in a way we need to encode — CoW pays natively yet has
- * paid at least once in WETH, and counting both is what caught it.
- */
+// Fees are native or ERC20 transfers from a sender into the treasury (CoW pays native but has paid in WETH), minus its own swaps
 export const getTreasuryFees = async ({
   service,
   chainId,
@@ -39,6 +33,7 @@ export const getTreasuryFees = async ({
   startTimestamp,
   endTimestamp,
   firstBlock,
+  isOwnSwap,
 }: TreasuryFeesParams): Promise<Fees[]> => {
   const baseUrl = getUnchainedBaseUrl(chainId)
   const senderSet = new Set([...senders].map(sender => sender.toLowerCase()))
@@ -68,12 +63,15 @@ export const getTreasuryFees = async ({
       })
     )
 
-    for (const tx of data.txs) {
-      if (tx.status !== 1) continue
-      if (tx.timestamp < startTimestamp || tx.timestamp > endTimestamp) continue
+    const feesByTx = data.txs
+      .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
+      .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
+      .filter(txFees => txFees.length > 0)
 
-      fees.push(...extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
-    }
+    const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
+    feesByTx.forEach((txFees, i) => {
+      if (!ownSwaps[i]) fees.push(...txFees)
+    })
 
     cursor = data.cursor
   } while (cursor)
@@ -88,15 +86,28 @@ type ExtractParams = {
   senders: ReadonlySet<string>
 }
 
-/**
- * Turn one tx's transfers into fee rows, summed per asset.
- *
- * A tx can pay the treasury more than once — the same asset in several transfers,
- * or several assets at once — so amounts are summed per asset. That keeps one row
- * per (tx, asset), which is what downstream USD enrichment and fee counts expect.
- */
-const extractTreasuryFees = (
-  tx: Pick<UnchainedTx, 'txid' | 'timestamp' | 'internalTxs' | 'tokenTransfers'>,
+// Swap output can only reach the treasury in the same tx if the treasury paid for the swap there
+const isTreasurySpend = (
+  tx: Pick<UnchainedTx, 'from' | 'internalTxs' | 'tokenTransfers'>,
+  treasury: string
+): boolean => {
+  if (tx.from.toLowerCase() === treasury) return true
+  // Zero-value transfers are address-poisoning spam, not spends
+  if ((tx.tokenTransfers ?? []).some(t => t.from.toLowerCase() === treasury && BigInt(t.value) > 0n)) return true
+
+  // Net, since some Safes forward each native receipt to their singleton, which unchained lists as an equal outflow
+  let nativeNet = 0n
+  for (const itx of tx.internalTxs ?? []) {
+    if (itx.to.toLowerCase() === treasury) nativeNet += BigInt(itx.value)
+    if (itx.from.toLowerCase() === treasury) nativeNet -= BigInt(itx.value)
+  }
+
+  return nativeNet < 0n
+}
+
+// One row per (tx, asset): a tx can pay the treasury several times, so amounts are summed
+export const extractTreasuryFees = (
+  tx: Pick<UnchainedTx, 'txid' | 'timestamp' | 'from' | 'internalTxs' | 'tokenTransfers'>,
   { service, chainId, treasury, senders }: ExtractParams
 ): Fees[] => {
   const amountByAssetId = new Map<string, bigint>()
@@ -116,6 +127,8 @@ const extractTreasuryFees = (
   for (const transfer of tx.tokenTransfers ?? []) {
     if (isFeeFromSender(transfer)) add(buildAssetId(chainId, transfer.contract), transfer.value)
   }
+
+  if (amountByAssetId.size === 0 || isTreasurySpend(tx, treasury)) return []
 
   return [...amountByAssetId]
     .filter(([, amount]) => amount > 0n)

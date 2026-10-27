@@ -180,7 +180,10 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return perWindow.flat()
   }
 
-  return { resolveBlock, getLogs, getBlockTimestamps }
+  const getReceiptLogs = async (txHash: string): Promise<Log[]> =>
+    (await call<{ logs: Log[] }>('eth_getTransactionReceipt', [txHash])).logs
+
+  return { resolveBlock, getLogs, getBlockTimestamps, getReceiptLogs }
 }
 
 export type EvmLogClient = ReturnType<typeof createEvmLogClient>

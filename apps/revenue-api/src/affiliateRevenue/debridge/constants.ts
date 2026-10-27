@@ -18,7 +18,7 @@ import {
 } from '../constants'
 
 // Fees go to the sell chain's treasury; deBridge's stats API can't list them (referralCode filter only, no same-chain list)
-// DlnSource sends native fees with a 2300-gas stipend; ones a Safe rejects sit uncounted in unclaimedAffiliateETHFees until withdrawn
+// Native fees a Safe rejects (DlnSource's 2300-gas stipend) sit uncounted in DlnSource until withdrawn
 export const DEBRIDGE_FEE_SENDERS = [
   '0x663dc15d3c1ac63ff12e45ab68fea3f0a883c251', // DeBridgeRouter: same-chain, paid in the buy token during the swap
   '0xef4fb24ad0916217251f553c0596f8edc630eb66', // DlnSource: cross-chain, paid in the order's input token on unlock
