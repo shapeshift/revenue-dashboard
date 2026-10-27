@@ -22,6 +22,8 @@ export const DAO_TREASURIES: ReadonlySet<string> = new Set(
     DAO_TREASURY_ARBITRUM,
     DAO_TREASURY_BASE,
     DAO_TREASURY_MONAD,
+    DAO_TREASURY_HYPEREVM,
+    DAO_TREASURY_PLASMA,
   ].map(address => address.toLowerCase())
 )
 

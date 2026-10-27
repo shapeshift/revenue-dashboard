@@ -71,6 +71,11 @@ describe('isTreasuryDeposit', () => {
     expect(await isTreasuryDeposit('0x1', clientWith([transferLog, fill(USER)]))).toBe(false)
   })
 
+  it("passes another contract's log that shares the topic", async () => {
+    const lookalike = { ...fill(DAO_TREASURY_ARBITRUM as Hex), data: ZERO }
+    expect(await isTreasuryDeposit('0x1', clientWith([lookalike]))).toBe(false)
+  })
+
   it('passes a tx with no fill', async () => {
     expect(await isTreasuryDeposit('0x1', clientWith([transferLog]))).toBe(false)
   })

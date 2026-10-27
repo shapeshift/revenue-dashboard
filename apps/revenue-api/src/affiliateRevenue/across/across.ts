@@ -20,8 +20,13 @@ export const isTreasuryDeposit = async (txid: string, client: EvmLogClient): Pro
   return logs
     .filter(log => log.topics[0] === FILLED_RELAY_TOPIC)
     .some(log => {
-      const { args } = decodeEventLog({ abi: FILLED_RELAY_ABI, data: log.data, topics: log.topics })
-      return DAO_TREASURIES.has(`0x${args.depositor.slice(26)}`)
+      try {
+        const { args } = decodeEventLog({ abi: FILLED_RELAY_ABI, data: log.data, topics: log.topics })
+        return DAO_TREASURIES.has(`0x${args.depositor.slice(26)}`)
+      } catch {
+        // Another contract's event sharing the topic
+        return false
+      }
     })
 }
 

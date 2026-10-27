@@ -89,15 +89,17 @@ type ExtractParams = {
 // Swap output can only reach the treasury in the same tx if the treasury paid for the swap there
 const isTreasurySpend = (
   tx: Pick<UnchainedTx, 'from' | 'internalTxs' | 'tokenTransfers'>,
-  treasury: string
+  { treasury, senders }: Pick<ExtractParams, 'treasury' | 'senders'>
 ): boolean => {
   if (tx.from.toLowerCase() === treasury) return true
   // Zero-value transfers are address-poisoning spam, not spends
-  if ((tx.tokenTransfers ?? []).some(t => t.from.toLowerCase() === treasury && BigInt(t.value) > 0n)) return true
+  if ((tx.tokenTransfers ?? []).some(t => t.from.toLowerCase() === treasury && t.value !== '0')) return true
 
   // Net, since some Safes forward each native receipt to their singleton, which unchained lists as an equal outflow
   let nativeNet = 0n
   for (const itx of tx.internalTxs ?? []) {
+    // Paying a sender is a spend even if an inflow (e.g. an unwrap, which logs no Transfer) nets it out
+    if (itx.from.toLowerCase() === treasury && senders.has(itx.to.toLowerCase()) && itx.value !== '0') return true
     if (itx.to.toLowerCase() === treasury) nativeNet += BigInt(itx.value)
     if (itx.from.toLowerCase() === treasury) nativeNet -= BigInt(itx.value)
   }
@@ -128,7 +130,7 @@ export const extractTreasuryFees = (
     if (isFeeFromSender(transfer)) add(buildAssetId(chainId, transfer.contract), transfer.value)
   }
 
-  if (amountByAssetId.size === 0 || isTreasurySpend(tx, treasury)) return []
+  if (amountByAssetId.size === 0 || isTreasurySpend(tx, { treasury, senders })) return []
 
   return [...amountByAssetId]
     .filter(([, amount]) => amount > 0n)

@@ -100,7 +100,7 @@ describe('extractTreasuryFees', () => {
             { from: WETH, to: TREASURY, value: '1000' },
             { from: TREASURY, to: SENDER, value: '1000' },
           ],
-          tokenTransfers: [transfer(TREASURY, WETH, WETH, '1000'), transfer(SENDER, TREASURY, USDC, '3000')],
+          tokenTransfers: [transfer(SENDER, TREASURY, USDC, '3000')],
         },
         params
       )
