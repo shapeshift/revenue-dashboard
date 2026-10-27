@@ -123,7 +123,6 @@ describe('receiverRanges', () => {
   const NEW = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
   const at = (date: string) => Date.parse(date) / 1000
 
-  // dropping a receiver from a window it was paid in silently zeroes that revenue
   test('scans only the receiver that was being paid', () => {
     expect(receiverRanges(at('2025-09-01'), at('2025-10-01')).map(r => r.address)).toEqual([OLD])
     expect(receiverRanges(at('2026-09-01'), at('2026-10-01')).map(r => r.address)).toEqual([NEW])

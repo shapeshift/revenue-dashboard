@@ -8,8 +8,7 @@ const BEBOP_SOLANA_CHAIN_ID = 2
 export const toChainId = (bebopChainId: number): string =>
   bebopChainId === BEBOP_SOLANA_CHAIN_ID ? SOLANA_CHAIN_ID : `eip155:${bebopChainId}`
 
-// Fee fields come back as "0.0" strings when nothing was charged, and only settled trades earn a fee
-// (matching the SUCCESS-only rule for partner netting)
+// Uncharged fees come back as "0.0" strings; only settled trades count, matching partner netting
 export const isChargedTrade = (trade: Trade): boolean =>
   trade.status === 'Success' && Number(trade.partnerFeeBps) > 0 && Number(trade.partnerFeeNative) > 0
 

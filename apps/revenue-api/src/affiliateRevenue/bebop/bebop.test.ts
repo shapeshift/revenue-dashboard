@@ -37,7 +37,7 @@ describe('isChargedTrade', () => {
     expect(isChargedTrade(trade())).toBe(true)
   })
 
-  // "0.0" is a truthy string, which is how 200 zero-value rows slipped through before
+  // "0.0" is truthy as a string
   test.each([
     ['"0.0" bps', { partnerFeeBps: '0.0' }],
     ['"0.0" fee', { partnerFeeNative: '0.0' }],
