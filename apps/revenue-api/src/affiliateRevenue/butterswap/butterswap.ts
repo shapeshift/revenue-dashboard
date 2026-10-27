@@ -121,17 +121,25 @@ export const crossChainFee = (tx: ButterSwapTransaction, timestamp: number): Fee
   }
 }
 
+// Each receiver's slice of the window, skipping receivers that weren't being paid in it
+export const receiverRanges = (start: number, end: number) =>
+  SAME_CHAIN_FEE_RECEIVERS.map(({ address, from, until = Infinity }) => ({
+    address,
+    start: Math.max(start, from),
+    end: Math.min(end, until),
+  })).filter(range => range.start <= range.end)
+
 const getSameChainFees = async (chainId: string, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const fetchRange = async (start: number, end: number) => {
     const perReceiver = await Promise.all(
-      SAME_CHAIN_FEE_RECEIVERS.map(receiver =>
+      receiverRanges(start, end).map(range =>
         getTreasuryFees({
           service: 'butterswap',
           chainId,
-          treasury: receiver,
+          treasury: range.address,
           senders: SAME_CHAIN_ROUTERS,
-          startTimestamp: start,
-          endTimestamp: end,
+          startTimestamp: range.start,
+          endTimestamp: range.end,
         })
       )
     )
@@ -163,13 +171,8 @@ const getCrossChainFees = async (startTimestamp: number, endTimestamp: number): 
     if (seen.has(tx.orderId)) continue
     seen.add(tx.orderId)
 
-    const sourceChainId = String(tx.raw.sourceChainId)
-    if (sourceChainId === String(tx.raw.destinationChainId)) {
-      if (!SAME_CHAIN_CHAIN_IDS.includes(`eip155:${sourceChainId}`)) {
-        console.warn(`[butterswap] UNCOUNTED same-chain fee on unscanned chain ${sourceChainId} — order ${tx.orderId}.`)
-      }
-      continue
-    }
+    // same-chain fees are counted from the receiver inflows instead
+    if (String(tx.raw.sourceChainId) === String(tx.raw.destinationChainId)) continue
 
     const fee = crossChainFee(tx, Math.floor(sourceMs / 1000))
     if (fee) fees.push(fee)

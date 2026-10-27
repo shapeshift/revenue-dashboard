@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { crossChainFee, parseOrderTimeMs } from './butterswap'
+import { crossChainFee, parseOrderTimeMs, receiverRanges } from './butterswap'
 import type { AffiliateFee, ButterSwapTransaction } from './types'
 
 const MAP_USDC = {
@@ -115,5 +115,28 @@ describe('crossChainFee', () => {
 
     expect(fee?.amount).toBe('869453514000000000')
     expect(fee?.amountUsd).toBeUndefined()
+  })
+})
+
+describe('receiverRanges', () => {
+  const OLD = '0x35339070f178dc4119732982c23f5a8d88d3f8a3'
+  const NEW = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
+  const at = (date: string) => Date.parse(date) / 1000
+
+  // dropping a receiver from a window it was paid in silently zeroes that revenue
+  test('scans only the receiver that was being paid', () => {
+    expect(receiverRanges(at('2025-09-01'), at('2025-10-01')).map(r => r.address)).toEqual([OLD])
+    expect(receiverRanges(at('2026-09-01'), at('2026-10-01')).map(r => r.address)).toEqual([NEW])
+  })
+
+  test('scans both across the April 2026 handover, each clamped to its period', () => {
+    expect(receiverRanges(at('2026-03-01'), at('2026-06-01'))).toEqual([
+      { address: OLD, start: at('2026-03-01'), end: at('2026-05-01') },
+      { address: NEW, start: at('2026-04-01'), end: at('2026-06-01') },
+    ])
+  })
+
+  test('scans nothing before the first receiver', () => {
+    expect(receiverRanges(at('2025-01-01'), at('2025-07-01'))).toEqual([])
   })
 })

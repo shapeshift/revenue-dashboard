@@ -26,12 +26,13 @@ export const SAME_CHAIN_ROUTERS = [
   '0xee030ec6f4307411607e55acd08e628ae6655b86', // Router V3.0
 ]
 
-export const SAME_CHAIN_FEE_RECEIVERS = [
-  '0x35339070f178dc4119732982c23f5a8d88d3f8a3', // 2025-08 → 2026-04
-  '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc', // 2026-04 → now
+// Active periods (unix seconds) with margin around the observed fees: the old receiver was paid
+// 2025-08-06 → 2026-04-17 and the current one from 2026-04-23
+export const SAME_CHAIN_FEE_RECEIVERS: { address: string; from: number; until?: number }[] = [
+  { address: '0x35339070f178dc4119732982c23f5a8d88d3f8a3', from: 1754006400, until: 1777593600 }, // 2025-08-01 → 2026-05-01
+  { address: '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc', from: 1775001600 }, // 2026-04-01 →
 ]
 
-// Same-chain swaps on other chains (e.g. Solana, which web pays to our Solana treasury) go uncounted
 export const SAME_CHAIN_CHAIN_IDS = [
   ETHEREUM_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
