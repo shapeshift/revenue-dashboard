@@ -33,8 +33,8 @@ const fetchTrades = async (startTimestamp: number, endTimestamp: number): Promis
       })
     )
 
-    // keyed on the whole row so a trade repeated across a page boundary counts once
-    for (const trade of data.results) trades.set(JSON.stringify(trade), trade)
+    // one order settles per tx, so a trade repeated across a page boundary counts once
+    for (const trade of data.results) trades.set(`${trade.chain_id}:${trade.txHash}`, trade)
 
     end = nextPageEnd(data.nextAvailableTimestamp, cursor, start)
   }
