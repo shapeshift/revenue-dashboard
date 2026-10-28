@@ -44,6 +44,7 @@ shapeshift-revenue-dashboard/
   - Bebop
   - ButterSwap
   - Chainflip
+  - deBridge
   - Fynd
   - MayaChain
   - NEAR Intents

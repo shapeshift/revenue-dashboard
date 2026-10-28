@@ -11,6 +11,7 @@ import * as bobgateway from './bobgateway'
 import * as butterswap from './butterswap'
 import * as chainflip from './chainflip'
 import * as cowswap from './cowswap'
+import * as debridge from './debridge'
 import * as fynd from './fynd'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
@@ -31,6 +32,7 @@ const providers: Record<Service, { getFees: (startTimestamp: number, endTimestam
   butterswap,
   chainflip,
   cowswap,
+  debridge,
   fynd,
   mayachain,
   nearintents,

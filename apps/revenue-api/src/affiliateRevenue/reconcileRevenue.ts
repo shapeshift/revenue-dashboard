@@ -4,6 +4,7 @@ import { getDateStartTimestamp } from '../utils/date'
 
 import { ACROSS_CHAINS } from './across/constants'
 import { ETHEREUM_CHAIN_ID } from './constants'
+import { DEBRIDGE_CHAINS } from './debridge/constants'
 import { getPayablePartnerFee } from './payablePartnerFee'
 import type { ExcludedPartnerSwap, Fees, PartnerSwap, ReconciliationResult } from './types'
 
@@ -15,6 +16,7 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   ButterSwap: 'butterswap',
   Chainflip: 'chainflip',
   'CoW Swap': 'cowswap',
+  deBridge: 'debridge',
   MAYAChain: 'mayachain',
   'NEAR Intents': 'nearintents',
   Portals: 'portals',
@@ -29,6 +31,7 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
 const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
   across: new Set(ACROSS_CHAINS.map(({ chainId }) => chainId)),
   bobgateway: new Set([ETHEREUM_CHAIN_ID]),
+  debridge: new Set(DEBRIDGE_CHAINS.map(({ chainId }) => chainId)),
 }
 
 // Nets each payable partner share out of gross as a synthetic fee; swaps that can't be netted are returned as excluded.

@@ -81,6 +81,7 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
   test.each([
     ['Across', 'across', 'eip155:1/slip44:60', '1000000000000000000', '-500000000000000000'], // 1 ETH
     ['BOB Gateway', 'bobgateway', 'eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7', '6000000', '-3000000'], // 6 USDT
+    ['deBridge', 'debridge', 'eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', '6000000', '-3000000'], // 6 USDC
   ] as const)(
     'deducts %s swaps against the %s tracker',
     (swapperName, service, affiliateFeeAssetId, affiliateFeeAmountCryptoBaseUnit, deduction) => {
@@ -101,6 +102,7 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
   test.each([
     ['Across', 'eip155:143/slip44:60'],
     ['BOB Gateway', 'bip122:000000000019d6689c085ae165831e93/slip44:0'],
+    ['deBridge', 'eip155:143/slip44:60'],
   ] as const)('%s swap paid on a chain its tracker does not scan (%s)', (swapperName, affiliateFeeAssetId) =>
     expectExcluded({ swapperName, affiliateFeeAssetId }, "tracker doesn't scan")
   )
