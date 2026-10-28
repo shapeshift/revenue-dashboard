@@ -36,10 +36,11 @@ const fetchBtcCacaoPriceLookup = async (
     (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceCacao
 }
 
-// CACAO/USD = BTC/USD at that time / BTC's price in CACAO
+// CACAO/USD = BTC/USD at that time / BTC's price in CACAO; a failed BTC fetch throws like a failed Midgard request,
+// so the day is retried rather than cached unpriced
 const getCacaoPriceUsd = async (btcCacaoPrice: number | undefined, timestamp: number): Promise<number | undefined> => {
   if (!btcCacaoPrice) return undefined
-  const btcPriceUsd = await getHistoricalPriceUsd(BTC_ASSET_ID, timestamp)
+  const btcPriceUsd = await getHistoricalPriceUsd(BTC_ASSET_ID, timestamp, { throwOnFetchError: true })
   return btcPriceUsd === null ? undefined : btcPriceUsd / btcCacaoPrice
 }
 

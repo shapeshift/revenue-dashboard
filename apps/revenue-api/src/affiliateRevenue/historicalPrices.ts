@@ -15,12 +15,14 @@ export const BUCKET_SECONDS = 89 * 86400
 export const MAX_PRICE_DISTANCE_SECONDS = 6 * 3600
 // The bucket containing now keeps gaining points, so it is refetched after this
 const OPEN_BUCKET_TTL_MS = 1000 * 60 * 10
+// A failed fetch is remembered this long, so callers during an outage don't each run a full retry cycle
+const FAILED_FETCH_TTL_MS = 1000 * 60
 
 // [timestamp ms, usd]
 export type PricePoint = [number, number]
 
 // Closed buckets never change, so they are kept until evicted
-const seriesCache = new LRUCache<string, PricePoint[]>({ max: 5000 })
+const seriesCache = new LRUCache<string, PricePoint[] | 'failed'>({ max: 5000 })
 const inflight = new Map<string, Promise<PricePoint[] | null>>()
 const limit = createSemaphore(4)
 const warnedUnmapped = new Set<string>()
@@ -28,7 +30,7 @@ const warnedUnmapped = new Set<string>()
 const fetchSeries = async (coingeckoId: string, bucket: number): Promise<PricePoint[] | null> => {
   const key = `${coingeckoId}:${bucket}`
   const cached = seriesCache.get(key)
-  if (cached) return cached
+  if (cached) return cached === 'failed' ? null : cached
 
   const pending = inflight.get(key)
   if (pending) return pending
@@ -52,8 +54,8 @@ const fetchSeries = async (coingeckoId: string, bucket: number): Promise<PricePo
       return prices
     })
     .catch(error => {
-      // not cached, so the next request retries the bucket
       console.error(`[historicalPrices] Failed to fetch ${coingeckoId} ${from}-${to}: ${formatError(error)}`)
+      seriesCache.set(key, 'failed', { ttl: FAILED_FETCH_TTL_MS })
       return null
     })
     .finally(() => inflight.delete(key))
@@ -81,8 +83,13 @@ export const findClosestPrice = (prices: PricePoint[], timestamp: number): numbe
   return Math.abs(closest[0] - targetMs) <= MAX_PRICE_DISTANCE_SECONDS * 1000 ? closest[1] : null
 }
 
-// USD spot price of the asset at the timestamp (seconds), from CoinGecko's hourly history
-export const getHistoricalPriceUsd = async (assetId: string, timestamp: number): Promise<number | null> => {
+// USD spot price of the asset at the timestamp (seconds), from CoinGecko's hourly history. Callers that cache
+// the priced fees pass throwOnFetchError, so a failed fetch fails the fetch instead of caching unpriced fees.
+export const getHistoricalPriceUsd = async (
+  assetId: string,
+  timestamp: number,
+  { throwOnFetchError = false } = {}
+): Promise<number | null> => {
   await coingeckoMappingService.ensureLoadedAsync()
 
   const coingeckoId = coingeckoMappingService.getCoingeckoId(assetId)
@@ -95,5 +102,8 @@ export const getHistoricalPriceUsd = async (assetId: string, timestamp: number):
   }
 
   const series = await fetchSeries(coingeckoId, Math.floor(timestamp / BUCKET_SECONDS))
-  return series ? findClosestPrice(series, timestamp) : null
+  if (series) return findClosestPrice(series, timestamp)
+  if (throwOnFetchError)
+    throw new Error(`[historicalPrices] Price history unavailable for ${coingeckoId} at ${timestamp}`)
+  return null
 }

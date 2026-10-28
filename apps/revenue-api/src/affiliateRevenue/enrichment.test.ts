@@ -1,21 +1,24 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { afterAll, describe, expect, spyOn, test } from 'bun:test'
 
+import { assetDataService } from '../assetData/AssetDataService'
+
+import { enrichFeesWithUsdPrices } from './enrichment'
+import * as historicalPrices from './historicalPrices'
 import type { Fees } from './types'
 
 const priceCalls: [string, number][] = []
-await mock.module('./historicalPrices', () => ({
-  getHistoricalPriceUsd: (assetId: string, timestamp: number) => {
-    priceCalls.push([assetId, timestamp])
-    return Promise.resolve(assetId === 'unpriced' ? null : 2000)
-  },
-}))
-await mock.module('../assetData/AssetDataService', () => ({
-  assetDataService: {
-    getAsset: (assetId: string) => Promise.resolve(assetId === 'unknown' ? undefined : { precision: 18 }),
-  },
-}))
-
-const { enrichFeesWithUsdPrices } = await import('./enrichment')
+// spies, not mock.module: a module mock is process-wide and would replace historicalPrices for its own tests too
+const priceSpy = spyOn(historicalPrices, 'getHistoricalPriceUsd').mockImplementation((assetId, timestamp) => {
+  priceCalls.push([assetId, timestamp])
+  return Promise.resolve(assetId === 'unpriced' ? null : 2000)
+})
+const assetSpy = spyOn(assetDataService, 'getAsset').mockImplementation(assetId =>
+  Promise.resolve(assetId === 'unknown' ? undefined : ({ precision: 18 } as never))
+)
+afterAll(() => {
+  priceSpy.mockRestore()
+  assetSpy.mockRestore()
+})
 
 const fee = (over: Partial<Fees> = {}): Fees => ({
   amount: '500000000000000000',
