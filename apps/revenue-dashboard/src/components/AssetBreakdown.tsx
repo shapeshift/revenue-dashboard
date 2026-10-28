@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { getServiceLabel } from '../constants/services'
+import { getServiceColor, getServiceLabel } from '../constants/services'
 import type { AssetRevenue, DateRange } from '../types'
 import { formatTokenAmountDisplay } from '../utils/assetHelpers'
 import { formatUsd, formatPercent } from '../utils/formatters'
 
 import { ExportButton } from './ExportButton'
 import { SortHeader } from './SortHeader'
+import { Tooltip } from './Tooltip'
 
 type AssetBreakdownProps = {
   byAsset: Record<string, AssetRevenue> | undefined
@@ -18,6 +19,54 @@ type AssetBreakdownProps = {
 type SortKey = 'symbol' | 'amountUsd' | 'volumeUsd' | 'feeCount'
 
 const PAGE_SIZE = 10 // rows shown before scrolling; more are rendered as you scroll
+
+type ProviderShare = {
+  service: string
+  amountUsd: number
+  feeCount: number
+  share: number
+}
+
+function ProvidersCell({ providers }: { providers: ProviderShare[] }) {
+  const [top, ...rest] = providers
+  if (!top) return <span>-</span>
+
+  return (
+    <Tooltip
+      content={
+        <table className="text-xs">
+          <tbody>
+            {providers.map(p => (
+              <tr key={p.service}>
+                <td className="pr-4 py-0.5">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: getServiceColor(p.service) }} />
+                    {getServiceLabel(p.service)}
+                  </span>
+                </td>
+                <td className="pr-4 text-right font-mono">{formatUsd(p.amountUsd)}</td>
+                <td className="pr-4 text-right text-zinc-400">{formatPercent(p.share)}</td>
+                <td className="text-right text-zinc-400">{p.feeCount.toLocaleString()} fees</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      }
+    >
+      <span className="inline-flex flex-col items-end gap-1">
+        <span>
+          {getServiceLabel(top.service)}
+          {rest.length > 0 && <span className="text-zinc-500"> +{rest.length}</span>}
+        </span>
+        <span className="flex w-24 h-1.5 rounded-full overflow-hidden bg-zinc-700">
+          {providers.map(p => (
+            <span key={p.service} style={{ width: `${p.share}%`, backgroundColor: getServiceColor(p.service) }} />
+          ))}
+        </span>
+      </span>
+    </Tooltip>
+  )
+}
 
 export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: AssetBreakdownProps) {
   const [sortKey, setSortKey] = useState<SortKey>('amountUsd')
@@ -43,7 +92,15 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
         ...asset,
         percentage: (asset.amountUsd / totalUsd) * 100,
         formattedAmount: formatTokenAmountDisplay(asset.tokenAmount),
-        topProvider: Object.entries(asset.byService).sort((a, b) => b[1] - a[1])[0],
+        providers: Object.entries(asset.byService)
+          .filter(([, amountUsd]) => amountUsd > 0)
+          .sort((a, b) => b[1] - a[1])
+          .map(([service, amountUsd]) => ({
+            service,
+            amountUsd,
+            feeCount: asset.byServiceFeeCount[service] ?? 0,
+            share: (amountUsd / asset.amountUsd) * 100,
+          })),
       }))
       .filter(a => a.amountUsd > 5)
       .sort((a, b) => {
@@ -66,7 +123,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
   const exportData = useMemo(() => {
     if (!assetData.length) return { headers: [], rows: [] }
 
-    const headers = ['Asset', 'Amount', 'USD Value', 'Volume', 'Fees', 'Share', 'Top Provider']
+    const headers = ['Asset', 'Amount', 'USD Value', 'Volume', 'Fees', 'Share', 'Providers']
     const rows = assetData.map(asset => [
       `${asset.symbol} (${asset.chainName})`,
       asset.formattedAmount,
@@ -74,7 +131,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
       formatUsd(asset.volumeUsd),
       asset.feeCount.toLocaleString(),
       formatPercent(asset.percentage),
-      asset.topProvider ? getServiceLabel(asset.topProvider[0]) : '-',
+      asset.providers.map(p => `${getServiceLabel(p.service)} ${formatPercent(p.share)}`).join('; ') || '-',
     ])
 
     return { headers, rows }
@@ -138,7 +195,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
               <SortHeader label="Volume" colKey="volumeUsd" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <SortHeader label="Fees" colKey="feeCount" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
               <th className="text-right py-2 font-medium sticky top-0 bg-zinc-800">Share</th>
-              <th className="text-right py-2 font-medium sticky top-0 bg-zinc-800">Top Provider</th>
+              <th className="text-right py-2 font-medium sticky top-0 bg-zinc-800">Providers</th>
             </tr>
           </thead>
           <tbody>
@@ -158,7 +215,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
                 <td className="text-right py-3 text-zinc-400">{asset.feeCount.toLocaleString()}</td>
                 <td className="text-right py-3 text-zinc-400">{formatPercent(asset.percentage)}</td>
                 <td className="text-right py-3 text-zinc-400">
-                  {asset.topProvider ? getServiceLabel(asset.topProvider[0]) : '-'}
+                  <ProvidersCell providers={asset.providers} />
                 </td>
               </tr>
             ))}
