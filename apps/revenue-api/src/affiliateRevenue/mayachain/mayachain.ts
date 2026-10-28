@@ -1,45 +1,46 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
-import { MAYACHAIN_CHAIN_ID } from '../constants'
+import { MAYACHAIN_CHAIN_ID, STREAMING_SWAP_SETTLE_SECONDS } from '../constants'
+import { getHistoricalPriceUsd } from '../historicalPrices'
 import type { Fees } from '../types'
-import { buildAssetId, getCachedFees } from '../utils'
+import { buildAssetId, fetchMidgardHourlyHistory, getCachedFees } from '../utils'
 
-import { CACAO_ASSET, MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, USDC_POOL } from './constants'
-import type { DepthHistory, MidgardAction, MidgardActionsResponse } from './types'
+import {
+  CACAO_ASSET,
+  MIDGARD_AFFILIATE,
+  MIDGARD_BASE_URL,
+  MIDGARD_PAGE_LIMIT,
+  BTC_ASSET_ID,
+  BTC_POOL,
+} from './constants'
+import type { DepthHistoryItem, MidgardAction, MidgardActionsResponse } from './types'
 
-const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
-  const seconds = endTimestamp - startTimestamp
-  if (seconds <= 1_209_600) return 'hour' // up to 2 weeks
-  if (seconds <= 34_560_000) return 'day' // up to 400 days
-  if (seconds <= 94_608_000) return 'week' // up to 3 years
-  return 'month'
-}
-
-// derive historical CACAO spot price from the USDC pool depth history: assetPriceUSD / assetPrice
-// (assetPrice is the asset's price in CACAO, so dividing yields USD per CACAO)
-const fetchCacaoPriceLookup = async (
+// BTC's price in CACAO from the deep, arbitraged BTC pool; the thin stablecoin pools drift too far from $1 to anchor USD
+const fetchBtcCacaoPriceLookup = async (
   startTimestamp: number,
   endTimestamp: number
 ): Promise<(timestamp: number) => number | undefined> => {
-  const interval = selectInterval(startTimestamp, endTimestamp)
-
-  const { data } = await withRetry('mayachain/midgard-cacaoPrice', () =>
-    axios.get<DepthHistory>(`${MIDGARD_BASE_URL}/history/depths/${USDC_POOL}`, {
-      params: { from: startTimestamp, to: endTimestamp, interval },
-    })
+  const history = await fetchMidgardHourlyHistory<DepthHistoryItem>(
+    'mayachain/midgard-btcPool',
+    `${MIDGARD_BASE_URL}/history/depths/${BTC_POOL}`,
+    startTimestamp,
+    endTimestamp
   )
 
-  const intervals = (data.intervals ?? [])
-    .map(({ startTime, endTime, assetPrice, assetPriceUSD }) => ({
-      startTime: Number(startTime),
-      endTime: Number(endTime),
-      priceUSD: Number(assetPrice) > 0 ? Number(assetPriceUSD) / Number(assetPrice) : 0,
-    }))
-    .filter(i => i.priceUSD > 0)
+  const intervals = history
+    .map(({ startTime, assetPrice }) => ({ startTime: Number(startTime), priceCacao: Number(assetPrice) }))
+    .filter(i => i.priceCacao > 0)
 
   return (timestamp: number): number | undefined =>
-    (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceUSD
+    (intervals.filter(i => i.startTime <= timestamp).at(-1) ?? intervals[0])?.priceCacao
+}
+
+// CACAO/USD = BTC/USD at that time / BTC's price in CACAO
+const getCacaoPriceUsd = async (btcCacaoPrice: number | undefined, timestamp: number): Promise<number | undefined> => {
+  if (!btcCacaoPrice) return undefined
+  const btcPriceUsd = await getHistoricalPriceUsd(BTC_ASSET_ID, timestamp)
+  return btcPriceUsd === null ? undefined : btcPriceUsd / btcCacaoPrice
 }
 
 const actionTimestamp = (action: MidgardAction): number => Math.floor(Number(action.date) / 1_000_000_000)
@@ -83,34 +84,35 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
 }
 
 const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
-  const [getCacaoPrice, allActions] = await Promise.all([
-    fetchCacaoPriceLookup(startTimestamp, endTimestamp),
+  const [getBtcCacaoPrice, allActions] = await Promise.all([
+    fetchBtcCacaoPriceLookup(startTimestamp, endTimestamp),
     fetchMidgardActions(startTimestamp, endTimestamp),
   ])
 
   const chainId = MAYACHAIN_CHAIN_ID
   const assetId = buildAssetId(chainId)
+  const fees: Fees[] = []
 
-  return allActions.reduce<Fees[]>((acc, action) => {
+  for (const action of allActions) {
     const affiliateOut = action.out.find(o => o.affiliate === true)
     const affiliateCoin = affiliateOut?.coins?.[0]
-    if (!affiliateCoin) return acc
+    if (!affiliateCoin) continue
 
     const inTxId = action.in[0]?.txID
-    if (!inTxId) return acc
+    if (!inTxId) continue
 
     if (affiliateCoin.asset !== CACAO_ASSET) {
       console.warn(`[mayachain] Skipping non-CACAO affiliate payout ${affiliateCoin.asset} (tx ${inTxId})`)
-      return acc
+      continue
     }
 
     const cacaoAmount = affiliateCoin.amount
     const timestamp = actionTimestamp(action)
 
-    const cacaoPrice = getCacaoPrice(timestamp)
+    const cacaoPrice = await getCacaoPriceUsd(getBtcCacaoPrice(timestamp), timestamp)
     const amountUsd = cacaoPrice !== undefined ? ((Number(cacaoAmount) / 1e10) * cacaoPrice).toString() : undefined
 
-    acc.push({
+    fees.push({
       chainId,
       assetId,
       service: 'mayachain',
@@ -118,11 +120,10 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
       timestamp,
       amount: cacaoAmount,
       amountUsd,
-      originalUsdValue: amountUsd,
     })
+  }
 
-    return acc
-  }, [])
+  return fees
 }
 
 export const getFees = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
@@ -132,7 +133,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     MAYACHAIN_CHAIN_ID,
     startTimestamp,
     endTimestamp,
-    fetchFeesFromMidgard
+    fetchFeesFromMidgard,
+    STREAMING_SWAP_SETTLE_SECONDS
   )
 
   console.log(

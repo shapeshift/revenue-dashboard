@@ -4,6 +4,7 @@ import { formatError } from '../../utils/error'
 import { withRetry } from '../../utils/retry'
 import { getDateEndTimestamp, getDateRange, getDateStartTimestamp } from '../cache'
 import { DAO_TREASURY_BASE } from '../constants'
+import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { getCachedFees } from '../utils'
 
@@ -73,7 +74,7 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
             txHash,
             timestamp,
             amount: appFee.amount,
-            // USD at swap time; enrichment re-prices at current prices when decimals are known
+            // USD at swap time; enrichment only prices fees Relay left unpriced
             amountUsd: appFee.amountUsd,
           })
         }
@@ -148,5 +149,5 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     `[relay] Total: ${fees.length} fees in ${Date.now() - startTime}ms | Cache: ${cacheHits} hits, ${cacheMisses} misses`
   )
 
-  return fees
+  return enrichFeesWithUsdPrices(fees)
 }

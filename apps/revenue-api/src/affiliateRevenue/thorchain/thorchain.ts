@@ -1,34 +1,25 @@
 import axios from 'axios'
 
 import { withRetry } from '../../utils/retry'
-import { THORCHAIN_CHAIN_ID } from '../constants'
+import { STREAMING_SWAP_SETTLE_SECONDS, THORCHAIN_CHAIN_ID } from '../constants'
 import type { Fees } from '../types'
-import { getCachedFees } from '../utils'
+import { fetchMidgardHourlyHistory, getCachedFees } from '../utils'
 
 import { MIDGARD_AFFILIATE, MIDGARD_BASE_URL, MIDGARD_PAGE_LIMIT, RUNE_ASSET, RUNE_ASSET_ID } from './constants'
-import type { MidgardAction, MidgardActionsResponse, RunePriceHistory } from './types'
-
-const selectInterval = (startTimestamp: number, endTimestamp: number): string => {
-  const seconds = endTimestamp - startTimestamp
-  if (seconds <= 1_209_600) return 'hour' // up to 2 weeks
-  if (seconds <= 34_560_000) return 'day' // up to 400 days
-  if (seconds <= 94_608_000) return 'week' // up to 3 years
-  return 'month'
-}
+import type { MidgardAction, MidgardActionsResponse, RunePriceItem } from './types'
 
 const fetchRunePriceLookup = async (
   startTimestamp: number,
   endTimestamp: number
 ): Promise<(timestamp: number) => number | undefined> => {
-  const interval = selectInterval(startTimestamp, endTimestamp)
-
-  const { data } = await withRetry('thorchain/midgard-runePrice', () =>
-    axios.get<RunePriceHistory>(`${MIDGARD_BASE_URL}/history/rune`, {
-      params: { from: startTimestamp, to: endTimestamp, interval },
-    })
+  const history = await fetchMidgardHourlyHistory<RunePriceItem>(
+    'thorchain/midgard-runePrice',
+    `${MIDGARD_BASE_URL}/history/rune`,
+    startTimestamp,
+    endTimestamp
   )
 
-  const intervals = (data.intervals ?? [])
+  const intervals = history
     .map(({ startTime, endTime, runePriceUSD }) => ({
       startTime: Number(startTime),
       endTime: Number(endTime),
@@ -106,7 +97,6 @@ const fetchFeesFromMidgard = async (startTimestamp: number, endTimestamp: number
       timestamp,
       amount: runeAmount,
       amountUsd,
-      originalUsdValue: amountUsd,
     })
 
     return acc
@@ -120,7 +110,8 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     THORCHAIN_CHAIN_ID,
     startTimestamp,
     endTimestamp,
-    fetchFeesFromMidgard
+    fetchFeesFromMidgard,
+    STREAMING_SWAP_SETTLE_SECONDS
   )
 
   console.log(

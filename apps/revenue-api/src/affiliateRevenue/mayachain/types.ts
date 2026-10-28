@@ -39,13 +39,4 @@ export type DepthHistoryItem = {
   startTime: string // unix seconds as string
   endTime: string
   assetPrice: string // asset price in CACAO
-  assetPriceUSD: string
-}
-
-export type DepthHistory = {
-  meta: {
-    startTime: string
-    endTime: string
-  }
-  intervals: DepthHistoryItem[]
 }

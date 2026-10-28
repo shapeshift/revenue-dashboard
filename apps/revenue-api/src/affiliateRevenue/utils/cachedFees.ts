@@ -48,9 +48,10 @@ export const getCachedFees = async (
   chainId: string,
   startTimestamp: number,
   endTimestamp: number,
-  fetchRange: (start: number, end: number) => Promise<Fees[]>
+  fetchRange: (start: number, end: number) => Promise<Fees[]>,
+  settleDelaySeconds?: number
 ): Promise<CachedFeesResult> => {
-  const threshold = getCacheableThreshold()
+  const threshold = getCacheableThreshold(settleDelaySeconds)
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
   const cacheLookups = cacheableDates.map(date => ({ date, cached: tryGetCachedFees(service, chainId, date) }))

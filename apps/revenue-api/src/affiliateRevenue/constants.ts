@@ -114,3 +114,6 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
   'eip155:22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
 }
+
+// Midgard lists a streaming swap under its start time but only adds the affiliate payout once it completes, up to ~24h later
+export const STREAMING_SWAP_SETTLE_SECONDS = 26 * 3600
