@@ -75,7 +75,8 @@ export const getCachedFees = async (
         saveCachedFees(service, chainId, date, feesByDate[date] || [])
       }
 
-      return fetched
+      // the fetched span can cover cached days between missing ones; those already came from the cache
+      return datesToFetch.flatMap(date => feesByDate[date] ?? [])
     })(),
     recentStart === null ? Promise.resolve([]) : fetchRecent(service, chainId, recentStart, endTimestamp, fetchRange),
   ])

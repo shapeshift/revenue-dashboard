@@ -6,30 +6,16 @@ The Revenue API aggregates affiliate fee data from 12 DEX integrations and provi
 
 ## Key Design Decisions
 
-### 1. Current Prices vs Historical Prices
+### 1. Swap-Time Prices
 
-**Decision**: The API uses **current market prices** when calculating USD values, not historical prices.
+**Decision**: USD values are what each fee was worth **when it was earned**, never today's market price. Past revenue therefore doesn't move with the market or between deploys.
 
-**Rationale**:
+**Implementation**:
 
-- Shows "today's value" of earned revenue
-- Provides meaningful insight into current portfolio value
-- Enables real-time performance tracking
-- Makes time-period comparisons more relevant
-
-**Example**:
-
-```
-Jan 1: Earned 1 ETH when ETH = $2,000
-Today: ETH = $3,000
-
-Dashboard displays: $3,000 (current value) ✓
-NOT: $2,000 (historical value) ✗
-```
-
-**Implementation**: `enrichment.ts` preserves original values in `originalUsdValue` but overwrites `amountUsd` with current prices.
-
-**Impact**: Historical revenue values will fluctuate with market prices. This is **intentional**, not a bug.
+- A provider's own USD is kept when it is priced at swap time: Relay, Chainflip, Bebop, 0x, NEAR Intents, ButterSwap cross-chain.
+- Every other fee is priced by `enrichment.ts` from CoinGecko's hourly history at the fee's timestamp (`historicalPrices.ts`, via the ShapeShift proxy's `market_chart/range`).
+- THORChain prices RUNE from Midgard's hourly RUNE history. MayaChain prices CACAO as CoinGecko BTC ÷ the BTC.BTC pool price. Maya's stablecoin pools aren't arbitraged to $1, and CoinGecko's CACAO feed is stale.
+- A fee with no provider USD and no price within 6h stays unpriced. A gap is never filled with a current price.
 
 ---
 
@@ -44,10 +30,10 @@ fetchFeesFromAPI(startTimestamp, endTimestamp): Promise<Fees[]>
 // 2. Transform to standard format
 transformFee(rawFee): Fees
 
-// 3. Cache historical data (>24h old)
-tryGetCachedFees() / saveCachedFees()
+// 3. Cache settled days (getCachedFees)
+getCachedFees(service, chainId, start, end, fetchRange)
 
-// 4. Enrich with current USD prices
+// 4. Price fees the provider left without swap-time USD
 enrichFeesWithUsdPrices(fees)
 
 // 5. Aggregate by date, service, asset
@@ -66,14 +52,12 @@ AffiliateRevenue.getAffiliateRevenue()
 
 **Two-tier caching**:
 
-1. **Historical (cacheable)**: Complete days before today (24h TTL)
-2. **Recent**: Current day - always fetched fresh
+1. **Settled days**: complete UTC days, cached for 24h from when they were fetched (reads don't extend it). The daily refetch picks up late-settling swaps and heals a day cached during an outage.
+2. **Recent**: days that haven't settled, refetched at most hourly.
 
-**Benefits**:
+A day is settled 15 minutes after it ends, or 26 hours after for THORChain and MayaChain: Midgard dates a streaming swap at its start but only adds the affiliate payout when it completes.
 
-- Reduces API/RPC load by ~85-90%
-- Ensures current prices for historical data
-- Fast responses for repeated queries
+Historical price series are cached separately and don't expire, since past prices don't change.
 
 **Cache Key Format**: `{service}:{chainId}:{YYYY-MM-DD}`
 
@@ -146,10 +130,10 @@ volume = feeAmount / 0.0055;
 
 ## Common Pitfalls for AI Agents
 
-### ❌ "Price enrichment is a bug"
+### ❌ "Price fees at the current market price"
 
-**Wrong**: Thinking current prices should be historical prices
-**Right**: Current prices are intentional for "today's value" reporting
+**Wrong**: Repricing past fees at today's price, or filling a missing historical price with a current one
+**Right**: Fees are valued at swap time; an unpriced fee stays unpriced
 
 ### ❌ "Zero results means integration is broken"
 
@@ -160,13 +144,6 @@ volume = feeAmount / 0.0055;
 
 **Wrong**: Expecting exact match with Mixpanel
 **Right**: Mixpanel may track different events or have gaps in cross-chain tracking
-
-### ❌ "Must use historical prices for accuracy"
-
-**Wrong**: Replacing enrichment with historical price lookups
-**Right**: Preserving current price strategy, using `originalUsdValue` if needed
-
----
 
 ## Performance Characteristics
 
@@ -179,12 +156,12 @@ volume = feeAmount / 0.0055;
 **Data freshness**:
 
 - Current day: Real-time (no cache)
-- Historical days: Up to 24h stale (price updates)
+- Settled days: refetched daily (THORChain/MayaChain days wait 26h to settle)
 
 **Rate limits**:
 
 - Most APIs: No explicit limits (public or authenticated)
-- CoinGecko: 50 calls/min (batch pricing reduces impact)
+- CoinGecko (via the ShapeShift proxy): one `market_chart/range` call per coin per 89-day bucket, 4 in flight; cached after the first fetch
 - Blockscout: Rate-limited per chain (cached to mitigate)
 
 ---
@@ -213,12 +190,6 @@ volume = feeAmount / 0.0055;
 ---
 
 ## Future Considerations
-
-**Historical prices**:
-
-- Could add toggle: "Show current value" vs "Show earned value"
-- Would require historical price database or API (CoinGecko Pro)
-- Keep `originalUsdValue` preservation for backward compatibility
 
 **New integrations**:
 
