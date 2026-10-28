@@ -40,13 +40,3 @@ export type RunePriceItem = {
   endTime: string
   runePriceUSD: string // Int64(e8) — divide by 1e8 for actual USD price
 }
-
-export type RunePriceHistory = {
-  meta: {
-    startTime: string
-    endTime: string
-    startRunePriceUSD: string
-    endRunePriceUSD: string
-  }
-  intervals: RunePriceItem[]
-}

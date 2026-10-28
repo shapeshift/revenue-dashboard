@@ -6,13 +6,13 @@ import type { Fees } from './types'
 
 export { getDateEndTimestamp, getDateRange, getDateStartTimestamp, timestampToDate } from '../utils/date'
 
+// Prices are swap-time, so a refetch only changes a day if the provider's data did; the daily
+// refetch picks up late-settling swaps and heals a day cached during an outage. Reads don't extend it.
 export const feeCache = new LRUCache<string, Fees[]>({
-  max: 5000,
+  max: 50_000,
   maxSize: 500_000_000,
   sizeCalculation: fees => fees.length * 200 + 100,
-  ttl: 1000 * 60 * 60 * 24, // 1 day - refresh daily for current prices
-  updateAgeOnGet: true,
-  updateAgeOnHas: false,
+  ttl: 1000 * 60 * 60 * 24,
 })
 
 // Today never settles, so it is refetched; this bounds that to once an hour per window
@@ -31,8 +31,8 @@ export const blockNumberCache = new LRUCache<string, number>({
 // A day is final only once nodes and indexers (unchained trails the head) have caught up past its end
 const SETTLE_DELAY_SECONDS = 15 * 60
 
-export const getCacheableThreshold = (): number => {
-  const settledDay = new Date(Date.now() - SETTLE_DELAY_SECONDS * 1000)
+export const getCacheableThreshold = (settleDelaySeconds = SETTLE_DELAY_SECONDS): number => {
+  const settledDay = new Date(Date.now() - settleDelaySeconds * 1000)
   settledDay.setUTCHours(0, 0, 0, 0)
   return Math.floor(settledDay.getTime() / 1000)
 }

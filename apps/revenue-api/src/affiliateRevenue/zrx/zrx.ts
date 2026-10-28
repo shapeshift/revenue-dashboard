@@ -5,7 +5,7 @@ import { bn } from '../../lib/bignumber'
 import { withRetry } from '../../utils/retry'
 import { getAffiliateFeeRate } from '../constants'
 import { enrichFeesWithUsdPrices } from '../enrichment'
-import { getAssetPriceUsd } from '../priceCache'
+import { getHistoricalPriceUsd } from '../historicalPrices'
 import type { Fees } from '../types'
 import { baseUnitToTokenAmount, buildAssetId, decimalToBaseUnit, getCachedFees, safeAmountToString } from '../utils'
 
@@ -31,7 +31,7 @@ const getTradeVolumeUsd = async (trade: Trade): Promise<number | null> => {
 
   const sellAssetId = buildAssetId(`eip155:${trade.chainId}`, trade.sellToken)
   const sellAsset = await assetDataService.getAsset(sellAssetId)
-  const sellPrice = await getAssetPriceUsd(sellAssetId)
+  const sellPrice = await getHistoricalPriceUsd(sellAssetId, trade.timestamp)
 
   if (!sellAsset || sellPrice === null) return null
 
@@ -54,7 +54,10 @@ const resolveBareIntegerAmountToBaseUnits = async (
   assetId: string,
   precision: number
 ): Promise<string | null> => {
-  const [price, volumeUsd] = await Promise.all([getAssetPriceUsd(assetId), getTradeVolumeUsd(trade)])
+  const [price, volumeUsd] = await Promise.all([
+    getHistoricalPriceUsd(assetId, trade.timestamp),
+    getTradeVolumeUsd(trade),
+  ])
 
   if (price === null || volumeUsd === null) {
     console.warn(`[zrx] Skipped fee - bare-integer amount with no price/volume anchor to disambiguate`, {
