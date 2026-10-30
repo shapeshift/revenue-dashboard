@@ -59,5 +59,6 @@ export interface AffiliateRevenueResponse {
 export interface PartnerRevenueResponse {
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
+  shapeshiftTotalUsd: number
   affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }

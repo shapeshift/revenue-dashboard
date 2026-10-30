@@ -118,7 +118,9 @@ describe('aggregatePartnerRevenue', () => {
     const alpha = response.byPartner['alpha']
     expect(alpha.swapCount).toBe(1) // the pending swap is excluded entirely
     expect(alpha.totalUsd).toBeCloseTo(3, 6)
+    expect(alpha.shapeshiftUsd).toBeCloseTo(3, 6) // 60 bps on-chain − 30 bps partner → same $3
     expect(response.partnerTotalUsd).toBeCloseTo(3, 6)
+    expect(response.shapeshiftTotalUsd).toBeCloseTo(3, 6)
 
     expect(excluded).toHaveLength(1)
     expect(excluded[0].swapId).toBe('swap-2')
@@ -173,6 +175,7 @@ describe('aggregatePartnerRevenue', () => {
     const alpha = response.byPartner['alpha']
     expect(alpha.swapCount).toBe(2) // the verified 0-bps swap still counts as a swap
     expect(alpha.totalUsd).toBeCloseTo(3, 6) // but adds no revenue
+    expect(alpha.shapeshiftUsd).toBeCloseTo(3, 6) // only the first swap's $6 − $3
     expect(alpha.totalVolumeUsd).toBeCloseTo(1500, 6) // its volume is real
     expect(excluded).toHaveLength(0) // $0 fee → not an audit exclusion
   })
@@ -185,6 +188,19 @@ describe('aggregatePartnerRevenue', () => {
     expect(alpha.totalVolumeUsd).toBeCloseTo(1234.56, 6)
   })
 
+  test('splits the on-chain fee by bps: ShapeShift gets the remainder at the partner price', () => {
+    // 60 bps on-chain, partner 20 → partner 1/3, ShapeShift 2/3 of the fee
+    const { response } = aggregatePartnerRevenue([partnerSwap({ partnerBps: 20, partnerFeeUsd: '2' })], [])
+
+    expect(response.byPartner['alpha'].shapeshiftUsd).toBeCloseTo(4, 6)
+  })
+
+  test('ShapeShift share is 0 when partner bps meets or exceeds the on-chain bps', () => {
+    const { response } = aggregatePartnerRevenue([partnerSwap({ partnerBps: 80, partnerFeeUsd: '6' })], [])
+
+    expect(response.byPartner['alpha'].shapeshiftUsd).toBe(0)
+  })
+
   test('passes the affiliate registry through unchanged', () => {
     const affiliates = [{ partnerCode: 'alpha', bps: 30, isActive: true }]
     const { response, excluded } = aggregatePartnerRevenue([], affiliates)
@@ -192,6 +208,7 @@ describe('aggregatePartnerRevenue', () => {
     expect(response.affiliates).toEqual(affiliates)
     expect(response.byPartner).toEqual({})
     expect(response.partnerTotalUsd).toBe(0)
+    expect(response.shapeshiftTotalUsd).toBe(0)
     expect(excluded).toEqual([])
   })
 })

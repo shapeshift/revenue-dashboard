@@ -42,7 +42,8 @@ export type ExcludedPartnerSwap = {
 
 export type PartnerRevenue = {
   partnerCode: string
-  totalUsd: number
+  totalUsd: number // partner's payout
+  shapeshiftUsd: number // ShapeShift's net share of the same swaps' affiliate fees
   totalVolumeUsd: number
   swapCount: number
   byService: Record<string, number>

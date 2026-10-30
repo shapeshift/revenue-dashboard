@@ -90,6 +90,7 @@ function App() {
           />
           <PartnerBreakdown
             data={partnerRevenueQuery.data}
+            totalRevenueUsd={affiliateRevenueQuery.data?.totalUsd}
             isLoading={partnerRevenueQuery.isLoading}
             isError={partnerRevenueQuery.isError}
           />

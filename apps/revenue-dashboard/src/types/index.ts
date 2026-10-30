@@ -35,7 +35,8 @@ export type AffiliateRevenueResponse = {
 
 export type PartnerRevenue = {
   partnerCode: string
-  totalUsd: number
+  totalUsd: number // partner's payout
+  shapeshiftUsd: number // ShapeShift's net share of the same swaps' affiliate fees
   totalVolumeUsd: number
   swapCount: number
   byService: Record<string, number>
@@ -45,6 +46,7 @@ export type PartnerRevenue = {
 export type PartnerRevenueResponse = {
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
+  shapeshiftTotalUsd: number
   affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }
 
