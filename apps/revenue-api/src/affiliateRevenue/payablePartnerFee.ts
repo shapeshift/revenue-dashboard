@@ -6,7 +6,13 @@ const BPS_DENOMINATOR = 10_000
 const FEE_DEVIATION_TOLERANCE = 0.25
 
 export type PayablePartnerFee =
-  | { payable: true; partnerFeeUsd: number; partnerFeeCryptoBaseUnit: string; assetId: string }
+  | {
+      payable: true
+      partnerFeeUsd: number
+      partnerFeeCryptoBaseUnit: string
+      shapeshiftFeeUsd: number
+      assetId: string
+    }
   | { payable: false; reason: string }
 
 // A partner swap represents real, payable revenue — the same basis the payout script pays on — only
@@ -25,7 +31,13 @@ export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
   if (swap.partnerBps < 0) return { payable: false, reason: 'invalid partner bps' }
 
   if (swap.verifiedBps === 0) {
-    return { payable: true, partnerFeeUsd: 0, partnerFeeCryptoBaseUnit: '0', assetId: swap.affiliateFeeAssetId ?? '' }
+    return {
+      payable: true,
+      partnerFeeUsd: 0,
+      partnerFeeCryptoBaseUnit: '0',
+      shapeshiftFeeUsd: 0,
+      assetId: swap.affiliateFeeAssetId ?? '',
+    }
   }
 
   if (!swap.affiliateFeeAssetId) return { payable: false, reason: 'no affiliate-fee asset' }
@@ -46,12 +58,17 @@ export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
 
   const total = bnOrZero(swap.affiliateFeeAmountCryptoBaseUnit)
   const share = total.times(swap.partnerBps).div(swap.verifiedBps)
-  const partnerFeeCryptoBaseUnit = (share.gt(total) ? total : share).toFixed(0)
+  const partnerShare = share.gt(total) ? total : share
+  const partnerFeeCryptoBaseUnit = partnerShare.toFixed(0)
+  const shapeshiftFeeUsd = partnerShare.gt(0)
+    ? partnerFeeUsd.times(total.minus(partnerShare)).div(partnerShare)
+    : bnOrZero(0)
 
   return {
     payable: true,
     partnerFeeUsd: partnerFeeUsd.toNumber(),
     partnerFeeCryptoBaseUnit,
+    shapeshiftFeeUsd: shapeshiftFeeUsd.toNumber(),
     assetId: swap.affiliateFeeAssetId,
   }
 }

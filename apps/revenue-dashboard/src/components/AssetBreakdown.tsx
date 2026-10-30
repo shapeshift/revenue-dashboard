@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { getServiceColor, getServiceLabel } from '../constants/services'
-import type { AssetRevenue, DateRange } from '../types'
+import type { AssetRevenue, DateRange, Service } from '../types'
 import { formatTokenAmountDisplay } from '../utils/assetHelpers'
 import { formatUsd, formatPercent } from '../utils/formatters'
 
@@ -92,7 +92,7 @@ export function AssetBreakdown({ byAsset, totalUsd, isLoading, dateRange }: Asse
         ...asset,
         percentage: (asset.amountUsd / totalUsd) * 100,
         formattedAmount: formatTokenAmountDisplay(asset.tokenAmount),
-        providers: Object.entries(asset.byService)
+        providers: (Object.entries(asset.byService) as [Service, number][])
           .filter(([, amountUsd]) => amountUsd > 0)
           .sort((a, b) => b[1] - a[1])
           .map(([service, amountUsd]) => ({

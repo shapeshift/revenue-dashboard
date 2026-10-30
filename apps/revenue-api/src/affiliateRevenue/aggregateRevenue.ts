@@ -6,6 +6,7 @@ import { timestampToDate } from '../utils/date'
 
 import { getAffiliateFeeRate } from './constants'
 import { getPayablePartnerFee } from './payablePartnerFee'
+import { getUncollectedReason } from './reconcileRevenue'
 import type { ExcludedPartnerSwap, Fees, PartnerSwap } from './types'
 import { baseUnitToTokenAmount } from './utils/amount'
 
@@ -205,6 +206,7 @@ export function aggregatePartnerRevenue(
 ): { response: PartnerRevenueResponse; excluded: ExcludedPartnerSwap[] } {
   const byPartner: PartnerRevenueResponse['byPartner'] = {}
   const excluded: ExcludedPartnerSwap[] = []
+  let shapeshiftTotalUsd = 0
 
   for (const swap of partnerSwaps) {
     const fee = getPayablePartnerFee(swap)
@@ -224,6 +226,7 @@ export function aggregatePartnerRevenue(
     const partner = (byPartner[swap.partnerCode] ??= {
       partnerCode: swap.partnerCode,
       totalUsd: 0,
+      shapeshiftUsd: 0,
       totalVolumeUsd: 0,
       swapCount: 0,
       byService: {},
@@ -233,6 +236,8 @@ export function aggregatePartnerRevenue(
     const volumeUsd = bnOrZero(swap.volumeUsd).toNumber()
 
     partner.totalUsd += fee.partnerFeeUsd
+    partner.shapeshiftUsd += fee.shapeshiftFeeUsd
+    if (!getUncollectedReason(swap, fee.assetId)) shapeshiftTotalUsd += fee.shapeshiftFeeUsd
     partner.totalVolumeUsd += volumeUsd
     partner.swapCount += 1
     partner.byService[swap.swapperName] = (partner.byService[swap.swapperName] ?? 0) + fee.partnerFeeUsd
@@ -241,5 +246,5 @@ export function aggregatePartnerRevenue(
 
   const partnerTotalUsd = Object.values(byPartner).reduce((sum, partner) => sum + partner.totalUsd, 0)
 
-  return { response: { byPartner, partnerTotalUsd, affiliates }, excluded }
+  return { response: { byPartner, partnerTotalUsd, shapeshiftTotalUsd, affiliates }, excluded }
 }
