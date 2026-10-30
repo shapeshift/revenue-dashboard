@@ -90,7 +90,10 @@ function App() {
           />
           <PartnerBreakdown
             data={partnerRevenueQuery.data}
-            totalRevenueUsd={affiliateRevenueQuery.data?.totalUsd}
+            // a failed provider drops its fees from the total, so the share would be overstated
+            totalRevenueUsd={
+              affiliateRevenueQuery.data?.failedProviders.length ? undefined : affiliateRevenueQuery.data?.totalUsd
+            }
             isLoading={partnerRevenueQuery.isLoading}
             isError={partnerRevenueQuery.isError}
           />

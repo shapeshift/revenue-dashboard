@@ -46,7 +46,7 @@ export type PartnerRevenue = {
 export type PartnerRevenueResponse = {
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
-  shapeshiftTotalUsd: number
+  shapeshiftTotalUsd: number // only swaps whose gross fee total revenue collects (tracked swapper + chain)
   affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }
 

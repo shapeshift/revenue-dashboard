@@ -201,6 +201,25 @@ describe('aggregatePartnerRevenue', () => {
     expect(response.byPartner['alpha'].shapeshiftUsd).toBe(0)
   })
 
+  test('leaves swaps total revenue never collects out of the ShapeShift total, but keeps them in the row', () => {
+    const { response } = aggregatePartnerRevenue(
+      [
+        partnerSwap({ partnerFeeUsd: '3' }), // THORChain: collected
+        partnerSwap({ swapId: 'unmapped', swapperName: 'Unknown', partnerFeeUsd: '3' }),
+        partnerSwap({
+          swapId: 'untracked',
+          swapperName: 'BOB Gateway',
+          partnerFeeUsd: '3',
+          affiliateFeeAssetId: 'eip155:8453/slip44:60', // bobgateway only tracks Ethereum
+        }),
+      ],
+      []
+    )
+
+    expect(response.byPartner['alpha'].shapeshiftUsd).toBeCloseTo(9, 6)
+    expect(response.shapeshiftTotalUsd).toBeCloseTo(3, 6)
+  })
+
   test('passes the affiliate registry through unchanged', () => {
     const affiliates = [{ partnerCode: 'alpha', bps: 30, isActive: true }]
     const { response, excluded } = aggregatePartnerRevenue([], affiliates)

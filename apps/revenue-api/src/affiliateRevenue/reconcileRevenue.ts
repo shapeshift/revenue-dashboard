@@ -34,6 +34,17 @@ const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
   debridge: new Set(DEBRIDGE_CHAINS.map(({ chainId }) => chainId)),
 }
 
+// Why a payable swap's gross fee is never among the collected fees (no tracker for its swapper or chain), if so.
+export function getUncollectedReason(swap: PartnerSwap, assetId: string): string | undefined {
+  const service = SWAPPER_TO_SERVICE[swap.swapperName]
+  if (!service) return `unmapped swapper "${swap.swapperName}"`
+
+  const chainId = assetId.split('/')[0] ?? ''
+  if (TRACKED_CHAIN_IDS[service] && !TRACKED_CHAIN_IDS[service].has(chainId)) {
+    return `${service} tracker doesn't scan ${chainId}`
+  }
+}
+
 // Nets each payable partner share out of gross as a synthetic fee; swaps that can't be netted are returned as excluded.
 export function reconcilePartnerRevenue(
   fees: Fees[],
@@ -64,22 +75,19 @@ export function reconcilePartnerRevenue(
     // a verified 0-bps swap is payable but owes the partner nothing to net out
     if (bnOrZero(fee.partnerFeeUsd).lte(0)) continue
 
-    const service = SWAPPER_TO_SERVICE[swap.swapperName]
-    if (!service) {
-      exclude(swap, `unmapped swapper "${swap.swapperName}"`)
+    const uncollected = getUncollectedReason(swap, fee.assetId)
+    if (uncollected) {
+      exclude(swap, uncollected)
       continue
     }
 
+    const service = SWAPPER_TO_SERVICE[swap.swapperName]
     if (failed.has(service)) {
       exclude(swap, `provider ${service} failed this run — gross unavailable`)
       continue
     }
 
     const chainId = fee.assetId.split('/')[0] ?? ''
-    if (TRACKED_CHAIN_IDS[service] && !TRACKED_CHAIN_IDS[service].has(chainId)) {
-      exclude(swap, `${service} tracker doesn't scan ${chainId}`)
-      continue
-    }
 
     netFees.push({
       synthetic: true,
