@@ -9,7 +9,7 @@ type SortKey = 'partnerCode' | 'shapeshiftUsd' | 'totalUsd' | 'totalVolumeUsd' |
 
 type PartnerBreakdownProps = {
   data: PartnerRevenueResponse | undefined
-  totalRevenueUsd: number | undefined // net revenue across all swaps, for the share-of-total figure
+  totalRevenueUsd: number | undefined
   isLoading: boolean
   isError?: boolean
 }
@@ -25,7 +25,6 @@ const SORT_LABELS: Record<SortKey, string> = {
 // Right-aligned numeric columns (Partner is handled separately, left-aligned).
 const SORT_KEYS: SortKey[] = ['shapeshiftUsd', 'totalUsd', 'totalVolumeUsd', 'swapCount']
 
-// tiny partner swaps would otherwise render as $0.00 and read as unpaid
 const formatCell = (amount: number) => (amount > 0 && amount < 0.01 ? '<$0.01' : formatUsd(amount))
 
 const PAGE_SIZE = 10 // rows shown before scrolling; more are rendered as you scroll

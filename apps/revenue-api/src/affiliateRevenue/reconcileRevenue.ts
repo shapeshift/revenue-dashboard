@@ -34,7 +34,6 @@ const TRACKED_CHAIN_IDS: Partial<Record<Service, ReadonlySet<string>>> = {
   debridge: new Set(DEBRIDGE_CHAINS.map(({ chainId }) => chainId)),
 }
 
-// Why a payable swap's gross fee is never among the collected fees (no tracker for its swapper or chain), if so.
 export function getUncollectedReason(swap: PartnerSwap, assetId: string): string | undefined {
   const service = SWAPPER_TO_SERVICE[swap.swapperName]
   if (!service) return `unmapped swapper "${swap.swapperName}"`

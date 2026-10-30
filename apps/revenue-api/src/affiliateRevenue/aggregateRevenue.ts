@@ -237,7 +237,6 @@ export function aggregatePartnerRevenue(
 
     partner.totalUsd += fee.partnerFeeUsd
     partner.shapeshiftUsd += fee.shapeshiftFeeUsd
-    // the share-of-total-revenue numerator only counts swaps whose gross fee total revenue collects
     if (!getUncollectedReason(swap, fee.assetId)) shapeshiftTotalUsd += fee.shapeshiftFeeUsd
     partner.totalVolumeUsd += volumeUsd
     partner.swapCount += 1

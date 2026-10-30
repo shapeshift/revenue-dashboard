@@ -60,7 +60,6 @@ export function getPayablePartnerFee(swap: PartnerSwap): PayablePartnerFee {
   const share = total.times(swap.partnerBps).div(swap.verifiedBps)
   const partnerShare = share.gt(total) ? total : share
   const partnerFeeCryptoBaseUnit = partnerShare.toFixed(0)
-  // our remainder of the on-chain fee, priced at the same rate as the partner's share
   const shapeshiftFeeUsd = partnerShare.gt(0)
     ? partnerFeeUsd.times(total.minus(partnerShare)).div(partnerShare)
     : bnOrZero(0)

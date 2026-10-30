@@ -1,5 +1,3 @@
-import type { PartnerRevenue } from './affiliateRevenue/types'
-
 export const services = [
   'across',
   'avnu',
@@ -56,9 +54,19 @@ export interface AffiliateRevenueResponse {
   failedProviders: Service[]
 }
 
+export interface PartnerRevenue {
+  partnerCode: string
+  totalUsd: number
+  shapeshiftUsd: number
+  totalVolumeUsd: number
+  swapCount: number
+  byService: Record<string, number>
+  byDate: Record<string, number>
+}
+
 export interface PartnerRevenueResponse {
   byPartner: Record<string, PartnerRevenue>
   partnerTotalUsd: number
-  shapeshiftTotalUsd: number // only swaps whose gross fee total revenue collects (tracked swapper + chain)
+  shapeshiftTotalUsd: number
   affiliates: { partnerCode: string; bps: number; isActive: boolean }[]
 }

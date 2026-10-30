@@ -19,6 +19,7 @@
     "recharts": "^3.6.0"
   },
   "devDependencies": {
+    "@shapeshiftoss/revenue-api": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

@@ -40,16 +40,6 @@ export type ExcludedPartnerSwap = {
   partnerFeeUsd: number // the fee we're NOT counting — for logging $ impact
 }
 
-export type PartnerRevenue = {
-  partnerCode: string
-  totalUsd: number // partner's payout
-  shapeshiftUsd: number // ShapeShift's net share of the same swaps' affiliate fees
-  totalVolumeUsd: number
-  swapCount: number
-  byService: Record<string, number>
-  byDate: Record<string, number>
-}
-
 export type ReconciliationResult = {
   netFees: Fees[]
   excluded: ExcludedPartnerSwap[]
