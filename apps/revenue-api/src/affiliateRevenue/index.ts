@@ -18,6 +18,7 @@ import * as nearintents from './nearIntents'
 import * as portals from './portals'
 import { reconcilePartnerRevenue } from './reconcileRevenue'
 import * as relay from './relay'
+import { createRevenueCache } from './revenueCache'
 import { fetchPartners, fetchPartnerSwaps } from './swapServiceClient'
 import * as symbiosis from './symbiosis'
 import * as thorchain from './thorchain'
@@ -80,6 +81,8 @@ const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
 }
 
 export class AffiliateRevenue {
+  private readonly cachedRevenue = createRevenueCache()
+
   private async collectFees(
     startTimestamp: number,
     endTimestamp: number
@@ -118,16 +121,18 @@ export class AffiliateRevenue {
   }
 
   async getAffiliateRevenue(startTimestamp: number, endTimestamp: number): Promise<AffiliateRevenueResponse> {
-    assetDataService.resetMissLog()
+    return this.cachedRevenue(startTimestamp, endTimestamp, async () => {
+      assetDataService.resetMissLog()
 
-    const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
-    const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
+      const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
+      const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
 
-    logExcludedPartnerSwaps(reconciliation.excluded)
+      logExcludedPartnerSwaps(reconciliation.excluded)
 
-    return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
-      assetDataService.getAsset(assetId)
-    )
+      return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
+        assetDataService.getAsset(assetId)
+      )
+    })
   }
 
   async getPartnerRevenue(startTimestamp: number, endTimestamp: number): Promise<PartnerRevenueResponse> {
