@@ -8,8 +8,11 @@ import type { Fees } from './types'
 
 const priceCalls: [string, number][] = []
 // spies, not mock.module: a module mock is process-wide and would replace historicalPrices for its own tests too
-const priceSpy = spyOn(historicalPrices, 'getHistoricalPriceUsd').mockImplementation((assetId, timestamp) => {
+const priceSpy = spyOn(historicalPrices, 'getHistoricalPriceUsd').mockImplementation((assetId, timestamp, options) => {
   priceCalls.push([assetId, timestamp])
+  if (assetId === 'failed') {
+    return options?.throwOnFetchError ? Promise.reject(new Error('Price history unavailable')) : Promise.resolve(null)
+  }
   return Promise.resolve(assetId === 'unpriced' ? null : 2000)
 })
 const assetSpy = spyOn(assetDataService, 'getAsset').mockImplementation(assetId =>
@@ -57,6 +60,11 @@ describe('enrichFeesWithUsdPrices', () => {
     ])
     expect(noPrice.amountUsd).toBeUndefined()
     expect(noAsset.amountUsd).toBeUndefined()
+  })
+
+  test('rejects enrichment when historical price fetching fails', async () => {
+    const result = await enrichFeesWithUsdPrices([fee({ assetId: 'failed' })]).catch((error: unknown) => error)
+    expect(result).toEqual(new Error('Price history unavailable'))
   })
 
   // fees come from the per-day cache, so enrichment must not write into those objects

@@ -10,7 +10,7 @@ export const enrichFeesWithUsdPrices = async (fees: Fees[]): Promise<Fees[]> =>
       if (Number(fee.amountUsd) > 0) return fee
 
       const [price, asset] = await Promise.all([
-        getHistoricalPriceUsd(fee.assetId, fee.timestamp),
+        getHistoricalPriceUsd(fee.assetId, fee.timestamp, { throwOnFetchError: true }),
         assetDataService.getAsset(fee.assetId),
       ])
       if (price === null || !asset) return fee

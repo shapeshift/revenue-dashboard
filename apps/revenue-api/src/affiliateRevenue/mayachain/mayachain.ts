@@ -58,6 +58,7 @@ const fetchMidgardActions = async (startTimestamp: number, endTimestamp: number)
   while (true) {
     const { data } = await withRetry('mayachain/midgard-actions', () =>
       axios.get<MidgardActionsResponse>(`${MIDGARD_BASE_URL}/actions`, {
+        timeout: 15_000,
         params: {
           affiliate: MIDGARD_AFFILIATE,
           timestamp: endTimestamp + 1,
