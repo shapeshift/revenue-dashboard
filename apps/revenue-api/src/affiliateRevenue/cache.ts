@@ -1,6 +1,7 @@
 import { LRUCache } from 'lru-cache'
 
 import { getDateEndTimestamp, getDateRange, timestampToDate } from '../utils/date'
+import { registerGauge } from '../utils/diagnostics'
 
 import type { Fees } from './types'
 
@@ -27,6 +28,12 @@ export const blockNumberCache = new LRUCache<string, number>({
   ttl: 1000 * 60 * 60 * 24 * 365, // 1 year default, overridden by saveCachedBlockNumber
   updateAgeOnGet: true,
 })
+
+registerGauge('caches', () => ({
+  fees: feeCache.size,
+  recentFees: recentFeeCache.size,
+  blocks: blockNumberCache.size,
+}))
 
 // A day is final only once nodes and indexers (unchained trails the head) have caught up past its end
 const SETTLE_DELAY_SECONDS = 15 * 60

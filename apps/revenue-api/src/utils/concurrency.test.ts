@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createSemaphore, mapConcurrently } from './concurrency'
+import { createSemaphore, mapConcurrently, withDeadline } from './concurrency'
 
 describe('createSemaphore', () => {
   it('never runs more than the limit at once and lets every caller through', async () => {
@@ -49,5 +49,16 @@ describe('mapConcurrently', () => {
     expect((thrown as Error).message).toBe('boom')
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(started).toBeLessThan(5)
+  })
+})
+
+describe('withDeadline', () => {
+  it('rejects a promise that never settles', async () => {
+    const error = await withDeadline(new Promise(() => {}), 10, 'stuck').catch((e: unknown) => e)
+    expect(error).toEqual(new Error('stuck exceeded 10ms'))
+  })
+
+  it('passes through a result inside the deadline', async () => {
+    expect(await withDeadline(Promise.resolve(1), 1000, 'quick')).toBe(1)
   })
 })

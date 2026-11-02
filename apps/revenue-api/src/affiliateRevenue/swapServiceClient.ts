@@ -1,3 +1,5 @@
+import { trackInflight } from '../utils/diagnostics'
+
 import type { PartnerSwap } from './types'
 
 const SWAP_SERVICE_URL = process.env['SWAP_SERVICE_URL'] as string
@@ -7,6 +9,20 @@ if (!SWAP_SERVICE_URL) throw new Error('SWAP_SERVICE_URL is required')
 if (!SWAP_SERVICE_API_KEY) throw new Error('SWAP_SERVICE_API_KEY is required')
 
 const REQUEST_TIMEOUT_MS = 30_000
+
+const getJson = (label: string, url: string): Promise<unknown> =>
+  trackInflight(
+    `swap-service ${label}`,
+    (async () => {
+      const res = await fetch(url, {
+        headers: { 'x-api-key': SWAP_SERVICE_API_KEY },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+      if (!res.ok) throw new Error(`swap-service ${label} ${res.status}`)
+
+      return res.json() as Promise<unknown>
+    })()
+  )
 
 type AffiliateSwap = {
   swapId: string
@@ -38,13 +54,10 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
     url.searchParams.set('limit', '100')
     if (cursor) url.searchParams.set('cursor', cursor)
 
-    const res = await fetch(url.toString(), {
-      headers: { 'x-api-key': SWAP_SERVICE_API_KEY },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    if (!res.ok) throw new Error(`swap-service /v1/affiliate/swaps ${res.status}`)
-
-    const body = (await res.json()) as { swaps: AffiliateSwap[]; nextCursor: string | null }
+    const body = (await getJson('/v1/affiliate/swaps', url.toString())) as {
+      swaps: AffiliateSwap[]
+      nextCursor: string | null
+    }
 
     for (const s of body.swaps) {
       swaps.push({
@@ -74,12 +87,7 @@ export async function fetchPartnerSwaps(startDate: string, endDate: string): Pro
 }
 
 export async function fetchPartners(): Promise<{ partnerCode: string; bps: number; isActive: boolean }[]> {
-  const res = await fetch(new URL('/v1/affiliate', SWAP_SERVICE_URL).toString(), {
-    headers: { 'x-api-key': SWAP_SERVICE_API_KEY },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
-
-  if (!res.ok) throw new Error(`swap-service /v1/affiliate ${res.status}`)
-
-  return (await res.json()) as { partnerCode: string; bps: number; isActive: boolean }[]
+  return getJson('/v1/affiliate', new URL('/v1/affiliate', SWAP_SERVICE_URL).toString()) as Promise<
+    { partnerCode: string; bps: number; isActive: boolean }[]
+  >
 }

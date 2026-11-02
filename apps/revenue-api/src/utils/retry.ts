@@ -26,14 +26,8 @@ export function isRetryableError(error: unknown): boolean {
 
     if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return true
 
-    if (!error.response && error.code) {
-      const retryableCodes = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED']
-      return retryableCodes.includes(error.code)
-    }
-
-    if (error.code === 'ECONNABORTED') return true
-
-    return false
+    // Bun's fetch reports its own codes (e.g. ConnectionRefused), so no answer at all is what marks a blip
+    return !error.response && error.code !== 'ERR_CANCELED'
   }
 
   if (error instanceof Error) {

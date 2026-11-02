@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
 import { mapConcurrently } from '../utils/concurrency'
+import { trackInflight } from '../utils/diagnostics'
 
 import { MANUAL_COINGECKO_MAPPINGS } from './manualCoingeckoMappings'
 
@@ -159,7 +160,7 @@ async function loadFromNetwork(): Promise<boolean> {
   try {
     const loadedMappings: Record<string, string> = {}
 
-    await mapConcurrently(COINGECKO_CHAINS, 4, async chain => {
+    const fetchChain = async (chain: string): Promise<void> => {
       const url = `${GITHUB_BASE_URL}/${chain}/adapter.json`
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
@@ -178,7 +179,9 @@ async function loadFromNetwork(): Promise<boolean> {
       } catch (error) {
         console.warn(`[CoingeckoMappingService] Failed to fetch ${chain}:`, error)
       }
-    })
+    }
+
+    await mapConcurrently(COINGECKO_CHAINS, 4, chain => trackInflight(`coingecko mapping ${chain}`, fetchChain(chain)))
 
     if (Object.keys(loadedMappings).length === 0) {
       console.warn('[CoingeckoMappingService] No mappings loaded from network')

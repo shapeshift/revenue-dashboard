@@ -1,6 +1,8 @@
 import { assetDataService } from '../assetData/AssetDataService'
 import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
+import { withDeadline } from '../utils/concurrency'
 import { timestampToDate } from '../utils/date'
+import { trackInflight } from '../utils/diagnostics'
 import { formatError } from '../utils/error'
 
 import * as across from './across'
@@ -24,6 +26,10 @@ import * as symbiosis from './symbiosis'
 import * as thorchain from './thorchain'
 import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
+
+const PROVIDER_DEADLINE_MS = 45_000
+
+let nextSweepId = 1
 
 const providers: Record<Service, { getFees: (startTimestamp: number, endTimestamp: number) => Promise<Fees[]> }> = {
   across,
@@ -84,14 +90,28 @@ export class AffiliateRevenue {
   private readonly cachedRevenue = createRevenueCache()
 
   private async collectFees(
+    sweep: number,
     startTimestamp: number,
     endTimestamp: number
   ): Promise<{ fees: Fees[]; failedProviders: Service[] }> {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
+    const timings: string[] = []
 
     const entries = Object.entries(providers) as Array<[Service, (typeof providers)[Service]]>
-    const results = await Promise.allSettled(entries.map(([, p]) => p.getFees(startTimestamp, endTimestamp)))
+    const results = await Promise.allSettled(
+      entries.map(([name, p]) => {
+        const startedAt = Date.now()
+        const fetching = trackInflight(`sweep ${sweep} ${name}`, p.getFees(startTimestamp, endTimestamp))
+        const settled = () => {
+          const ms = Date.now() - startedAt
+          timings.push(`${name}=${ms}`)
+          if (ms > PROVIDER_DEADLINE_MS) console.warn(`[Sweep ${sweep}] ${name} settled after its deadline, at ${ms}ms`)
+        }
+        fetching.then(settled, settled)
+        return withDeadline(fetching, PROVIDER_DEADLINE_MS, `${name} fees`)
+      })
+    )
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
@@ -102,6 +122,8 @@ export class AffiliateRevenue {
         console.error(`[AffiliateRevenue] ${provider} failed: ${formatError(result.reason)}`)
       }
     })
+
+    console.log(`[Sweep ${sweep}] providers settled, ms: ${timings.join(' ')}`)
 
     return { fees, failedProviders }
   }
@@ -124,14 +146,36 @@ export class AffiliateRevenue {
     return this.cachedRevenue(startTimestamp, endTimestamp, async () => {
       assetDataService.resetMissLog()
 
-      const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
-      const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
+      const sweep = nextSweepId++
+      const startedAt = Date.now()
+      console.log(`[Sweep ${sweep}] started ${timestampToDate(startTimestamp)}..${timestampToDate(endTimestamp)}`)
+
+      const { fees, failedProviders } = await this.collectFees(sweep, startTimestamp, endTimestamp)
+      const collectedAt = Date.now()
+
+      const reconciliation = await trackInflight(
+        `sweep ${sweep} reconcile`,
+        this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
+      )
+      const reconciledAt = Date.now()
 
       logExcludedPartnerSwaps(reconciliation.excluded)
 
-      return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
-        assetDataService.getAsset(assetId)
+      const response = await trackInflight(
+        `sweep ${sweep} aggregate`,
+        aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
+          assetDataService.getAsset(assetId)
+        )
       )
+
+      const finishedAt = Date.now()
+      console.log(
+        `[Sweep ${sweep}] done in ${finishedAt - startedAt}ms: collect=${collectedAt - startedAt} ` +
+          `reconcile=${reconciledAt - collectedAt} aggregate=${finishedAt - reconciledAt} ` +
+          `fees=${fees.length} failed=[${failedProviders.join(',')}]`
+      )
+
+      return response
     })
   }
 
