@@ -1,3 +1,4 @@
+import { trackInflight } from '../../utils/diagnostics'
 import { formatError } from '../../utils/error'
 import { isRetryableError } from '../../utils/retry'
 
@@ -30,7 +31,7 @@ export const isRetryableRpcError = (error: unknown): boolean =>
   (error instanceof RpcError && (error.transient || (error.status ?? 0) >= 500))
 
 export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
-  return async <T>(method: string, params: unknown[]): Promise<T> => {
+  const call = async <T>(method: string, params: unknown[]): Promise<T> => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -69,4 +70,7 @@ export const createRpcCaller = (rpcUrl: string, timeoutMs = 30000) => {
       clearTimeout(timeoutId)
     }
   }
+
+  // The url carries the node's API key, so only the method is named
+  return <T>(method: string, params: unknown[]): Promise<T> => trackInflight(`rpc ${method}`, call<T>(method, params))
 }

@@ -17,6 +17,18 @@ export type CachedFeesResult = {
   cacheMisses: number
 }
 
+const running = new Map<string, Promise<Fees[]>>()
+
+// A scan outlives its provider deadline so its result still lands, so a later sweep joins it instead of stacking another
+const fetchOnce = (key: string, fetch: () => Promise<Fees[]>): Promise<Fees[]> => {
+  const pending = running.get(key)
+  if (pending) return pending
+
+  const request = fetch().finally(() => running.delete(key))
+  running.set(key, request)
+  return request
+}
+
 /**
  * Serve a service+chain's fees for a window from the per-day cache, fetching
  * only the days we're missing.
@@ -37,10 +49,11 @@ const fetchRecent = async (
   const cached = recentFeeCache.get(key)
   if (cached) return cached
 
-  const fees = await fetchRange(start, end)
-  recentFeeCache.set(key, fees)
-
-  return fees
+  return fetchOnce(key, async () => {
+    const fees = await fetchRange(start, end)
+    recentFeeCache.set(key, fees)
+    return fees
+  })
 }
 
 export const getCachedFees = async (
@@ -54,7 +67,10 @@ export const getCachedFees = async (
   const threshold = getCacheableThreshold(settleDelaySeconds)
   const { cacheableDates, recentStart } = splitDateRange(startTimestamp, endTimestamp, threshold)
 
-  const cacheLookups = cacheableDates.map(date => ({ date, cached: tryGetCachedFees(service, chainId, date) }))
+  const cacheLookups = cacheableDates.map(date => ({
+    date,
+    cached: tryGetCachedFees(service, chainId, date),
+  }))
   const cachedFees = cacheLookups.flatMap(({ cached }) => cached ?? [])
   const datesToFetch = cacheLookups.filter(({ cached }) => !cached).map(({ date }) => date)
 
@@ -66,7 +82,9 @@ export const getCachedFees = async (
 
       const fetchStart = getDateStartTimestamp(datesToFetch[0])
       const fetchEnd = getDateEndTimestamp(datesToFetch[datesToFetch.length - 1])
-      const fetched = await fetchRange(fetchStart, fetchEnd)
+      const fetched = await fetchOnce(`${service}:${chainId}:${fetchStart}:${fetchEnd}`, () =>
+        fetchRange(fetchStart, fetchEnd)
+      )
 
       // Cache every requested date, including the ones with no fees — an empty
       // day is a real answer, and not storing it means refetching it forever.

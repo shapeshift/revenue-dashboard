@@ -1,10 +1,17 @@
+import { LRUCache } from 'lru-cache'
+
 import { ASSET_OVERRIDES } from './overrides'
 import type { Asset } from './types'
 import { fetchAssetData, fetchCoingeckoAsset } from './utils'
 
+const NOT_FOUND_TTL_MS = 1000 * 60 * 60
+const FAILED_LOOKUP_TTL_MS = 1000 * 60
+
 export class AssetDataService {
   private assetData = new Map<string, Asset>()
   private loggedMisses = new Set<string>()
+  private misses = new LRUCache<string, string>({ max: 5000 })
+  private lookups = new Map<string, Promise<Asset | undefined>>()
 
   static async initialize(): Promise<AssetDataService> {
     const service = new AssetDataService()
@@ -40,14 +47,16 @@ export class AssetDataService {
     this.assetData.set(asset.assetId, asset)
   }
 
-  async getAsset(assetId: string): Promise<Asset | undefined> {
-    const existing = this.assetData.get(assetId)
-    if (existing) return existing
+  private recordMiss(assetId: string, message: string, ttl: number): void {
+    this.misses.set(assetId, message, { ttl })
+    this.warnOncePerRequest(message, assetId)
+  }
 
+  private async lookup(assetId: string): Promise<Asset | undefined> {
     try {
       const asset = await fetchCoingeckoAsset(assetId)
       if (!asset) {
-        this.warnOncePerRequest(`[AssetDataService] Asset not found: ${assetId}`, assetId)
+        this.recordMiss(assetId, `[AssetDataService] Asset not found: ${assetId}`, NOT_FOUND_TTL_MS)
         return
       }
 
@@ -55,8 +64,30 @@ export class AssetDataService {
       return asset
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      this.warnOncePerRequest(`[AssetDataService] Asset not fetched from CoinGecko: ${assetId} (${message})`, assetId)
+      this.recordMiss(
+        assetId,
+        `[AssetDataService] Asset not fetched from CoinGecko: ${assetId} (${message})`,
+        FAILED_LOOKUP_TTL_MS
+      )
     }
+  }
+
+  async getAsset(assetId: string): Promise<Asset | undefined> {
+    const existing = this.assetData.get(assetId)
+    if (existing) return existing
+
+    const miss = this.misses.get(assetId)
+    if (miss) {
+      this.warnOncePerRequest(miss, assetId)
+      return
+    }
+
+    const running = this.lookups.get(assetId)
+    if (running) return running
+
+    const lookup = this.lookup(assetId).finally(() => this.lookups.delete(assetId))
+    this.lookups.set(assetId, lookup)
+    return lookup
   }
 }
 

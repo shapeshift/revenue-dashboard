@@ -1,6 +1,8 @@
 import { assetDataService } from '../assetData/AssetDataService'
 import type { AffiliateRevenueResponse, PartnerRevenueResponse, Service } from '../types'
+import { mapConcurrently, withDeadline } from '../utils/concurrency'
 import { timestampToDate } from '../utils/date'
+import { trackInflight } from '../utils/diagnostics'
 import { formatError } from '../utils/error'
 
 import * as across from './across'
@@ -24,6 +26,12 @@ import * as symbiosis from './symbiosis'
 import * as thorchain from './thorchain'
 import type { ExcludedPartnerSwap, Fees, ReconciliationResult } from './types'
 import * as zrx from './zrx'
+
+const PROVIDER_DEADLINE_MS = 45_000
+const FINISH_DEADLINE_MS = 30_000
+const ASSET_LOOKUPS = 8
+
+let nextSweepId = 1
 
 const providers: Record<Service, { getFees: (startTimestamp: number, endTimestamp: number) => Promise<Fees[]> }> = {
   across,
@@ -56,7 +64,11 @@ const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
 
   // Biggest $ impact first — that's what tells you whether revenue is materially off.
   const groups = [...byReason.entries()]
-    .map(([reason, swaps]) => ({ reason, swaps, usd: swaps.reduce((sum, s) => sum + s.partnerFeeUsd, 0) }))
+    .map(([reason, swaps]) => ({
+      reason,
+      swaps,
+      usd: swaps.reduce((sum, s) => sum + s.partnerFeeUsd, 0),
+    }))
     .sort((a, b) => b.usd - a.usd)
 
   const total = groups.reduce((sum, g) => sum + g.usd, 0)
@@ -80,18 +92,32 @@ const logExcludedPartnerSwaps = (excluded: ExcludedPartnerSwap[]): void => {
   }
 }
 
-export class AffiliateRevenue {
+class AffiliateRevenue {
   private readonly cachedRevenue = createRevenueCache()
 
   private async collectFees(
+    sweep: number,
     startTimestamp: number,
     endTimestamp: number
   ): Promise<{ fees: Fees[]; failedProviders: Service[] }> {
     const fees: Array<Fees> = []
     const failedProviders: Service[] = []
+    const timings: string[] = []
 
     const entries = Object.entries(providers) as Array<[Service, (typeof providers)[Service]]>
-    const results = await Promise.allSettled(entries.map(([, p]) => p.getFees(startTimestamp, endTimestamp)))
+    const results = await Promise.allSettled(
+      entries.map(([name, p]) => {
+        const startedAt = Date.now()
+        const fetching = trackInflight(`sweep ${sweep} ${name}`, p.getFees(startTimestamp, endTimestamp))
+        const settled = () => {
+          const ms = Date.now() - startedAt
+          timings.push(`${name}=${ms}`)
+          if (ms > PROVIDER_DEADLINE_MS) console.warn(`[Sweep ${sweep}] ${name} settled after its deadline, at ${ms}ms`)
+        }
+        fetching.then(settled, settled)
+        return withDeadline(fetching, PROVIDER_DEADLINE_MS, `${name} fees`)
+      })
+    )
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
@@ -102,6 +128,8 @@ export class AffiliateRevenue {
         console.error(`[AffiliateRevenue] ${provider} failed: ${formatError(result.reason)}`)
       }
     })
+
+    console.log(`[Sweep ${sweep}] providers settled, ms: ${timings.join(' ')}`)
 
     return { fees, failedProviders }
   }
@@ -124,14 +152,44 @@ export class AffiliateRevenue {
     return this.cachedRevenue(startTimestamp, endTimestamp, async () => {
       assetDataService.resetMissLog()
 
-      const { fees, failedProviders } = await this.collectFees(startTimestamp, endTimestamp)
-      const reconciliation = await this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)
+      const sweep = nextSweepId++
+      const startedAt = Date.now()
+      console.log(`[Sweep ${sweep}] started ${timestampToDate(startTimestamp)}..${timestampToDate(endTimestamp)}`)
+
+      const { fees, failedProviders } = await this.collectFees(sweep, startTimestamp, endTimestamp)
+      const collectedAt = Date.now()
+
+      const reconciliation = await withDeadline(
+        trackInflight(`sweep ${sweep} reconcile`, this.reconcile(fees, failedProviders, startTimestamp, endTimestamp)),
+        FINISH_DEADLINE_MS,
+        'reconcile'
+      )
+      const reconciledAt = Date.now()
 
       logExcludedPartnerSwaps(reconciliation.excluded)
 
-      return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId =>
-        assetDataService.getAsset(assetId)
+      const response = await withDeadline(
+        trackInflight(
+          `sweep ${sweep} aggregate`,
+          (async () => {
+            const assetIds = [...new Set(reconciliation.netFees.map(fee => fee.assetId))]
+            const assets = await mapConcurrently(assetIds, ASSET_LOOKUPS, assetId => assetDataService.getAsset(assetId))
+            const assetById = new Map(assetIds.map((assetId, i) => [assetId, assets[i]]))
+            return aggregateAffiliateRevenue(reconciliation.netFees, failedProviders, assetId => assetById.get(assetId))
+          })()
+        ),
+        FINISH_DEADLINE_MS,
+        'aggregate'
       )
+
+      const finishedAt = Date.now()
+      console.log(
+        `[Sweep ${sweep}] done in ${finishedAt - startedAt}ms: collect=${collectedAt - startedAt} ` +
+          `reconcile=${reconciledAt - collectedAt} aggregate=${finishedAt - reconciledAt} ` +
+          `fees=${fees.length} failed=[${failedProviders.join(',')}]`
+      )
+
+      return response
     })
   }
 
@@ -155,3 +213,5 @@ export class AffiliateRevenue {
     return response
   }
 }
+
+export const affiliateRevenue = new AffiliateRevenue()

@@ -1,9 +1,13 @@
 import { Hono } from 'hono'
+import { bearerAuth } from 'hono/bearer-auth'
 import { cors } from 'hono/cors'
+import { HTTPException } from 'hono/http-exception'
 
+import './utils/http'
 import './assetData/AssetDataService' // top-level await initializes the asset DB at boot
 import { affiliateRevenueRoute } from './routes/affiliateRevenue'
 import { partnerRevenueRoute } from './routes/partnerRevenue'
+import { getDiagnostics, startDiagnostics } from './utils/diagnostics'
 
 const app = new Hono()
 
@@ -14,6 +18,11 @@ app.use(cors())
 app.get('/health', c => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
+
+const debugToken = process.env['DEBUG_TOKEN']
+if (debugToken) {
+  app.get('/debug/inflight', bearerAuth({ token: debugToken }), c => c.json(getDiagnostics()))
+}
 
 // Affiliate revenue endpoint
 app.route('/api/v1', affiliateRevenueRoute)
@@ -28,9 +37,13 @@ app.notFound(c => {
 
 // Error handler
 app.onError((err, c) => {
+  if (err instanceof HTTPException) return err.getResponse()
+
   console.error('[Server Error]:', err)
   return c.json({ error: 'Internal server error', message: err.message }, 500)
 })
+
+startDiagnostics()
 
 const port = Number(process.env.PORT) || 4200
 

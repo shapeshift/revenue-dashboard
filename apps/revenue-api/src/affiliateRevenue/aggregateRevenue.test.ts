@@ -18,7 +18,7 @@ const ethAsset: Asset = {
   icon: '',
 }
 
-const resolveAsset: ResolveAsset = assetId => Promise.resolve(assetId === ETH ? ethAsset : undefined)
+const resolveAsset: ResolveAsset = assetId => (assetId === ETH ? ethAsset : undefined)
 
 const fee = (over: Partial<Fees>): Fees => ({
   amount: '0',
@@ -36,8 +36,8 @@ const grossFee = fee({ amount: '1000000000000000000', amountUsd: '10' })
 const partnerAdjustment = fee({ synthetic: true, amount: '-400000000000000000', amountUsd: '-4' })
 
 describe('aggregateAffiliateRevenue', () => {
-  test('nets the synthetic partner adjustment out of USD, crypto, and per-asset totals', async () => {
-    const res = await aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
+  test('nets the synthetic partner adjustment out of USD, crypto, and per-asset totals', () => {
+    const res = aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
 
     expect(res.totalUsd).toBeCloseTo(6, 6) // 10 - 4
     expect(res.byService.thorchain).toBeCloseTo(6, 6)
@@ -49,26 +49,26 @@ describe('aggregateAffiliateRevenue', () => {
     expect(asset.chainName).toBe('Ethereum')
   })
 
-  test('excludes synthetic adjustments from fee counts while counting real fees', async () => {
-    const res = await aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
+  test('excludes synthetic adjustments from fee counts while counting real fees', () => {
+    const res = aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
 
     expect(res.totalFeeCount).toBe(1)
     expect(res.byServiceFeeCount.thorchain).toBe(1)
     expect(res.byAsset![ETH].feeCount).toBe(1)
   })
 
-  test('per-asset USD reconciles with totalUsd', async () => {
-    const res = await aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
+  test('per-asset USD reconciles with totalUsd', () => {
+    const res = aggregateAffiliateRevenue([grossFee, partnerAdjustment], [], resolveAsset)
 
     const assetUsdSum = Object.values(res.byAsset!).reduce((sum, a) => sum + a.amountUsd, 0)
     expect(assetUsdSum).toBeCloseTo(res.totalUsd, 6)
   })
 
-  test('floors a bucket below 0 to 0 — never negative revenue', async () => {
+  test('floors a bucket below 0 to 0 — never negative revenue', () => {
     const gross = fee({ amount: '1000000000000000000', amountUsd: '6' })
     const overDeduct = fee({ synthetic: true, amount: '-2000000000000000000', amountUsd: '-10' })
 
-    const res = await aggregateAffiliateRevenue([gross, overDeduct], [], resolveAsset)
+    const res = aggregateAffiliateRevenue([gross, overDeduct], [], resolveAsset)
 
     expect(res.byService.thorchain).toBe(0) // 6 - 10 → floored
     expect(res.totalUsd).toBe(0)
@@ -76,8 +76,8 @@ describe('aggregateAffiliateRevenue', () => {
     expect(Number(res.byAsset![ETH].tokenAmount)).toBe(0) // 1 - 2 ETH → floored
   })
 
-  test('passes failedProviders through unchanged', async () => {
-    const res = await aggregateAffiliateRevenue([], ['bebop', 'zrx'], resolveAsset)
+  test('passes failedProviders through unchanged', () => {
+    const res = aggregateAffiliateRevenue([], ['bebop', 'zrx'], resolveAsset)
 
     expect(res.failedProviders).toEqual(['bebop', 'zrx'])
     expect(res.totalUsd).toBe(0)

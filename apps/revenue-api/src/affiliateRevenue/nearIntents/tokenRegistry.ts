@@ -1,5 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
+import { trackInflight } from '../../utils/diagnostics'
+
 // NEAR Intents' official token registry — maps intents asset ids (nep141/nep245/1cs)
 // to the underlying blockchain and canonical contract address. The omft/HOT bridge
 // suffixes are hashes of the token id, not the id itself, so this registry is the
@@ -84,10 +86,15 @@ async function loadFromCache(): Promise<boolean> {
 }
 
 async function loadFromNetwork(): Promise<void> {
-  const response = await fetch(TOKENS_URL)
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const data = await trackInflight(
+    'nearintents token registry',
+    (async () => {
+      const response = await fetch(TOKENS_URL, { signal: AbortSignal.timeout(30_000) })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-  const data = await response.json()
+      return response.json() as Promise<unknown>
+    })()
+  )
   if (!isValidTokenData(data)) throw new Error('Invalid token data shape')
 
   tokens = new Map(data.map(t => [t.assetId, t]))

@@ -5,7 +5,7 @@ import type { AffiliateRevenueResponse } from '../types'
 import { aggregateAffiliateRevenue } from './aggregateRevenue'
 import { createRevenueCache } from './revenueCache'
 
-const response = await aggregateAffiliateRevenue([], [], () => Promise.resolve(undefined))
+const response = aggregateAffiliateRevenue([], [], () => undefined)
 
 describe('aggregate revenue cache', () => {
   test('coalesces simultaneous monthly requests and caches complete zero totals', async () => {

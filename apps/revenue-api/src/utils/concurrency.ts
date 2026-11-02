@@ -26,7 +26,7 @@ export const createSemaphore = (limit: number) => {
   let active = 0
   const waiting: (() => void)[] = []
 
-  return async <T>(fn: () => Promise<T>): Promise<T> => {
+  const run = async <T>(fn: () => Promise<T>): Promise<T> => {
     if (active < limit) active++
     else await new Promise<void>(resolve => waiting.push(resolve))
 
@@ -37,5 +37,21 @@ export const createSemaphore = (limit: number) => {
       if (next) next()
       else active--
     }
+  }
+
+  return Object.assign(run, { stats: () => ({ active, waiting: waiting.length }) })
+}
+
+// Rejects if the promise outlasts the deadline; the work itself keeps running, so whatever it caches still lands
+export const withDeadline = async <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} exceeded ${ms}ms`)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, deadline])
+  } finally {
+    clearTimeout(timer)
   }
 }
