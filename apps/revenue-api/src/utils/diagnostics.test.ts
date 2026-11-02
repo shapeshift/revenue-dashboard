@@ -14,9 +14,18 @@ let seen: string[] = []
 const stalled = Bun.serve({
   port: 0,
   idleTimeout: 0,
-  fetch: () => new Response(new ReadableStream({ start: controller => controller.enqueue(new Uint8Array([123])) })),
+  fetch: () =>
+    new Response(
+      new ReadableStream({
+        start: controller => controller.enqueue(new Uint8Array([123])),
+      })
+    ),
 })
-const silent = Bun.serve({ port: 0, idleTimeout: 0, fetch: () => new Promise<Response>(() => {}) })
+const silent = Bun.serve({
+  port: 0,
+  idleTimeout: 0,
+  fetch: () => new Promise<Response>(() => {}),
+})
 const server = Bun.serve({
   port: 0,
   fetch: () => {
@@ -48,7 +57,9 @@ describe('diagnostics', () => {
   test('never exposes a query string', async () => {
     instrumentAxios()
 
-    await axios.get(`http://localhost:${server.port}/path`, { params: { apiKey: 'secret' } })
+    await axios.get(`http://localhost:${server.port}/path`, {
+      params: { apiKey: 'secret' },
+    })
 
     expect(seen.join()).toContain('/path')
     expect(seen.join()).not.toContain('secret')
@@ -67,6 +78,40 @@ describe('diagnostics', () => {
 
     expect(logged.find(message => message.includes('/body'))).toMatch(/headers at \d+ms/)
     expect(logged.find(message => message.includes('/headers'))).toContain('no headers')
+  })
+
+  test('keeps the labels straight for concurrent requests to one path', async () => {
+    instrumentAxios()
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    let answer = () => {}
+    const answered = new Promise<void>(resolve => (answer = resolve))
+    let calls = 0
+    const mixed = Bun.serve({
+      port: 0,
+      idleTimeout: 0,
+      fetch: async () => {
+        if (++calls === 1) return new Promise<Response>(() => {})
+        answer()
+        return new Response(
+          new ReadableStream({
+            start: controller => controller.enqueue(new Uint8Array([123])),
+          })
+        )
+      },
+    })
+
+    const silentFirst = axios.get(`http://localhost:${mixed.port}/same?n=1`, { timeout: 200 }).catch(() => {})
+    await Bun.sleep(20)
+    const stalledSecond = axios.get(`http://localhost:${mixed.port}/same?n=2`, { timeout: 100 }).catch(() => {})
+    await answered
+    await Promise.all([silentFirst, stalledSecond])
+    void mixed.stop(true)
+
+    const logged = warn.mock.calls.map(([message]) => String(message)).filter(message => message.includes('/same'))
+    warn.mockRestore()
+
+    expect(logged[0]).toMatch(/headers at \d+ms/)
+    expect(logged[1]).toContain('no headers')
   })
 
   test('stays quiet until something has been running a while', () => {

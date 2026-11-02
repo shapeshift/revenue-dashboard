@@ -25,4 +25,32 @@ describe('getCachedFees', () => {
 
     expect(fees.map(f => f.txHash).sort()).toEqual(['2026-01-01', '2026-01-02', '2026-01-03'])
   })
+
+  test('a second caller joins a scan already running for the same range', async () => {
+    let calls = 0
+    let finish: (fees: Fees[]) => void = () => {}
+    const fetchRange = () => {
+      calls++
+      return new Promise<Fees[]>(resolve => (finish = resolve))
+    }
+    const [start, end] = [day('2026-02-01') - 43200, day('2026-02-01') + 43199]
+
+    const first = getCachedFees('across', 'test:join', start, end, fetchRange)
+    const second = getCachedFees('across', 'test:join', start, end, fetchRange)
+    finish([])
+    await Promise.all([first, second])
+
+    expect(calls).toBe(1)
+  })
+
+  test('a failed scan is not remembered', async () => {
+    let calls = 0
+    const fetchRange = () => (++calls === 1 ? Promise.reject(new Error('no')) : Promise.resolve([]))
+    const [start, end] = [day('2026-02-02') - 43200, day('2026-02-02') + 43199]
+
+    await getCachedFees('across', 'test:retry', start, end, fetchRange).catch(() => {})
+    await getCachedFees('across', 'test:retry', start, end, fetchRange)
+
+    expect(calls).toBe(2)
+  })
 })

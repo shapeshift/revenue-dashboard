@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 import axios from 'axios'
-import type { InternalAxiosRequestConfig } from 'axios'
+import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios'
 
 const STUCK_AFTER_MS = 20_000
 const HEARTBEAT_MS = 30_000
@@ -7,9 +9,18 @@ const HEALTH_MS = 60_000
 const LAG_SAMPLE_MS = 1_000
 const MAX_LOGGED = 20
 
-const inflight = new Map<number, { label: string; startedAt: number; isRequest: boolean; headersAfterMs?: number }>()
+const inflight = new Map<
+  number,
+  {
+    label: string
+    startedAt: number
+    isRequest: boolean
+    headersAfterMs?: number
+  }
+>()
 const gauges = new Map<string, () => unknown>()
 const axiosRequests = new WeakMap<InternalAxiosRequestConfig, number>()
+const requestScope = new AsyncLocalStorage<number | undefined>()
 let nextId = 0
 let maxLagMs = 0
 let axiosInstrumented = false
@@ -31,7 +42,12 @@ export const registerGauge = (name: string, read: () => unknown): void => {
   gauges.set(name, read)
 }
 
-export const getInflight = (): { label: string; ageMs: number; isRequest: boolean; headersAfterMs?: number }[] => {
+export const getInflight = (): {
+  label: string
+  ageMs: number
+  isRequest: boolean
+  headersAfterMs?: number
+}[] => {
   const now = Date.now()
   return [...inflight.values()]
     .map(({ startedAt, ...entry }) => ({ ...entry, ageMs: now - startedAt }))
@@ -71,12 +87,10 @@ const headersLabel = (headersAfterMs?: number): string =>
 
 // A stall after the headers and a server that never answers fail with the same timeout, so this tells them apart
 const trackedFetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-  const method = input instanceof Request ? input.method : (init?.method ?? 'get')
-  const url = input instanceof Request ? input.url : input
-  const label = urlLabel(method, url)
+  const id = requestScope.getStore()
   const response = await fetch(input, init)
 
-  const entry = [...inflight.values()].find(item => item.label === label && item.headersAfterMs === undefined)
+  const entry = id === undefined ? undefined : inflight.get(id)
   if (entry) entry.headersAfterMs = Date.now() - entry.startedAt
 
   return response
@@ -95,11 +109,17 @@ const finishAxiosRequest = (config?: InternalAxiosRequestConfig, failed = false)
   }
 }
 
+// The types omit the config argument, which is what makes the adapter pick up env.fetch
+const getFetchAdapter = axios.getAdapter as (name: 'fetch', config: InternalAxiosRequestConfig) => AxiosAdapter
+
 export const instrumentAxios = (): void => {
   if (axiosInstrumented) return
   axiosInstrumented = true
 
   axios.defaults.env = { ...axios.defaults.env, fetch: trackedFetch }
+  // A per-request env.fetch would leak: axios keeps one adapter per fetch function forever
+  axios.defaults.adapter = config =>
+    requestScope.run(axiosRequests.get(config), () => getFetchAdapter('fetch', config)(config))
 
   axios.interceptors.request.use(config => {
     axiosRequests.set(config, begin(requestLabel(config), true))

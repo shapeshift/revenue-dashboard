@@ -83,18 +83,18 @@ const clampAsset = (asset: AssetRevenue): void => {
 
 // Resolves an assetId to its metadata (symbol/precision). Injected so this stays pure and testable
 // without pulling in the network-backed asset service.
-export type ResolveAsset = (assetId: string) => Promise<Asset | undefined>
+export type ResolveAsset = (assetId: string) => Asset | undefined
 
 // Aggregate reconciled net fees into the affiliate-revenue response: daily + global rollups,
 // per-service and per-asset breakdowns. Synthetic partner adjustments net USD + crypto into the
 // totals/asset breakdown but are excluded from fee counts. Any bucket a partner deduction would
 // drive below 0 is floored to 0 (never negative revenue); service + grand totals are authoritative
 // (floored per date then re-summed), per-asset/-date are best-effort.
-export async function aggregateAffiliateRevenue(
+export function aggregateAffiliateRevenue(
   netFees: Fees[],
   failedProviders: Service[],
   resolveAsset: ResolveAsset
-): Promise<AffiliateRevenueResponse> {
+): AffiliateRevenueResponse {
   const byDate: AffiliateRevenueResponse['byDate'] = {}
   const byAsset: Record<string, AssetRevenue> = {}
 
@@ -122,7 +122,7 @@ export async function aggregateAffiliateRevenue(
       byDate[date].byServiceFeeCount[fee.service] += 1
     }
 
-    const asset = await resolveAsset(fee.assetId)
+    const asset = resolveAsset(fee.assetId)
 
     const symbol = asset?.symbol || 'UNKNOWN'
     const decimals = asset?.precision ?? 18

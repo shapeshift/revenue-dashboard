@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 
-import { AffiliateRevenue } from '../affiliateRevenue'
+import { affiliateRevenue } from '../affiliateRevenue'
 import type { PartnerRevenueResponse } from '../types'
 import { parseDateRange } from '../utils/date'
 
 const partnerRevenueRoute = new Hono()
-const affiliateRevenue = new AffiliateRevenue()
 
 partnerRevenueRoute.get('/partner/revenue', async c => {
   const range = parseDateRange(c.req.query('startDate'), c.req.query('endDate'))

@@ -89,7 +89,7 @@ async function loadFromNetwork(): Promise<void> {
   const data = await trackInflight(
     'nearintents token registry',
     (async () => {
-      const response = await fetch(TOKENS_URL)
+      const response = await fetch(TOKENS_URL, { signal: AbortSignal.timeout(30_000) })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       return response.json() as Promise<unknown>
