@@ -18,7 +18,8 @@ export type CurrencyObject = {
 export type AppFees = {
   quoted: AppFee[]
   actual: AppFee[]
-  currency: CurrencyObject
+  // missing on a few older requests
+  currency?: CurrencyObject
 }
 
 export type InTx = {

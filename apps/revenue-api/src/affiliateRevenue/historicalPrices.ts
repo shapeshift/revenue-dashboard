@@ -18,6 +18,8 @@ export const MAX_PRICE_DISTANCE_SECONDS = 6 * 3600
 const OPEN_BUCKET_TTL_MS = 1000 * 60 * 60
 // A failed fetch is remembered this long, so callers during an outage don't each run a full retry cycle
 const FAILED_FETCH_TTL_MS = 1000 * 60
+// A coin CoinGecko doesn't know stays unpriced instead of failing the provider every sweep
+const NOT_FOUND_TTL_MS = 1000 * 60 * 60 * 24
 
 // [timestamp ms, usd]
 export type PricePoint = [number, number]
@@ -30,9 +32,16 @@ const warnedUnmapped = new Set<string>()
 
 registerGauge('prices', () => ({ cached: seriesCache.size, inflight: inflight.size, ...limit.stats() }))
 
+// The proxy also 404s bad paths, so only CoinGecko's own message counts
+const isCoinNotFound = (error: unknown): boolean =>
+  axios.isAxiosError(error) &&
+  error.response?.status === 404 &&
+  /coin not found/i.test(JSON.stringify(error.response.data ?? ''))
+
 const fetchSeries = async (coingeckoId: string, bucket: number): Promise<PricePoint[] | null> => {
   const key = `${coingeckoId}:${bucket}`
-  const cached = seriesCache.get(key)
+  // Not found applies to the whole coin, so it's cached under the bare id
+  const cached = seriesCache.get(key) ?? seriesCache.get(coingeckoId)
   if (cached) return cached === 'failed' ? null : cached
 
   const pending = inflight.get(key)
@@ -56,7 +65,12 @@ const fetchSeries = async (coingeckoId: string, bucket: number): Promise<PricePo
       seriesCache.set(key, prices, isOpen ? { ttl: OPEN_BUCKET_TTL_MS } : undefined)
       return prices
     })
-    .catch(error => {
+    .catch((error: unknown) => {
+      if (isCoinNotFound(error)) {
+        console.warn(`[historicalPrices] No CoinGecko history for ${coingeckoId}, leaving its fees unpriced`)
+        seriesCache.set(coingeckoId, [], { ttl: NOT_FOUND_TTL_MS })
+        return []
+      }
       console.error(`[historicalPrices] Failed to fetch ${coingeckoId} ${from}-${to}: ${formatError(error)}`)
       seriesCache.set(key, 'failed', { ttl: FAILED_FETCH_TTL_MS })
       return null

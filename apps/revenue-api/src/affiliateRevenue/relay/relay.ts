@@ -8,7 +8,7 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { getCachedFees } from '../utils'
 
-import { RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
+import { MISSING_FEE_CURRENCIES, RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
 import { buildAssetId, getChainConfig } from './utils'
 
@@ -44,16 +44,22 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
       for (const request of data.requests) {
         if (!request.data?.appFees) continue
 
-        // Throw on incomplete fee records so the chunk fails instead of being cached without this revenue.
+        // Throw on a missing `actual` so the chunk fails instead of being cached without this revenue.
         // `actual` is what settled; `quoted` can include fees that were never charged
-        const { actual, currency: currencyObject } = request.data.appFees
+        const { actual } = request.data.appFees
         if (!Array.isArray(actual)) throw new Error(`[relay] Missing appFees.actual on request ${request.id}`)
 
         const relevantFees = actual.filter(fee => fee.recipient.toLowerCase() === DAO_TREASURY_BASE.toLowerCase())
 
         if (relevantFees.length === 0) continue
 
-        if (!currencyObject) throw new Error(`[relay] Missing appFees.currency on fee-bearing request ${request.id}`)
+        const currencyObject = request.data.appFees.currency ?? MISSING_FEE_CURRENCIES[request.id]
+        if (!currencyObject) {
+          if (relevantFees.some(fee => fee.amount !== '0')) {
+            console.warn(`[relay] Skipping fee on request ${request.id}: no fee currency`)
+          }
+          continue
+        }
 
         let chainConfig = chainConfigCache.get(currencyObject.chainId)
         if (!chainConfig) {
