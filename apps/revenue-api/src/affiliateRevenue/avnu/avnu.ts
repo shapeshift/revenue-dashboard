@@ -98,10 +98,12 @@ const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Prom
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const latestBlock = await rpcCall<number>('starknet_blockNumber', [])
-  const [startBlock, endBlock] = await Promise.all([
-    resolveBlock(startTimestamp, latestBlock),
+  const [beforeStartBlock, endBlock] = await Promise.all([
+    resolveBlock(startTimestamp - 1, latestBlock),
     resolveBlock(endTimestamp, latestBlock),
   ])
+  const startBlock = beforeStartBlock + 1
+  if (startBlock > endBlock) return []
 
   const events = await fetchEventsInBlockRange(startBlock, endBlock)
   const avnuEvents = events.filter(e => isAvnuTransfer(e))

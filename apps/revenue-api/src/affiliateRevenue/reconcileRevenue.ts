@@ -23,6 +23,7 @@ const SWAPPER_TO_SERVICE: Record<string, Service> = {
   Relay: 'relay',
   Symbiosis: 'symbiosis',
   Fynd: 'fynd',
+  KyberSwap: 'kyberswap',
   THORChain: 'thorchain',
   '0x': 'zrx',
 }

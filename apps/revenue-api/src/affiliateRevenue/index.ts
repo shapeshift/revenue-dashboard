@@ -15,6 +15,7 @@ import * as chainflip from './chainflip'
 import * as cowswap from './cowswap'
 import * as debridge from './debridge'
 import * as fynd from './fynd'
+import * as kyberswap from './kyberswap'
 import * as mayachain from './mayachain'
 import * as nearintents from './nearIntents'
 import * as portals from './portals'
@@ -43,6 +44,7 @@ const providers: Record<Service, { getFees: (startTimestamp: number, endTimestam
   cowswap,
   debridge,
   fynd,
+  kyberswap,
   mayachain,
   nearintents,
   portals,

@@ -40,10 +40,7 @@ export const getTreasuryFees = async ({
   const treasuryAddress = treasury.toLowerCase()
 
   const client = createAlchemyClient(chainId, service)
-  const [fromBlock, toBlock] = await Promise.all([
-    client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
-  ])
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
 
   const effectiveFromBlock = firstBlock === undefined ? fromBlock : Math.max(fromBlock, firstBlock)
   if (effectiveFromBlock > toBlock) return []

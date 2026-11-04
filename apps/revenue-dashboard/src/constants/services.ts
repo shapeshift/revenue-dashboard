@@ -15,6 +15,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   relay: 'Relay',
   symbiosis: 'Symbiosis',
   fynd: 'Fynd',
+  kyberswap: 'KyberSwap',
 }
 
 // Brand colors; logos too dark for the dashboard use their site's accent
@@ -35,6 +36,7 @@ export const SERVICE_COLORS: Record<string, string> = {
   nearintents: '#00ec97',
   symbiosis: '#8bf934',
   fynd: '#ff4e2c',
+  kyberswap: '#31cb9e',
 }
 
 export const getServiceLabel = (service: string) => SERVICE_LABELS[service.toLowerCase()] || service
@@ -57,5 +59,6 @@ export const SERVICE_STACK_ORDER = [
   'across',
   'symbiosis',
   'fynd',
+  'kyberswap',
   'debridge',
 ]

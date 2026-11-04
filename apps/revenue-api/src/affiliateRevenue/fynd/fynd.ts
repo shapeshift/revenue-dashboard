@@ -27,10 +27,7 @@ const decodeOurFee = (log: Log): FeeTaken | undefined => {
 
 const fetchChainFees = async (chain: FyndChain, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const client = createAlchemyClient(chain.chainId, `fynd:${chain.network}`)
-  const [fromBlock, toBlock] = await Promise.all([
-    client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
-  ])
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
 
   // Every FeesTaken on the router, ours or not
   const logs = await client.getLogs(chain.router, [FEES_TAKEN_TOPIC], fromBlock, toBlock)

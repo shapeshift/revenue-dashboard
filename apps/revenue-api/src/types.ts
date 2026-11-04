@@ -8,6 +8,7 @@ export const services = [
   'cowswap',
   'debridge',
   'fynd',
+  'kyberswap',
   'mayachain',
   'nearintents',
   'portals',

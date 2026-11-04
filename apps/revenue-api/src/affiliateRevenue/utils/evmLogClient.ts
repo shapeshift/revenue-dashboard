@@ -132,6 +132,12 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return block
   }
 
+  // Sub-second chains share a timestamp across blocks, so the range runs from the first block of the start second
+  const resolveBlockRange = async (startTimestamp: number, endTimestamp: number): Promise<[number, number]> => {
+    const [beforeStart, end] = await Promise.all([resolveBlock(startTimestamp - 1), resolveBlock(endTimestamp)])
+    return [beforeStart + 1, end]
+  }
+
   // Asks for everything first; a refusal narrows to the node's suggested end (or half), and windows grow back from there
   const scan = async (address: string | undefined, topics: LogTopics, from: number, to: number): Promise<Log[]> => {
     const logs: Log[] = []
@@ -183,7 +189,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
   const getReceiptLogs = async (txHash: string): Promise<Log[]> =>
     (await call<{ logs: Log[] }>('eth_getTransactionReceipt', [txHash])).logs
 
-  return { resolveBlock, getLogs, getBlockTimestamps, getReceiptLogs }
+  return { resolveBlockRange, getLogs, getBlockTimestamps, getReceiptLogs }
 }
 
 export type EvmLogClient = ReturnType<typeof createEvmLogClient>
