@@ -3,7 +3,7 @@ import { describe, expect, spyOn, test } from 'bun:test'
 
 import * as coingeckoMappingService from './coingeckoMappingService'
 import type { PricePoint } from './historicalPrices'
-import { findClosestPrice, getHistoricalPriceUsd, MAX_PRICE_DISTANCE_SECONDS } from './historicalPrices'
+import { BUCKET_SECONDS, findClosestPrice, getHistoricalPriceUsd, MAX_PRICE_DISTANCE_SECONDS } from './historicalPrices'
 
 const HOUR = 3600
 const series: PricePoint[] = [
@@ -56,6 +56,38 @@ describe('getHistoricalPriceUsd', () => {
     )
     expect(error).toBeInstanceOf(Error)
     get.mockRestore()
+  })
+
+  test('a coin CoinGecko does not know is no price, not an error, and is not refetched', async () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const get = spyOn(axios, 'get').mockRejectedValueOnce(
+      Object.assign(new Error('missing'), {
+        isAxiosError: true,
+        response: { status: 404, data: { error: 'coin not found' } },
+      })
+    )
+    expect(await getHistoricalPriceUsd('coin-d', 1_000 * HOUR, { throwOnFetchError: true })).toBeNull()
+    expect(await getHistoricalPriceUsd('coin-d', 1_001 * HOUR + BUCKET_SECONDS, { throwOnFetchError: true })).toBeNull()
+    expect(get).toHaveBeenCalledTimes(1)
+    get.mockRestore()
+    warn.mockRestore()
+  })
+
+  test("a 404 that isn't CoinGecko's coin not found still fails", async () => {
+    const error = spyOn(console, 'error').mockImplementation(() => {})
+    const get = spyOn(axios, 'get').mockRejectedValueOnce(
+      Object.assign(new Error('path'), {
+        isAxiosError: true,
+        response: { status: 404, data: { error: 'Incorrect path. Please check https://docs.coingecko.com/' } },
+      })
+    )
+    const result = await getHistoricalPriceUsd('coin-e', 1_000 * HOUR, { throwOnFetchError: true }).catch(
+      (e: unknown) => e
+    )
+    expect(result).toBeInstanceOf(Error)
+    expect(get).toHaveBeenCalledTimes(1)
+    get.mockRestore()
+    error.mockRestore()
   })
 
   test('a gap in a fetched series is no price, not an error', async () => {

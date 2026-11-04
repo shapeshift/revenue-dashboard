@@ -1,4 +1,4 @@
-import { mapConcurrently } from '../../utils/concurrency'
+import { createSemaphore, mapConcurrently } from '../../utils/concurrency'
 import {
   getCachedBlockNumber,
   getCachedBlockTimestamp,
@@ -14,6 +14,12 @@ import type { StarknetBlock, StarknetEvent, StarknetEventsResponse } from './typ
 import { buildAssetId, isAvnuTransfer, parseU256Amount, rpcCall } from './utils'
 
 const LOOKUP_CONCURRENCY = 10
+// A filtered range pages sequentially, so a month is scanned as parallel slices; the limit is shared because
+// concurrent months beyond it made the RPC time out
+const EVENT_SCAN_SLICES = 8
+// Over a day of ~1.7s blocks, so the recent window (up to a day plus the settle delay) skips the shared queue
+const MIN_SLICE_BLOCKS = 60_000
+const scanLimit = createSemaphore(EVENT_SCAN_SLICES)
 
 const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
   const cached = getCachedBlockTimestamp(STARKNET_CHAIN_ID, blockNumber)
@@ -38,11 +44,16 @@ const resolveBlock = async (timestamp: number, latestBlock: number): Promise<num
   return block
 }
 
-const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Promise<StarknetEvent[]> => {
+const fetchEventsInSlice = async (
+  fromBlock: number,
+  toBlock: number,
+  scan: { failed: boolean } = { failed: false }
+): Promise<StarknetEvent[]> => {
   const allEvents: StarknetEvent[] = []
   let continuationToken: string | undefined
 
   do {
+    if (scan.failed) throw new Error('[avnu] scan abandoned after another slice failed')
     const result = await rpcCall<StarknetEventsResponse>('starknet_getEvents', [
       {
         from_block: { block_number: fromBlock },
@@ -57,16 +68,33 @@ const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Prom
       },
     ])
 
-    if (!result || !Array.isArray(result.events)) {
-      console.error('[avnu] Invalid events response structure')
-      break
-    }
+    // Partial events would be cached as the complete range
+    if (!result || !Array.isArray(result.events)) throw new Error('[avnu] Invalid events response structure')
 
     allEvents.push(...result.events)
     continuationToken = result.continuation_token
   } while (continuationToken)
 
   return allEvents
+}
+
+const fetchEventsInBlockRange = async (fromBlock: number, toBlock: number): Promise<StarknetEvent[]> => {
+  if (toBlock - fromBlock + 1 <= MIN_SLICE_BLOCKS) return fetchEventsInSlice(fromBlock, toBlock)
+
+  const width = Math.max(MIN_SLICE_BLOCKS, Math.ceil((toBlock - fromBlock + 1) / EVENT_SCAN_SLICES))
+  const slices: [number, number][] = []
+  for (let from = fromBlock; from <= toBlock; from += width) slices.push([from, Math.min(toBlock, from + width - 1)])
+
+  const scan = { failed: false }
+  const events = await Promise.all(
+    slices.map(([from, to]) =>
+      scanLimit(() => fetchEventsInSlice(from, to, scan)).catch((error: unknown) => {
+        scan.failed = true
+        throw error
+      })
+    )
+  )
+  return events.flat()
 }
 
 const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {

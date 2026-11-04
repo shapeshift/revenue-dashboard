@@ -18,7 +18,23 @@ export type CurrencyObject = {
 export type AppFees = {
   quoted: AppFee[]
   actual: AppFee[]
+  // missing on a few older requests
+  currency?: CurrencyObject
+}
+
+export type RouteLeg = {
   currency: CurrencyObject
+  amount: string
+}
+
+export type RouteStep = {
+  inputCurrency?: RouteLeg
+  outputCurrency?: RouteLeg
+}
+
+export type Route = {
+  origin?: RouteStep | null
+  destination?: RouteStep | null
 }
 
 export type InTx = {
@@ -29,6 +45,7 @@ export type InTx = {
 
 export type RequestData = {
   appFees?: AppFees
+  route?: { actual?: Route | null }
   inTxs?: InTx[]
 }
 
