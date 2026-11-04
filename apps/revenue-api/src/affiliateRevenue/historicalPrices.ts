@@ -18,7 +18,7 @@ export const MAX_PRICE_DISTANCE_SECONDS = 6 * 3600
 const OPEN_BUCKET_TTL_MS = 1000 * 60 * 60
 // A failed fetch is remembered this long, so callers during an outage don't each run a full retry cycle
 const FAILED_FETCH_TTL_MS = 1000 * 60
-// CoinGecko 404s a delisted or mis-mapped coin; its fees stay unpriced rather than failing the provider on every sweep
+// A coin CoinGecko doesn't know stays unpriced instead of failing the provider every sweep
 const NOT_FOUND_TTL_MS = 1000 * 60 * 60 * 24
 
 // [timestamp ms, usd]
@@ -32,7 +32,7 @@ const warnedUnmapped = new Set<string>()
 
 registerGauge('prices', () => ({ cached: seriesCache.size, inflight: inflight.size, ...limit.stats() }))
 
-// The proxy also 404s a bad path, so only CoinGecko's own answer means the coin has no history
+// The proxy also 404s bad paths, so only CoinGecko's own message counts
 const isCoinNotFound = (error: unknown): boolean =>
   axios.isAxiosError(error) &&
   error.response?.status === 404 &&
@@ -40,7 +40,7 @@ const isCoinNotFound = (error: unknown): boolean =>
 
 const fetchSeries = async (coingeckoId: string, bucket: number): Promise<PricePoint[] | null> => {
   const key = `${coingeckoId}:${bucket}`
-  // A coin CoinGecko doesn't know is cached under its id alone, since every bucket would 404 the same way
+  // Not found applies to the whole coin, so it's cached under the bare id
   const cached = seriesCache.get(key) ?? seriesCache.get(coingeckoId)
   if (cached) return cached === 'failed' ? null : cached
 

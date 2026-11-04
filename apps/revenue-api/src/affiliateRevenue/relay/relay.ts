@@ -8,8 +8,7 @@ import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import { getCachedFees } from '../utils'
 
-import { RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
-import { resolveFeeCurrency } from './feeCurrency'
+import { MISSING_FEE_CURRENCIES, RELAY_API_KEY, RELAY_API_URL, SHAPESHIFT_REFERRER } from './constants'
 import type { RelayResponse } from './types'
 import { buildAssetId, getChainConfig } from './utils'
 
@@ -54,12 +53,10 @@ const fetchFeesFromAPI = async (startTimestamp: number, endTimestamp: number): P
 
         if (relevantFees.length === 0) continue
 
-        const currencyObject = resolveFeeCurrency(request.data.appFees, request.data.route?.actual, relevantFees)
+        const currencyObject = request.data.appFees.currency ?? MISSING_FEE_CURRENCIES[request.id]
         if (!currencyObject) {
           if (relevantFees.some(fee => fee.amount !== '0')) {
-            console.warn(
-              `[relay] Skipping fee on request ${request.id}: no fee currency, and none that can be inferred safely`
-            )
+            console.warn(`[relay] Skipping fee on request ${request.id}: no fee currency`)
           }
           continue
         }

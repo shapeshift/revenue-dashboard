@@ -22,21 +22,6 @@ export type AppFees = {
   currency?: CurrencyObject
 }
 
-export type RouteLeg = {
-  currency: CurrencyObject
-  amount: string
-}
-
-export type RouteStep = {
-  inputCurrency?: RouteLeg
-  outputCurrency?: RouteLeg
-}
-
-export type Route = {
-  origin?: RouteStep | null
-  destination?: RouteStep | null
-}
-
 export type InTx = {
   chainId: number
   txHash: string
@@ -45,7 +30,6 @@ export type InTx = {
 
 export type RequestData = {
   appFees?: AppFees
-  route?: { actual?: Route | null }
   inTxs?: InTx[]
 }
 

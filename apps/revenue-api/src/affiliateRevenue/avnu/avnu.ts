@@ -14,10 +14,9 @@ import type { StarknetBlock, StarknetEvent, StarknetEventsResponse } from './typ
 import { buildAssetId, isAvnuTransfer, parseU256Amount, rpcCall } from './utils'
 
 const LOOKUP_CONCURRENCY = 10
-// A filtered range pages sequentially, so a month is scanned as parallel slices; the limit is shared because
-// concurrent months beyond it made the RPC time out
+// Shared across all scans; more concurrent pages made the RPC time out
 const EVENT_SCAN_SLICES = 8
-// Over a day of ~1.7s blocks, so the recent window (up to a day plus the settle delay) skips the shared queue
+// Just over a day of blocks, so the recent window is a single unqueued call
 const MIN_SLICE_BLOCKS = 60_000
 const scanLimit = createSemaphore(EVENT_SCAN_SLICES)
 
