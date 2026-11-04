@@ -150,11 +150,24 @@ describe('getLogs', () => {
   })
 })
 
-describe('resolveBlock', () => {
-  it('resolves a future timestamp to the head without any lookup', async () => {
+describe('resolveBlockRange', () => {
+  it('resolves a future range to nothing past the head without any lookup', async () => {
     const node = mockNode(10_000, () => refuse(400, 'unused'))
-    expect(await client().resolveBlock(Math.floor(Date.now() / 1000) + 3_600)).toBe(100)
+    const now = Math.floor(Date.now() / 1000)
+    expect(await client().resolveBlockRange(now + 3_600, now + 7_200)).toEqual([101, 100])
     expect(node.requests).toEqual([])
+  })
+
+  it('spans every block sharing the start and end seconds', async () => {
+    const genesis = Math.floor(Date.now() / 1000) - 100_000
+    const head = 40_000
+    globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+      const { params } = JSON.parse(init?.body as string) as { params: [string] }
+      const block = params[0] === 'latest' ? head : Number(BigInt(params[0]))
+      return Promise.resolve(ok({ number: hex(block), timestamp: hex(genesis + Math.floor(block / 4)) }))
+    }) as unknown as typeof fetch
+
+    expect(await client().resolveBlockRange(genesis + 100, genesis + 200)).toEqual([400, 803])
   })
 })
 

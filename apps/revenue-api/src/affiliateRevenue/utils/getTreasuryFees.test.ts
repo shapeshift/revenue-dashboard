@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:te
 
 import type { UnchainedTx } from './unchained'
 
-const client = { resolveBlock: (timestamp: number) => Promise.resolve(timestamp) }
+const client = {
+  resolveBlockRange: (start: number, end: number) => Promise.resolve([start, end] as [number, number]),
+}
 void mock.module('./alchemy', () => ({ createAlchemyClient: () => client }))
 
 const { getTreasuryFees } = await import('./treasuryFees')

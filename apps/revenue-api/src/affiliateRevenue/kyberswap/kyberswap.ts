@@ -15,7 +15,6 @@ type FeeTaken = { token: string; fee: bigint; blockNumber: number; txHash: strin
 const FEE_TOPIC = toEventSelector(FEE_EVENT)
 const BPS_DENOMINATOR = 10_000n
 
-// Our share of one swap's fee, or undefined when the swap paid nothing to the treasury
 const decodeOurFee = (log: Log, treasury: Address): FeeTaken | undefined => {
   const { args } = decodeEventLog({ abi: [FEE_EVENT], topics: log.topics, data: log.data })
 
@@ -24,6 +23,7 @@ const decodeOurFee = (log: Log, treasury: Address): FeeTaken | undefined => {
     const amount = args.amounts[i] ?? 0n
     return sum + (args.isBps ? (args.totalAmount * amount) / BPS_DENOMINATOR : amount)
   }, 0n)
+
   if (fee === 0n) return
 
   return { token: args.token.toLowerCase(), fee, blockNumber: Number(log.blockNumber), txHash: log.transactionHash }
@@ -31,16 +31,15 @@ const decodeOurFee = (log: Log, treasury: Address): FeeTaken | undefined => {
 
 const fetchChainFees = async (chain: KyberChain, startTimestamp: number, endTimestamp: number): Promise<Fees[]> => {
   const client = createAlchemyClient(chain.chainId, `kyberswap:${chain.network}`)
-  const [fromBlock, toBlock] = await Promise.all([
-    client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
-  ])
 
-  // Every Fee on the router, ours or not
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
+
   const logs = await client.getLogs(KYBER_ROUTER, [FEE_TOPIC], fromBlock, toBlock)
+
   const events = logs
     .map(log => decodeOurFee(log, chain.treasury))
     .filter((event): event is FeeTaken => event !== undefined)
+
   const timestamps = await client.getBlockTimestamps([...new Set(events.map(event => event.blockNumber))])
 
   return events

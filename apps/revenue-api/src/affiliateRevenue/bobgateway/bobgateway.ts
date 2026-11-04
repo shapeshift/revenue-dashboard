@@ -20,10 +20,7 @@ const fetchFeesFromUnchained = async (startTimestamp: number, endTimestamp: numb
   const fees: Fees[] = []
 
   const client = createAlchemyClient(ETHEREUM_CHAIN_ID, 'bobgateway')
-  const [fromBlock, toBlock] = await Promise.all([
-    client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
-  ])
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
 
   // Skip everything before BOB's first fee; bail early if the window predates it entirely.
   const effectiveFromBlock = Math.max(fromBlock, BOB_GATEWAY_FIRST_FEE_BLOCK)

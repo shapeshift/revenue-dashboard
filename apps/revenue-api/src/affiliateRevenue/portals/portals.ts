@@ -67,10 +67,7 @@ const fetchFeesForChain = async (
   endTimestamp: number
 ): Promise<Fees[]> => {
   const client = createAlchemyClient(config.chainId, `portals:${config.network}`)
-  const [fromBlock, toBlock] = await Promise.all([
-    client.resolveBlock(startTimestamp),
-    client.resolveBlock(endTimestamp),
-  ])
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
 
   const txs = await getPortalTxs(client, config, fromBlock, toBlock, startTimestamp, endTimestamp)
   if (txs.length === 0) return []
