@@ -10,6 +10,7 @@ export const DAO_TREASURY_BASE = '0x9c9aA90363630d4ab1D9dbF416cc3BBC8d3Ed502'
 export const DAO_TREASURY_MONAD = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_HYPEREVM = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_PLASMA = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_MEGAETH = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 
 export const DAO_TREASURIES: ReadonlySet<string> = new Set(
   [
@@ -24,6 +25,7 @@ export const DAO_TREASURIES: ReadonlySet<string> = new Set(
     DAO_TREASURY_MONAD,
     DAO_TREASURY_HYPEREVM,
     DAO_TREASURY_PLASMA,
+    DAO_TREASURY_MEGAETH,
   ].map(address => address.toLowerCase())
 )
 
@@ -55,6 +57,7 @@ export const AVALANCHE_CHAIN_ID = 'eip155:43114'
 export const MONAD_CHAIN_ID = 'eip155:143'
 export const HYPEREVM_CHAIN_ID = 'eip155:999'
 export const PLASMA_CHAIN_ID = 'eip155:9745'
+export const MEGAETH_CHAIN_ID = 'eip155:4326'
 export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
 export const UNICHAIN_CHAIN_ID = 'eip155:130'
 export const ROBINHOOD_CHAIN_ID = 'eip155:4663'
@@ -107,6 +110,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:143': { platform: 'monad', nativeCoinId: 'monad' },
   'eip155:999': { platform: 'hyperevm', nativeCoinId: 'hyperliquid' },
   'eip155:4217': { platform: 'tempo', nativeCoinId: '' },
+  'eip155:4326': { platform: 'megaeth', nativeCoinId: 'ethereum' },
   'eip155:4663': { platform: 'robinhood', nativeCoinId: 'ethereum' },
   'eip155:8453': { platform: 'base', nativeCoinId: 'ethereum' },
   'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },
