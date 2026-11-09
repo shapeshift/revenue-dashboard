@@ -55,6 +55,7 @@ const COINGECKO_CHAINS = [
   'eip155_9745',
   'eip155_98866',
   'eip155_999',
+  'eip155_99901',
   'near_mainnet',
   'solana_5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
   'starknet_SN_MAIN',

@@ -3,6 +3,7 @@ import {
   AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
   BSC_CHAIN_ID,
+  ELYSIUM_CHAIN_ID,
   ETHEREUM_CHAIN_ID,
   GNOSIS_CHAIN_ID,
   HYPEREVM_CHAIN_ID,
@@ -32,11 +33,13 @@ const ALCHEMY_NETWORK_BY_CHAIN_ID: Record<string, string> = {
   [PLASMA_CHAIN_ID]: 'plasma-mainnet',
   [ARBITRUM_CHAIN_ID]: 'arb-mainnet',
   [AVALANCHE_CHAIN_ID]: 'avax-mainnet',
+  [ELYSIUM_CHAIN_ID]: 'elysium-mainnet',
 }
 
 // Networks where Alchemy refuses any eth_getLogs over this many blocks outright; the rest only cap the log count
 const ALCHEMY_BLOCK_RANGE_CAPS: Record<string, number> = {
   'avax-mainnet': 10_000,
+  'elysium-mainnet': 10_000,
   'gnosis-mainnet': 10_000,
   'plasma-mainnet': 10_000,
   'unichain-mainnet': 10_000,

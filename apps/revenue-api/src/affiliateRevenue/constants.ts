@@ -13,6 +13,7 @@ export const DAO_TREASURY_PLASMA = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_MEGAETH = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_ROBINHOOD = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_UNICHAIN = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_ELYSIUM = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 
 export const DAO_TREASURIES: ReadonlySet<string> = new Set(
   [
@@ -30,6 +31,7 @@ export const DAO_TREASURIES: ReadonlySet<string> = new Set(
     DAO_TREASURY_MEGAETH,
     DAO_TREASURY_ROBINHOOD,
     DAO_TREASURY_UNICHAIN,
+    DAO_TREASURY_ELYSIUM,
   ].map(address => address.toLowerCase())
 )
 
@@ -65,6 +67,7 @@ export const MEGAETH_CHAIN_ID = 'eip155:4326'
 export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
 export const UNICHAIN_CHAIN_ID = 'eip155:130'
 export const ROBINHOOD_CHAIN_ID = 'eip155:4663'
+export const ELYSIUM_CHAIN_ID = 'eip155:99901'
 
 // Slip44 coin type values for native assets
 export const SLIP44 = {
@@ -120,6 +123,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:9745': { platform: 'plasma', nativeCoinId: 'plasma' },
   'eip155:42161': { platform: 'arbitrum-one', nativeCoinId: 'ethereum' },
   'eip155:43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
+  'eip155:99901': { platform: 'elysium-kinetiq', nativeCoinId: 'hyperliquid' },
   'eip155:22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
 }
 
