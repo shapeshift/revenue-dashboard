@@ -125,6 +125,12 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
   'eip155:99901': { platform: 'elysium-kinetiq', nativeCoinId: 'hyperliquid' },
   'eip155:22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
+  'eip155:1329': { platform: 'sei-v2', nativeCoinId: 'sei-network' },
+  'eip155:57073': { platform: 'ink', nativeCoinId: 'ethereum' },
+  'eip155:5000': { platform: 'mantle', nativeCoinId: 'mantle' },
+  'eip155:25': { platform: 'cronos', nativeCoinId: 'crypto-com-chain' },
+  'eip155:146': { platform: 'sonic', nativeCoinId: 'sonic-3' },
+  'eip155:42220': { platform: 'celo', nativeCoinId: 'celo' },
 }
 
 // Midgard lists a streaming swap under its start time but only adds the affiliate payout once it completes, up to ~24h later
