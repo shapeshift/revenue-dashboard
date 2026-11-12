@@ -27,49 +27,9 @@ import {
   UNICHAIN_CHAIN_ID,
 } from '../constants'
 
-/**
- * Across pays our affiliate cut as an "app fee" on the DESTINATION chain.
- *
- * shapeshift/web's AcrossSwapper (`utils/getAcrossTradeContext.ts`) sends `appFee` +
- * `appFeeRecipient` to Across' Swap API, where appFeeRecipient is the DAO
- * treasury on the *buy* asset's chain. Across encodes that into the deposit's
- * message, and on fill its MulticallHandler — the deposit `recipient` — splits
- * the output token: the user's share to the user, the app fee to our treasury.
- *
- * So revenue is "transfers into the per-chain treasury sent by that chain's
- * Across handler". Fees land in the destination-chain output asset, which is an
- * ERC20 or the native token depending on the trade, so we look at both.
- *
- * Two constraints from the swapper narrow which chains can ever pay us:
- *   - app fees are skipped entirely for Solana routes
- *   - app fees are skipped unless the buy chain is a treasury chain
- * The set below is therefore (Across chains) ∩ (treasury chains) ∩ (EVM).
- *
- * Chains without an unchained host (Monad, HyperEVM, Ink, Plasma, Unichain, MegaETH, Robinhood) read the treasury
- * through Alchemy instead. Robinhood's handler isn't in deployed-addresses.json yet; it's the deposit recipient the
- * Swap API returns for Robinhood routes with an appFee.
- */
-
-/**
- * Across MulticallHandler addresses, keyed by chain.
- *
- * NOT a single global constant: most chains reuse the CREATE2 deployment
- * 0x0F7Ae2..., but newer chains do not (Monad and HyperEVM each have their own,
- * as do Avalanche, Linea, zkSync, Lens, MegaETH, Tempo). Assuming one address
- * would silently drop revenue on those chains.
- *
- * Source of truth: `@across-protocol/contracts` →
- * `dist/broadcast/deployed-addresses.json` (chains.<id>.contracts.*MulticallHandler*).
- * Cross-checked against the live Swap API: quoting each chain with an appFee and
- * decoding the returned depositV3 calldata yields exactly these addresses as the
- * deposit recipient. Re-run `scripts/verifyAcrossHandlers.ts` after an Across
- * upgrade — the symptom of a stale entry is revenue silently going to zero on a
- * chain.
- *
- * Each chain lists every handler variant it has deployed, not just the plain
- * MulticallHandler: CCTP/OFT routes fill through a PermissionedMulticallHandler
- * instead, and those pay the app fee too.
- */
+// Across pays the app fee on the destination chain: the fill's MulticallHandler sends it to that chain's treasury.
+// Handlers differ per chain and CCTP/OFT routes fill through permissioned variants, so each chain lists all of them.
+// Source: @across-protocol/contracts deployed-addresses.json; Robinhood's isn't listed yet and comes from the Swap API.
 export const ACROSS_HANDLERS_BY_CHAIN_ID: Record<string, readonly string[]> = {
   [ETHEREUM_CHAIN_ID]: [
     '0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E',
