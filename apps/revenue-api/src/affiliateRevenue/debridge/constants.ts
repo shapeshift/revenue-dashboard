@@ -4,13 +4,11 @@ import {
   BASE_CHAIN_ID,
   BOB_CHAIN_ID,
   BSC_CHAIN_ID,
-  CRONOS_CHAIN_ID,
   DAO_TREASURY_ARBITRUM,
   DAO_TREASURY_AVALANCHE,
   DAO_TREASURY_BASE,
   DAO_TREASURY_BOB,
   DAO_TREASURY_BSC,
-  DAO_TREASURY_CRONOS,
   DAO_TREASURY_ETHEREUM,
   DAO_TREASURY_GNOSIS,
   DAO_TREASURY_HYPEREVM,
@@ -44,6 +42,7 @@ export const DEBRIDGE_FEE_SENDERS = [
   '0xef4fb24ad0916217251f553c0596f8edc630eb66', // DlnSource: cross-chain, paid in the order's input token on unlock
 ]
 
+// Cronos is untracked: Alchemy serves only its last few hours of blocks
 export const DEBRIDGE_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: ETHEREUM_CHAIN_ID, treasury: DAO_TREASURY_ETHEREUM },
   { chainId: OPTIMISM_CHAIN_ID, treasury: DAO_TREASURY_OPTIMISM },
@@ -58,7 +57,6 @@ export const DEBRIDGE_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: SEI_CHAIN_ID, treasury: DAO_TREASURY_SEI },
   { chainId: PLASMA_CHAIN_ID, treasury: DAO_TREASURY_PLASMA },
   { chainId: MANTLE_CHAIN_ID, treasury: DAO_TREASURY_MANTLE },
-  { chainId: CRONOS_CHAIN_ID, treasury: DAO_TREASURY_CRONOS },
   { chainId: BOB_CHAIN_ID, treasury: DAO_TREASURY_BOB },
   { chainId: SONIC_CHAIN_ID, treasury: DAO_TREASURY_SONIC },
   { chainId: MEGAETH_CHAIN_ID, treasury: DAO_TREASURY_MEGAETH },
