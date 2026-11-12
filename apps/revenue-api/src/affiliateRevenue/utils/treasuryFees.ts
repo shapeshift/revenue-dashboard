@@ -7,7 +7,8 @@ import type { Fees } from '../types'
 import { createAlchemyClient } from './alchemy'
 import { buildAssetId } from './asset'
 import type { EvmLogClient } from './evmLogClient'
-import { getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from './unchained'
+import { getNodeTreasuryTxs } from './nodeTreasuryTxs'
+import { getUnchainedBaseUrl, hasUnchainedHost, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
 export type TreasuryFeesParams = {
@@ -35,7 +36,6 @@ export const getTreasuryFees = async ({
   firstBlock,
   isOwnSwap,
 }: TreasuryFeesParams): Promise<Fees[]> => {
-  const baseUrl = getUnchainedBaseUrl(chainId)
   const senderSet = new Set([...senders].map(sender => sender.toLowerCase()))
   const treasuryAddress = treasury.toLowerCase()
 
@@ -46,6 +46,26 @@ export const getTreasuryFees = async ({
   if (effectiveFromBlock > toBlock) return []
 
   const fees: Fees[] = []
+
+  const addFees = async (txs: UnchainedTx[]) => {
+    const feesByTx = txs
+      .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
+      .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
+      .filter(txFees => txFees.length > 0)
+
+    const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
+    feesByTx.forEach((txFees, i) => {
+      if (!ownSwaps[i]) fees.push(...txFees)
+    })
+  }
+
+  // No unchained host: read the node instead (transfer logs, plus traces of the blocks where the balance moved)
+  if (!hasUnchainedHost(chainId)) {
+    await addFees(await getNodeTreasuryTxs(client, treasuryAddress, effectiveFromBlock, toBlock))
+    return fees
+  }
+
+  const baseUrl = getUnchainedBaseUrl(chainId)
   let cursor: string | undefined
 
   do {
@@ -60,16 +80,7 @@ export const getTreasuryFees = async ({
       })
     )
 
-    const feesByTx = data.txs
-      .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
-      .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
-      .filter(txFees => txFees.length > 0)
-
-    const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
-    feesByTx.forEach((txFees, i) => {
-      if (!ownSwaps[i]) fees.push(...txFees)
-    })
-
+    await addFees(data.txs)
     cursor = data.cursor
   } while (cursor)
 

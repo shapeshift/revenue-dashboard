@@ -14,6 +14,13 @@ import {
   POLYGON_CHAIN_ID,
   ROBINHOOD_CHAIN_ID,
   UNICHAIN_CHAIN_ID,
+  SEI_CHAIN_ID,
+  INK_CHAIN_ID,
+  MANTLE_CHAIN_ID,
+  CRONOS_CHAIN_ID,
+  SONIC_CHAIN_ID,
+  CELO_CHAIN_ID,
+  BOB_CHAIN_ID,
 } from '../constants'
 
 import { createEvmLogClient } from './evmLogClient'
@@ -34,11 +41,25 @@ const ALCHEMY_NETWORK_BY_CHAIN_ID: Record<string, string> = {
   [ARBITRUM_CHAIN_ID]: 'arb-mainnet',
   [AVALANCHE_CHAIN_ID]: 'avax-mainnet',
   [ELYSIUM_CHAIN_ID]: 'elysium-mainnet',
+  [SEI_CHAIN_ID]: 'sei-mainnet',
+  [INK_CHAIN_ID]: 'ink-mainnet',
+  [MANTLE_CHAIN_ID]: 'mantle-mainnet',
+  [CRONOS_CHAIN_ID]: 'cronos-mainnet',
+  [SONIC_CHAIN_ID]: 'sonic-mainnet',
+  [CELO_CHAIN_ID]: 'celo-mainnet',
+  [BOB_CHAIN_ID]: 'bob-mainnet',
 }
 
 // Networks where Alchemy refuses any eth_getLogs over this many blocks outright; the rest only cap the log count
 const ALCHEMY_BLOCK_RANGE_CAPS: Record<string, number> = {
   'avax-mainnet': 10_000,
+  'bob-mainnet': 10_000,
+  'celo-mainnet': 10_000,
+  'cronos-mainnet': 10_000,
+  'ink-mainnet': 10_000,
+  'mantle-mainnet': 10_000,
+  'megaeth-mainnet': 10_000,
+  'sonic-mainnet': 10_000,
   'elysium-mainnet': 10_000,
   'gnosis-mainnet': 10_000,
   'plasma-mainnet': 10_000,

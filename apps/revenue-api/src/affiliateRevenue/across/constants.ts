@@ -9,10 +9,22 @@ import {
   DAO_TREASURY_BSC,
   DAO_TREASURY_ETHEREUM,
   DAO_TREASURY_OPTIMISM,
+  DAO_TREASURY_HYPEREVM,
+  DAO_TREASURY_INK,
+  DAO_TREASURY_MEGAETH,
+  DAO_TREASURY_MONAD,
+  DAO_TREASURY_PLASMA,
   DAO_TREASURY_POLYGON,
+  DAO_TREASURY_UNICHAIN,
   ETHEREUM_CHAIN_ID,
+  HYPEREVM_CHAIN_ID,
+  INK_CHAIN_ID,
+  MEGAETH_CHAIN_ID,
+  MONAD_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
+  PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
+  UNICHAIN_CHAIN_ID,
 } from '../constants'
 
 /**
@@ -33,19 +45,8 @@ import {
  *   - app fees are skipped unless the buy chain is a treasury chain
  * The set below is therefore (Across chains) ∩ (treasury chains) ∩ (EVM).
  *
- * KNOWN GAP — Monad (eip155:143) and HyperEVM (eip155:999) also qualify, but
- * neither has an unchained host, and their combined lifetime Across revenue is
- * ~$0.17: Monad has had exactly one payout (6.997 MON, 2026-05-21) and HyperEVM
- * one (0.0071 USDC, 2026-06-02). Not worth a second data-source backend today.
- * If either starts producing real volume:
- *   - HyperEVM: keyless Blockscout at https://www.hyperscan.com/api/v2 —
- *     `/addresses/<treasury>/token-transfers` already surfaces the handler payout.
- *   - Monad: needs Etherscan V2 (API key, free-tier coverage of chain 143
- *     unconfirmed) or Envio HyperSync. Do NOT use Moralis — its Monad index
- *     silently omits native internal transfers, which is how app fees arrive
- *     there, so it reports zero rather than failing.
- * Handlers, for whenever that happens: Monad 0xeC41F75c686e376Ab2a4F18bde263ab5822c4511,
- * HyperEVM 0x5E7840E06fAcCb6d1c3b5F5E0d1d3d07F2829bba.
+ * Chains without an unchained host (Monad, HyperEVM, Ink, Plasma, Unichain, MegaETH) read the treasury through
+ * Alchemy instead. Robinhood is an Across chain too, but Across has no MulticallHandler there, so it can't pay app fees.
  */
 
 /**
@@ -89,6 +90,17 @@ export const ACROSS_HANDLERS_BY_CHAIN_ID: Record<string, readonly string[]> = {
     '0x9610954AcDCA5FF7905f051A040ce33fe613c60e',
     '0x64A14B477d16F1E9D490B00218ada0c142C885dd', // PermissionedMulticallHandler
   ],
+  [MONAD_CHAIN_ID]: ['0xeC41F75c686e376Ab2a4F18bde263ab5822c4511'],
+  [HYPEREVM_CHAIN_ID]: [
+    '0x5E7840E06fAcCb6d1c3b5F5E0d1d3d07F2829bba',
+    '0xeaa13e675Fb95821B99D34B9c94c3D60fecAdd4A', // Permissioned OFT USDT
+    '0xD7B719ed2b02Bfa0247600EDd6bd8Fb3957e95c8', // Permissioned CCTP USDC
+    '0x9EE4300b6af03392bE493fa769DE33bb07242bfb', // Permissioned CCTP USDH
+  ],
+  [INK_CHAIN_ID]: ['0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E'],
+  [PLASMA_CHAIN_ID]: ['0x5E7840E06fAcCb6d1c3b5F5E0d1d3d07F2829bba'],
+  [UNICHAIN_CHAIN_ID]: ['0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E'],
+  [MEGAETH_CHAIN_ID]: ['0xFfc1285082deAB9bf0ECA5699e4930bb310aFbE4'],
 }
 
 export const ACROSS_CHAINS: { chainId: string; treasury: string }[] = [
@@ -99,4 +111,10 @@ export const ACROSS_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: BASE_CHAIN_ID, treasury: DAO_TREASURY_BASE },
   { chainId: ARBITRUM_CHAIN_ID, treasury: DAO_TREASURY_ARBITRUM },
   { chainId: AVALANCHE_CHAIN_ID, treasury: DAO_TREASURY_AVALANCHE },
+  { chainId: MONAD_CHAIN_ID, treasury: DAO_TREASURY_MONAD },
+  { chainId: HYPEREVM_CHAIN_ID, treasury: DAO_TREASURY_HYPEREVM },
+  { chainId: INK_CHAIN_ID, treasury: DAO_TREASURY_INK },
+  { chainId: PLASMA_CHAIN_ID, treasury: DAO_TREASURY_PLASMA },
+  { chainId: UNICHAIN_CHAIN_ID, treasury: DAO_TREASURY_UNICHAIN },
+  { chainId: MEGAETH_CHAIN_ID, treasury: DAO_TREASURY_MEGAETH },
 ]

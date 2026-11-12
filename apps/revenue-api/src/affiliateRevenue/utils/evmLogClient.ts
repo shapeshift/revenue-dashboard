@@ -20,6 +20,19 @@ export const ERC20_TRANSFER_TOPIC = toEventSelector('Transfer(address,address,ui
 
 type Block = { number: Hex; timestamp: Hex }
 
+export type AccountState = { balance: bigint; nonce: number }
+
+export type CallFrame = {
+  type: string
+  from: string
+  to?: string
+  value?: Hex
+  error?: string
+  calls?: CallFrame[]
+}
+
+export type BlockTrace = { txHash: Hex; result: CallFrame }[]
+
 // Requests in flight per endpoint key: Alchemy meters one key across all its networks, so every client shares it
 const ENDPOINT_CONCURRENCY = 10
 const endpointLimiters = new Map<string, ReturnType<typeof createSemaphore>>()
@@ -189,7 +202,30 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
   const getReceiptLogs = async (txHash: string): Promise<Log[]> =>
     (await call<{ logs: Log[] }>('eth_getTransactionReceipt', [txHash])).logs
 
-  return { resolveBlockRange, getLogs, getBlockTimestamps, getReceiptLogs }
+  // Native balance and nonce after the block, from archive state
+  const getAccountState = async (address: string, blockNumber: number): Promise<AccountState> => {
+    const [balance, nonce] = await Promise.all([
+      call<Hex>('eth_getBalance', [address, toHex(blockNumber)]),
+      call<Hex>('eth_getTransactionCount', [address, toHex(blockNumber)]),
+    ])
+    return { balance: BigInt(balance), nonce: Number(BigInt(nonce)) }
+  }
+
+  const traceBlock = (blockNumber: number): Promise<BlockTrace> =>
+    call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }])
+
+  const getTransactionSender = async (txHash: string): Promise<string> =>
+    (await call<{ from: string }>('eth_getTransactionByHash', [txHash])).from
+
+  return {
+    resolveBlockRange,
+    getLogs,
+    getBlockTimestamps,
+    getReceiptLogs,
+    getAccountState,
+    traceBlock,
+    getTransactionSender,
+  }
 }
 
 export type EvmLogClient = ReturnType<typeof createEvmLogClient>
