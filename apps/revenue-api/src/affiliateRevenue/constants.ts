@@ -149,6 +149,7 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:25': { platform: 'cronos', nativeCoinId: 'crypto-com-chain' },
   'eip155:146': { platform: 'sonic', nativeCoinId: 'sonic-3' },
   'eip155:42220': { platform: 'celo', nativeCoinId: 'celo' },
+  'eip155:60808': { platform: 'bob-network', nativeCoinId: 'ethereum' },
 }
 
 // Midgard lists a streaming swap under its start time but only adds the affiliate payout once it completes, up to ~24h later

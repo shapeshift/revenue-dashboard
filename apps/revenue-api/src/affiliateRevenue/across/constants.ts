@@ -1,10 +1,8 @@
 import {
   ARBITRUM_CHAIN_ID,
-  AVALANCHE_CHAIN_ID,
   BASE_CHAIN_ID,
   BSC_CHAIN_ID,
   DAO_TREASURY_ARBITRUM,
-  DAO_TREASURY_AVALANCHE,
   DAO_TREASURY_BASE,
   DAO_TREASURY_BSC,
   DAO_TREASURY_ETHEREUM,
@@ -32,7 +30,7 @@ import {
 /**
  * Across pays our affiliate cut as an "app fee" on the DESTINATION chain.
  *
- * shapeshift/web's AcrossSwapper (`utils/getTrade.ts`) sends `appFee` +
+ * shapeshift/web's AcrossSwapper (`utils/getAcrossTradeContext.ts`) sends `appFee` +
  * `appFeeRecipient` to Across' Swap API, where appFeeRecipient is the DAO
  * treasury on the *buy* asset's chain. Across encodes that into the deposit's
  * message, and on fill its MulticallHandler — the deposit `recipient` — splits
@@ -86,13 +84,6 @@ export const ACROSS_HANDLERS_BY_CHAIN_ID: Record<string, readonly string[]> = {
     '0xB6CAAfD8Ecf18385fFc7c020327E111a1D40A2D4', // Permissioned CCTP USDC
   ],
   [ARBITRUM_CHAIN_ID]: ['0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E'],
-  // Across + treasury + unchained all exist here, but shapeshift/web's
-  // chainIdToAcrossChainId doesn't map Avalanche yet, so this is zero today.
-  // Kept wired up so revenue is captured the moment the swapper adds it.
-  [AVALANCHE_CHAIN_ID]: [
-    '0x9610954AcDCA5FF7905f051A040ce33fe613c60e',
-    '0x64A14B477d16F1E9D490B00218ada0c142C885dd', // PermissionedMulticallHandler
-  ],
   [MONAD_CHAIN_ID]: ['0xeC41F75c686e376Ab2a4F18bde263ab5822c4511'],
   [HYPEREVM_CHAIN_ID]: [
     '0x5E7840E06fAcCb6d1c3b5F5E0d1d3d07F2829bba',
@@ -114,7 +105,6 @@ export const ACROSS_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: POLYGON_CHAIN_ID, treasury: DAO_TREASURY_POLYGON },
   { chainId: BASE_CHAIN_ID, treasury: DAO_TREASURY_BASE },
   { chainId: ARBITRUM_CHAIN_ID, treasury: DAO_TREASURY_ARBITRUM },
-  { chainId: AVALANCHE_CHAIN_ID, treasury: DAO_TREASURY_AVALANCHE },
   { chainId: MONAD_CHAIN_ID, treasury: DAO_TREASURY_MONAD },
   { chainId: HYPEREVM_CHAIN_ID, treasury: DAO_TREASURY_HYPEREVM },
   { chainId: INK_CHAIN_ID, treasury: DAO_TREASURY_INK },

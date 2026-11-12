@@ -99,9 +99,11 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     CHAIN_CONFIGS,
     config => config.network,
     config =>
-      getCachedFees('portals', config.chainId, startTimestamp, endTimestamp, (start, end) =>
-        fetchFeesForChain(config, start, end)
-      )
+      getCachedFees('portals', config.chainId, startTimestamp, endTimestamp, (start, end) => {
+        const until = config.until ?? Infinity
+        if (start > until) return Promise.resolve([])
+        return fetchFeesForChain(config, start, Math.min(end, until))
+      })
   )
   const allFees = perChain.flatMap(result => result.fees).sort((a, b) => b.timestamp - a.timestamp)
   const cacheHits = perChain.reduce((sum, result) => sum + result.cacheHits, 0)
