@@ -15,6 +15,7 @@ import {
   DAO_TREASURY_MONAD,
   DAO_TREASURY_PLASMA,
   DAO_TREASURY_POLYGON,
+  DAO_TREASURY_ROBINHOOD,
   DAO_TREASURY_UNICHAIN,
   ETHEREUM_CHAIN_ID,
   HYPEREVM_CHAIN_ID,
@@ -24,6 +25,7 @@ import {
   OPTIMISM_CHAIN_ID,
   PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
+  ROBINHOOD_CHAIN_ID,
   UNICHAIN_CHAIN_ID,
 } from '../constants'
 
@@ -45,8 +47,9 @@ import {
  *   - app fees are skipped unless the buy chain is a treasury chain
  * The set below is therefore (Across chains) ∩ (treasury chains) ∩ (EVM).
  *
- * Chains without an unchained host (Monad, HyperEVM, Ink, Plasma, Unichain, MegaETH) read the treasury through
- * Alchemy instead. Robinhood is an Across chain too, but Across has no MulticallHandler there, so it can't pay app fees.
+ * Chains without an unchained host (Monad, HyperEVM, Ink, Plasma, Unichain, MegaETH, Robinhood) read the treasury
+ * through Alchemy instead. Robinhood's handler isn't in deployed-addresses.json yet; it's the deposit recipient the
+ * Swap API returns for Robinhood routes with an appFee.
  */
 
 /**
@@ -101,6 +104,7 @@ export const ACROSS_HANDLERS_BY_CHAIN_ID: Record<string, readonly string[]> = {
   [PLASMA_CHAIN_ID]: ['0x5E7840E06fAcCb6d1c3b5F5E0d1d3d07F2829bba'],
   [UNICHAIN_CHAIN_ID]: ['0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E'],
   [MEGAETH_CHAIN_ID]: ['0xFfc1285082deAB9bf0ECA5699e4930bb310aFbE4'],
+  [ROBINHOOD_CHAIN_ID]: ['0xa8aD2e87E2043711d8BeC77e8BC3E2683C0ab6BD'],
 }
 
 export const ACROSS_CHAINS: { chainId: string; treasury: string }[] = [
@@ -117,4 +121,5 @@ export const ACROSS_CHAINS: { chainId: string; treasury: string }[] = [
   { chainId: PLASMA_CHAIN_ID, treasury: DAO_TREASURY_PLASMA },
   { chainId: UNICHAIN_CHAIN_ID, treasury: DAO_TREASURY_UNICHAIN },
   { chainId: MEGAETH_CHAIN_ID, treasury: DAO_TREASURY_MEGAETH },
+  { chainId: ROBINHOOD_CHAIN_ID, treasury: DAO_TREASURY_ROBINHOOD },
 ]
