@@ -4,7 +4,7 @@ import { padHex } from 'viem'
 
 import type { AccountState, CallFrame, Log } from './evmLogClient'
 import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
-import { collectNativeTransfers, collectTokenTransfers, findStateChangeBlocks } from './nodeTreasuryTxs'
+import { collectNativeTransfers, collectTokenTransfers, findStateChangeBlocks } from './rpcTxHistory'
 
 const TREASURY = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
 const HANDLER = '0x0f7ae28de1c8532170ad4ee566b5801485c13a0e'

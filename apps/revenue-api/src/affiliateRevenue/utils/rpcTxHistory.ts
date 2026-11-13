@@ -69,7 +69,7 @@ export const collectTokenTransfers = (logs: Log[], treasury: string): UnchainedT
 // The txs in the range that paid the treasury, shaped like unchained's history, for chains with no unchained host.
 // Fees arrive as ERC20 transfers in (logs) or native value in (traces of the blocks where the balance moved); each such
 // tx's receipt then gives its sender and every token movement, so spends by the treasury in the same tx are still seen
-export const getNodeTreasuryTxs = async (
+export const getRpcTxHistory = async (
   client: EvmLogClient,
   treasury: string,
   fromBlock: number,

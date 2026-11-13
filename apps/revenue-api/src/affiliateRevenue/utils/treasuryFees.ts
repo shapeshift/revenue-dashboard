@@ -7,7 +7,7 @@ import type { Fees } from '../types'
 import { createAlchemyClient } from './alchemy'
 import { buildAssetId } from './asset'
 import type { EvmLogClient } from './evmLogClient'
-import { getNodeTreasuryTxs } from './nodeTreasuryTxs'
+import { getRpcTxHistory } from './rpcTxHistory'
 import { getUnchainedBaseUrl, hasUnchainedHost, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
@@ -61,7 +61,7 @@ export const getTreasuryFees = async ({
 
   // No unchained host: read the node instead (transfer logs, plus traces of the blocks where the balance moved)
   if (!hasUnchainedHost(chainId)) {
-    await addFees(await getNodeTreasuryTxs(client, treasuryAddress, effectiveFromBlock, toBlock))
+    await addFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
     return fees
   }
 
