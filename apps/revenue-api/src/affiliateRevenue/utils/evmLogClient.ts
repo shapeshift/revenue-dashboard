@@ -201,7 +201,16 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return perWindow.flat()
   }
 
-  const getReceipt = (txHash: string): Promise<Receipt> => call<Receipt>('eth_getTransactionReceipt', [txHash])
+  const pendingReceipts = new Map<string, Promise<Receipt>>()
+  const getReceipt = (txHash: string): Promise<Receipt> => {
+    let receipt = pendingReceipts.get(txHash)
+    if (!receipt) {
+      receipt = call<Receipt>('eth_getTransactionReceipt', [txHash])
+      receipt.catch(() => pendingReceipts.delete(txHash))
+      pendingReceipts.set(txHash, receipt)
+    }
+    return receipt
+  }
 
   // Native balance and nonce after the block, from archive state
   const getAccountState = async (address: string, blockNumber: number): Promise<AccountState> => {

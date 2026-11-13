@@ -49,19 +49,20 @@ const ALCHEMY_NETWORK_BY_CHAIN_ID: Record<string, string> = {
 }
 
 // Networks where Alchemy refuses any eth_getLogs over this many blocks outright; the rest only cap the log count
-const ALCHEMY_BLOCK_RANGE_CAPS: Record<string, number> = {
-  'avax-mainnet': 10_000,
-  'bob-mainnet': 10_000,
-  'celo-mainnet': 10_000,
-  'ink-mainnet': 10_000,
-  'mantle-mainnet': 10_000,
-  'megaeth-mainnet': 10_000,
-  'sonic-mainnet': 10_000,
-  'elysium-mainnet': 10_000,
-  'gnosis-mainnet': 10_000,
-  'plasma-mainnet': 10_000,
-  'unichain-mainnet': 10_000,
-}
+const ALCHEMY_BLOCK_RANGE_CAP = 10_000
+const ALCHEMY_RANGE_CAPPED_NETWORKS = new Set([
+  'avax-mainnet',
+  'bob-mainnet',
+  'celo-mainnet',
+  'elysium-mainnet',
+  'gnosis-mainnet',
+  'ink-mainnet',
+  'mantle-mainnet',
+  'megaeth-mainnet',
+  'plasma-mainnet',
+  'sonic-mainnet',
+  'unichain-mainnet',
+])
 
 export const createAlchemyClient = (chainId: string, context: string) => {
   const apiKey = process.env.ALCHEMY_API_KEY
@@ -71,5 +72,10 @@ export const createAlchemyClient = (chainId: string, context: string) => {
   if (!network) throw new Error(`No Alchemy network for ${chainId}`)
 
   const rpcUrl = `https://${network}.g.alchemy.com/v2/${apiKey}`
-  return createEvmLogClient(chainId, rpcUrl, context, ALCHEMY_BLOCK_RANGE_CAPS[network])
+  return createEvmLogClient(
+    chainId,
+    rpcUrl,
+    context,
+    ALCHEMY_RANGE_CAPPED_NETWORKS.has(network) ? ALCHEMY_BLOCK_RANGE_CAP : undefined
+  )
 }

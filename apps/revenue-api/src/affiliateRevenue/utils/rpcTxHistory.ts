@@ -75,15 +75,16 @@ export const getRpcTxHistory = async (
   fromBlock: number,
   toBlock: number
 ): Promise<UnchainedTx[]> => {
-  const blockByTx = new Map<string, number>()
-  const internalTxsByTx = new Map<string, UnchainedInternalTx[]>()
+  const found = new Map<string, { blockHeight: number; internalTxs: UnchainedInternalTx[] }>()
 
   const [inbound, changedBlocks] = await Promise.all([
     client.getLogs(undefined, [ERC20_TRANSFER_TOPIC, null, padHex(treasury as Hex, { size: 32 })], fromBlock, toBlock),
     findStateChangeBlocks(blockNumber => client.getAccountState(treasury, blockNumber), fromBlock, toBlock),
   ])
 
-  for (const log of inbound) blockByTx.set(log.transactionHash, Number(BigInt(log.blockNumber)))
+  for (const log of inbound) {
+    found.set(log.transactionHash, { blockHeight: Number(BigInt(log.blockNumber)), internalTxs: [] })
+  }
 
   const traces = await mapConcurrently(changedBlocks, TRACE_CONCURRENCY, async blockNumber => ({
     blockNumber,
@@ -95,28 +96,30 @@ export const getRpcTxHistory = async (
       const internalTxs = collectNativeTransfers(result, treasury)
       if (internalTxs.length === 0) continue
 
-      blockByTx.set(txHash, blockNumber)
-      internalTxsByTx.set(txHash, internalTxs)
+      found.set(txHash, { blockHeight: blockNumber, internalTxs })
     }
   }
 
-  const entries = [...blockByTx]
-  const [timestamps, receipts] = await Promise.all([
-    client.getBlockTimestamps([...new Set(blockByTx.values())]),
-    mapConcurrently(entries, TRACE_CONCURRENCY, ([txHash]) => client.getReceipt(txHash)),
+  const [timestamps, txs] = await Promise.all([
+    client.getBlockTimestamps([...new Set([...found.values()].map(({ blockHeight }) => blockHeight))]),
+    mapConcurrently([...found], TRACE_CONCURRENCY, async ([txid, tx]) => ({
+      txid,
+      ...tx,
+      receipt: await client.getReceipt(txid),
+    })),
   ])
 
-  return entries
-    .map(([txid, blockHeight], i) => ({
+  return txs
+    .map(({ txid, blockHeight, internalTxs, receipt }) => ({
       txid,
       blockHeight,
       timestamp: timestamps.get(blockHeight)!,
-      status: Number(BigInt(receipts[i].status)),
-      from: receipts[i].from.toLowerCase(),
+      status: Number(BigInt(receipt.status)),
+      from: receipt.from.toLowerCase(),
       to: null,
       value: '0',
-      tokenTransfers: collectTokenTransfers(receipts[i].logs, treasury),
-      internalTxs: internalTxsByTx.get(txid) ?? [],
+      tokenTransfers: collectTokenTransfers(receipt.logs, treasury),
+      internalTxs,
     }))
     .sort((a, b) => a.blockHeight - b.blockHeight)
 }

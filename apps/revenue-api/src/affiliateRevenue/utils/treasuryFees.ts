@@ -45,25 +45,22 @@ export const getTreasuryFees = async ({
   const effectiveFromBlock = firstBlock === undefined ? fromBlock : Math.max(fromBlock, firstBlock)
   if (effectiveFromBlock > toBlock) return []
 
-  const fees: Fees[] = []
-
-  const addFees = async (txs: UnchainedTx[]) => {
+  const toFees = async (txs: UnchainedTx[]): Promise<Fees[]> => {
     const feesByTx = txs
       .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
       .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
       .filter(txFees => txFees.length > 0)
 
     const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
-    feesByTx.forEach((txFees, i) => {
-      if (!ownSwaps[i]) fees.push(...txFees)
-    })
+    return feesByTx.filter((_, i) => !ownSwaps[i]).flat()
   }
 
   // No unchained host: read the node instead (transfer logs, plus traces of the blocks where the balance moved)
   if (!hasUnchainedHost(chainId)) {
-    await addFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
-    return fees
+    return toFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
   }
+
+  const fees: Fees[] = []
 
   const baseUrl = getUnchainedBaseUrl(chainId)
   let cursor: string | undefined
@@ -80,7 +77,7 @@ export const getTreasuryFees = async ({
       })
     )
 
-    await addFees(data.txs)
+    fees.push(...(await toFees(data.txs)))
     cursor = data.cursor
   } while (cursor)
 
