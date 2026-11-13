@@ -65,6 +65,7 @@ describe('collectNativeTransfers', () => {
         frame({ from: HANDLER, to: TREASURY, value: '0x7' }),
         frame({ from: HANDLER, to: TREASURY, value: '0x9', error: 'execution reverted' }),
         frame({ type: 'DELEGATECALL', from: HANDLER, to: TREASURY, value: '0x5' }),
+        frame({ type: 'delegatecall', from: HANDLER, to: TREASURY, value: '0x5' }),
         frame({ from: HANDLER, to: USER, value: '0x50' }),
         frame({ from: HANDLER, to: TREASURY, value: '0x0' }),
       ],

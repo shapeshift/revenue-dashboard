@@ -55,7 +55,6 @@ export const getTreasuryFees = async ({
     return feesByTx.filter((_, i) => !ownSwaps[i]).flat()
   }
 
-  // No unchained host: read the node instead (transfer logs, plus traces of the blocks where the balance moved)
   if (!hasUnchainedHost(chainId)) {
     return toFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
   }

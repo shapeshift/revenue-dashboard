@@ -48,7 +48,7 @@ const fetchRecent = async (
   })
 }
 
-// Chains a swapper stopped routing: windows past the cutoff are empty, so history before it is kept
+// For chains a swapper stopped routing: nothing past `until` is fetched, so the history before it stays
 export const fetchUntil =
   (until: number | undefined, fetchRange: (start: number, end: number) => Promise<Fees[]>) =>
   (start: number, end: number): Promise<Fees[]> => {

@@ -182,6 +182,34 @@ describe('getBlockTimestamps', () => {
   })
 })
 
+describe('getReceipt', () => {
+  it('shares a receipt between callers and fetches again after a failure', async () => {
+    let calls = 0
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        ++calls === 1 ? refuse(400, 'bad request') : ok({ status: '0x1', from: '0xa', logs: [] })
+      )) as unknown as typeof fetch
+    const node = client()
+
+    expect(await node.getReceipt('0x1').catch(() => 'failed')).toBe('failed')
+    await Promise.all([node.getReceipt('0x1'), node.getReceipt('0x1')])
+    expect(calls).toBe(2)
+  })
+})
+
+describe('getAccountState', () => {
+  it('retries a node that has not reached the block yet', async () => {
+    let calls = 0
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        ++calls === 1 ? refuse(200, 'block number is beyond current head') : ok('0x5')
+      )) as unknown as typeof fetch
+
+    expect(await client().getAccountState('0xa', 10)).toEqual({ balance: 5n, nonce: 5 })
+    expect(calls).toBe(3)
+  })
+})
+
 describe('refusal classification', () => {
   const rpc = (message: string, status?: number) => new RpcError(message, status, message)
 

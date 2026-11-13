@@ -29,9 +29,8 @@ import {
   UNICHAIN_CHAIN_ID,
 } from '../constants'
 
-// Across pays the app fee on the destination chain: the fill's MulticallHandler sends it to that chain's treasury.
-// Handlers differ per chain and CCTP/OFT routes fill through permissioned variants, so each chain lists all of them.
-// Source: @across-protocol/contracts deployed-addresses.json; Robinhood's isn't listed yet and comes from the Swap API.
+// The fill's MulticallHandler pays the app fee to the destination chain's treasury; CCTP/OFT routes use permissioned ones
+// Source: @across-protocol/contracts deployed-addresses.json (Robinhood's from the Swap API, not listed there yet)
 export const ACROSS_HANDLERS_BY_CHAIN_ID: Record<string, readonly string[]> = {
   [ETHEREUM_CHAIN_ID]: [
     '0x0F7Ae28dE1C8532170AD4ee566B5801485c13a0E',

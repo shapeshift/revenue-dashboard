@@ -10,8 +10,7 @@ import type { UnchainedInternalTx, UnchainedTokenTransfer, UnchainedTx } from '.
 
 const TRACE_CONCURRENCY = 5
 
-// An EOA's balance only drops when it sends, which bumps its nonce, so equal state at both ends means no native
-// movement in between; bisecting finds every block where the state changed
+// Bisects to every block where balance or nonce changed; for an EOA, equal ends mean no native movement between
 export const findStateChangeBlocks = async (
   getState: (blockNumber: number) => Promise<AccountState>,
   fromBlock: number,
@@ -88,8 +87,7 @@ export const dropNativeTokenEchoes = (
   })
 }
 
-// Fees arrive as ERC20 transfers in (logs) or native value in (traces of the blocks where the balance moved); each such
-// tx's receipt then gives its sender and every token movement, so spends by the treasury in the same tx are still seen
+// Fee txs come from inbound Transfer logs and traces of changed blocks; their receipts also show treasury spends
 const scanTxHistory = async (
   client: EvmLogClient,
   treasury: string,
@@ -155,8 +153,7 @@ const scanTxHistory = async (
 
 const sharedScans = createInflight<UnchainedTx[]>()
 
-// The txs in the range that touched the treasury, shaped like unchained's history, for chains with no unchained host.
-// Trackers sharing a treasury scan the same blocks at once, so they share one scan and each filters by its own senders
+// Unchained-shaped history for chains without an unchained host; concurrent trackers share one scan per range
 export const getRpcTxHistory = (
   client: EvmLogClient,
   treasury: string,
