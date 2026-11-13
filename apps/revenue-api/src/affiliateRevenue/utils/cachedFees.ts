@@ -1,4 +1,5 @@
 import type { Service } from '../../types'
+import { createInflight } from '../../utils/concurrency'
 import {
   getCacheableThreshold,
   getDateEndTimestamp,
@@ -17,17 +18,8 @@ export type CachedFeesResult = {
   cacheMisses: number
 }
 
-const running = new Map<string, Promise<Fees[]>>()
-
 // A scan outlives its provider deadline so its result still lands, so a later sweep joins it instead of stacking another
-const fetchOnce = (key: string, fetch: () => Promise<Fees[]>): Promise<Fees[]> => {
-  const pending = running.get(key)
-  if (pending) return pending
-
-  const request = fetch().finally(() => running.delete(key))
-  running.set(key, request)
-  return request
-}
+const fetchOnce = createInflight<Fees[]>()
 
 /**
  * Serve a service+chain's fees for a window from the per-day cache, fetching

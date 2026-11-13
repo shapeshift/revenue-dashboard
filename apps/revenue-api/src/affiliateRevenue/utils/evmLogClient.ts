@@ -230,6 +230,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }], retryLaggingNode)
 
   return {
+    chainId,
     resolveBlockRange,
     getLogs,
     getBlockTimestamps,

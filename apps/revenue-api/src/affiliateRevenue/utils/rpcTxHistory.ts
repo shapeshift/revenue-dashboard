@@ -1,7 +1,8 @@
 import type { Hex } from 'viem'
 import { padHex } from 'viem'
 
-import { mapConcurrently } from '../../utils/concurrency'
+import { createInflight, mapConcurrently } from '../../utils/concurrency'
+import { NATIVE_TOKEN_CONTRACTS } from '../constants'
 
 import type { AccountState, CallFrame, EvmLogClient, Log } from './evmLogClient'
 import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
@@ -87,15 +88,13 @@ export const dropNativeTokenEchoes = (
   })
 }
 
-// The txs in the range that paid the treasury, shaped like unchained's history, for chains with no unchained host.
 // Fees arrive as ERC20 transfers in (logs) or native value in (traces of the blocks where the balance moved); each such
 // tx's receipt then gives its sender and every token movement, so spends by the treasury in the same tx are still seen
-export const getRpcTxHistory = async (
+const scanTxHistory = async (
   client: EvmLogClient,
   treasury: string,
   fromBlock: number,
-  toBlock: number,
-  nativeTokenContract?: string
+  toBlock: number
 ): Promise<UnchainedTx[]> => {
   // A contract or 7702-delegated treasury can move native value without bumping its nonce, which bisection would miss
   const codes = await Promise.all([client.getCode(treasury, fromBlock - 1), client.getCode(treasury, toBlock)])
@@ -147,9 +146,23 @@ export const getRpcTxHistory = async (
       tokenTransfers: dropNativeTokenEchoes(
         collectTokenTransfers(receipt.logs, treasury),
         internalTxs,
-        nativeTokenContract
+        NATIVE_TOKEN_CONTRACTS[client.chainId]
       ),
       internalTxs,
     }))
     .sort((a, b) => a.blockHeight - b.blockHeight)
 }
+
+const sharedScans = createInflight<UnchainedTx[]>()
+
+// The txs in the range that touched the treasury, shaped like unchained's history, for chains with no unchained host.
+// Trackers sharing a treasury scan the same blocks at once, so they share one scan and each filters by its own senders
+export const getRpcTxHistory = (
+  client: EvmLogClient,
+  treasury: string,
+  fromBlock: number,
+  toBlock: number
+): Promise<UnchainedTx[]> =>
+  sharedScans(`${client.chainId}:${treasury}:${fromBlock}:${toBlock}`, () =>
+    scanTxHistory(client, treasury, fromBlock, toBlock)
+  )

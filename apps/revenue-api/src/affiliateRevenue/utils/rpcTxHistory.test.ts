@@ -144,10 +144,29 @@ describe('dropNativeTokenEchoes', () => {
 })
 
 describe('getRpcTxHistory', () => {
+  // A treasury with code makes every scan stop after its two code reads, so the reads count the scans
+  const codedTreasury = () => {
+    let codeReads = 0
+    const getCode = () => {
+      codeReads++
+      return Promise.resolve('0xef0100aa')
+    }
+    return { client: { chainId: 'eip155:1', getCode } as unknown as EvmLogClient, codeReads: () => codeReads }
+  }
+
   it('refuses a treasury with code, whose native moves bisection could miss', async () => {
-    const client = { getCode: () => Promise.resolve('0xef0100aa') } as unknown as EvmLogClient
+    const { client } = codedTreasury()
 
     const error = await getRpcTxHistory(client, TREASURY, 10, 20).catch((err: unknown) => err)
     expect(String(error)).toContain('has code')
+  })
+
+  it('shares one scan between concurrent callers of the same range', async () => {
+    const { client, codeReads } = codedTreasury()
+    const scan = (fromBlock: number) => getRpcTxHistory(client, TREASURY, fromBlock, 20).catch(() => undefined)
+
+    await Promise.all([scan(10), scan(10), scan(11)])
+
+    expect(codeReads()).toBe(4)
   })
 })

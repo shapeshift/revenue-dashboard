@@ -21,6 +21,20 @@ export const mapConcurrently = async <T, R>(items: T[], limit: number, fn: (item
   return results
 }
 
+// Callers asking for a key already in flight share its promise instead of starting the work again
+export const createInflight = <T>() => {
+  const running = new Map<string, Promise<T>>()
+
+  return (key: string, fn: () => Promise<T>): Promise<T> => {
+    const pending = running.get(key)
+    if (pending) return pending
+
+    const request = fn().finally(() => running.delete(key))
+    running.set(key, request)
+    return request
+  }
+}
+
 // At most `limit` calls in flight; later callers wait their turn in arrival order
 export const createSemaphore = (limit: number) => {
   let active = 0
