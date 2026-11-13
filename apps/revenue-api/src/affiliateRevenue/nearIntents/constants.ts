@@ -13,6 +13,7 @@ import {
   NEAR_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
   PLASMA_CHAIN_ID,
+  ROBINHOOD_CHAIN_ID,
   POLYGON_CHAIN_ID,
   SLIP44,
   SOLANA_CHAIN_ID,
@@ -58,6 +59,7 @@ export const NEAR_INTENTS_TO_CHAIN_ID: Record<string, string> = {
   aptos: APTOS_CHAIN_ID,
   ton: TON_CHAIN_ID,
   plasma: PLASMA_CHAIN_ID,
+  hood: ROBINHOOD_CHAIN_ID,
 }
 
 export const SLIP44_BY_NETWORK: Record<string, number> = {

@@ -13,6 +13,7 @@ import {
   DAO_TREASURY_OPTIMISM,
   DAO_TREASURY_PLASMA,
   DAO_TREASURY_POLYGON,
+  DAO_TREASURY_ROBINHOOD,
   DAO_TREASURY_SONIC,
   ETHEREUM_CHAIN_ID,
   GNOSIS_CHAIN_ID,
@@ -20,6 +21,7 @@ import {
   OPTIMISM_CHAIN_ID,
   PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
+  ROBINHOOD_CHAIN_ID,
   SONIC_CHAIN_ID,
 } from '../constants'
 
@@ -83,5 +85,10 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     chainId: SONIC_CHAIN_ID,
     network: 'sonic',
     treasury: DAO_TREASURY_SONIC,
+  },
+  {
+    chainId: ROBINHOOD_CHAIN_ID,
+    network: 'robinhood',
+    treasury: DAO_TREASURY_ROBINHOOD,
   },
 ]
