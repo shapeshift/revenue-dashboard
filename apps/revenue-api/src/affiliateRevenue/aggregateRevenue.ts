@@ -29,8 +29,16 @@ const chainMap: Record<string, string> = {
   'eip155:130': 'Unichain',
   'eip155:4663': 'Robinhood',
   'eip155:99901': 'Elysium',
+  'eip155:1329': 'Sei',
+  'eip155:57073': 'Ink',
+  'eip155:5000': 'Mantle',
+  'eip155:25': 'Cronos',
+  'eip155:146': 'Sonic',
+  'eip155:42220': 'Celo',
+  'eip155:60808': 'BOB',
 
   'bip122:000000000019d6689c085ae165831e93': 'Bitcoin',
+  'bip122:000000000000000000651ef99cb9fcbe': 'Bitcoin Cash',
   'bip122:00000000001a91e3dace36e2be3bf030': 'Dogecoin',
   'bip122:00040fe8ec8471911baa1db1266ea15d': 'Zcash',
 

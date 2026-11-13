@@ -7,7 +7,8 @@ import type { Fees } from '../types'
 import { createAlchemyClient } from './alchemy'
 import { buildAssetId } from './asset'
 import type { EvmLogClient } from './evmLogClient'
-import { getUnchainedBaseUrl, UNCHAINED_PAGE_SIZE } from './unchained'
+import { getRpcTxHistory } from './rpcTxHistory'
+import { getUnchainedBaseUrl, hasUnchainedHost, UNCHAINED_PAGE_SIZE } from './unchained'
 import type { UnchainedTx, UnchainedTxHistoryResponse } from './unchained'
 
 export type TreasuryFeesParams = {
@@ -18,8 +19,6 @@ export type TreasuryFeesParams = {
   senders: Iterable<string>
   startTimestamp: number
   endTimestamp: number
-  // Skip blocks before the service's first possible fee
-  firstBlock?: number
   // A cross-chain swap the treasury made pays out in a tx it never touches; checked only on txs that pay a fee
   isOwnSwap?: (txid: string, client: EvmLogClient) => Promise<boolean>
 }
@@ -32,20 +31,33 @@ export const getTreasuryFees = async ({
   senders,
   startTimestamp,
   endTimestamp,
-  firstBlock,
   isOwnSwap,
 }: TreasuryFeesParams): Promise<Fees[]> => {
-  const baseUrl = getUnchainedBaseUrl(chainId)
   const senderSet = new Set([...senders].map(sender => sender.toLowerCase()))
   const treasuryAddress = treasury.toLowerCase()
 
   const client = createAlchemyClient(chainId, service)
-  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
 
-  const effectiveFromBlock = firstBlock === undefined ? fromBlock : Math.max(fromBlock, firstBlock)
-  if (effectiveFromBlock > toBlock) return []
+  const toFees = async (txs: UnchainedTx[]): Promise<Fees[]> => {
+    const feesByTx = txs
+      .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
+      .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
+      .filter(txFees => txFees.length > 0)
+
+    const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
+    return feesByTx.filter((_, i) => !ownSwaps[i]).flat()
+  }
+
+  if (!hasUnchainedHost(chainId)) {
+    return toFees(await getRpcTxHistory(client, treasuryAddress, startTimestamp, endTimestamp))
+  }
+
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
+  if (fromBlock > toBlock) return []
 
   const fees: Fees[] = []
+
+  const baseUrl = getUnchainedBaseUrl(chainId)
   let cursor: string | undefined
 
   do {
@@ -53,23 +65,14 @@ export const getTreasuryFees = async ({
       axios.get<UnchainedTxHistoryResponse>(`${baseUrl}/api/v1/account/${treasury}/txs`, {
         params: {
           pageSize: UNCHAINED_PAGE_SIZE,
-          from: effectiveFromBlock,
+          from: fromBlock,
           to: toBlock,
           ...(cursor ? { cursor } : {}),
         },
       })
     )
 
-    const feesByTx = data.txs
-      .filter(tx => tx.status === 1 && tx.timestamp >= startTimestamp && tx.timestamp <= endTimestamp)
-      .map(tx => extractTreasuryFees(tx, { service, chainId, treasury: treasuryAddress, senders: senderSet }))
-      .filter(txFees => txFees.length > 0)
-
-    const ownSwaps = isOwnSwap ? await Promise.all(feesByTx.map(txFees => isOwnSwap(txFees[0].txHash, client))) : []
-    feesByTx.forEach((txFees, i) => {
-      if (!ownSwaps[i]) fees.push(...txFees)
-    })
-
+    fees.push(...(await toFees(data.txs)))
     cursor = data.cursor
   } while (cursor)
 

@@ -20,6 +20,21 @@ export const ERC20_TRANSFER_TOPIC = toEventSelector('Transfer(address,address,ui
 
 type Block = { number: Hex; timestamp: Hex }
 
+export type AccountState = { balance: bigint; nonce: number }
+
+export type CallFrame = {
+  type: string
+  from: string
+  to?: string
+  value?: Hex
+  error?: string
+  calls?: CallFrame[]
+}
+
+export type BlockTrace = { txHash: Hex; result?: CallFrame; error?: string }[]
+
+export type Receipt = { from: Hex; status: Hex; logs: Log[] }
+
 // Requests in flight per endpoint key: Alchemy meters one key across all its networks, so every client shares it
 const ENDPOINT_CONCURRENCY = 10
 const endpointLimiters = new Map<string, ReturnType<typeof createSemaphore>>()
@@ -186,10 +201,44 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return perWindow.flat()
   }
 
-  const getReceiptLogs = async (txHash: string): Promise<Log[]> =>
-    (await call<{ logs: Log[] }>('eth_getTransactionReceipt', [txHash])).logs
+  const pendingReceipts = new Map<string, Promise<Receipt>>()
+  const getReceipt = (txHash: string): Promise<Receipt> => {
+    let receipt = pendingReceipts.get(txHash)
+    if (!receipt) {
+      receipt = call<Receipt>('eth_getTransactionReceipt', [txHash])
+      receipt.catch(() => pendingReceipts.delete(txHash))
+      pendingReceipts.set(txHash, receipt)
+    }
+    return receipt
+  }
 
-  return { resolveBlockRange, getLogs, getBlockTimestamps, getReceiptLogs }
+  const retryLaggingNode = (error: unknown) => isBehindHead(error) || isRetryableRpcError(error)
+
+  // Needs archive state for historical blocks
+  const getAccountState = async (address: string, blockNumber: number): Promise<AccountState> => {
+    const [balance, nonce] = await Promise.all([
+      call<Hex>('eth_getBalance', [address, toHex(blockNumber)], retryLaggingNode),
+      call<Hex>('eth_getTransactionCount', [address, toHex(blockNumber)], retryLaggingNode),
+    ])
+    return { balance: BigInt(balance), nonce: Number(BigInt(nonce)) }
+  }
+
+  const getCode = (address: string, blockNumber: number): Promise<Hex> =>
+    call<Hex>('eth_getCode', [address, toHex(blockNumber)], retryLaggingNode)
+
+  const traceBlock = (blockNumber: number): Promise<BlockTrace> =>
+    call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }], retryLaggingNode)
+
+  return {
+    chainId,
+    resolveBlockRange,
+    getLogs,
+    getBlockTimestamps,
+    getReceipt,
+    getAccountState,
+    getCode,
+    traceBlock,
+  }
 }
 
 export type EvmLogClient = ReturnType<typeof createEvmLogClient>

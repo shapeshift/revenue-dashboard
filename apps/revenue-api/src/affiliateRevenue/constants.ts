@@ -14,6 +14,8 @@ export const DAO_TREASURY_MEGAETH = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_ROBINHOOD = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_UNICHAIN = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 export const DAO_TREASURY_ELYSIUM = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_INK = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
+export const DAO_TREASURY_SONIC = '0xF5AA59151bE6515C4Ca68A0282CF68B3eA4846fC'
 
 export const DAO_TREASURIES: ReadonlySet<string> = new Set(
   [
@@ -32,6 +34,8 @@ export const DAO_TREASURIES: ReadonlySet<string> = new Set(
     DAO_TREASURY_ROBINHOOD,
     DAO_TREASURY_UNICHAIN,
     DAO_TREASURY_ELYSIUM,
+    DAO_TREASURY_INK,
+    DAO_TREASURY_SONIC,
   ].map(address => address.toLowerCase())
 )
 
@@ -68,6 +72,8 @@ export const SYMBIOSIS_CHAIN_ID = 'eip155:13863860'
 export const UNICHAIN_CHAIN_ID = 'eip155:130'
 export const ROBINHOOD_CHAIN_ID = 'eip155:4663'
 export const ELYSIUM_CHAIN_ID = 'eip155:99901'
+export const INK_CHAIN_ID = 'eip155:57073'
+export const SONIC_CHAIN_ID = 'eip155:146'
 
 // Slip44 coin type values for native assets
 export const SLIP44 = {
@@ -125,6 +131,13 @@ export const COINGECKO_CHAINS: Record<string, { platform: string; nativeCoinId: 
   'eip155:43114': { platform: 'avalanche', nativeCoinId: 'avalanche-2' },
   'eip155:99901': { platform: 'elysium-kinetiq', nativeCoinId: 'hyperliquid' },
   'eip155:22776': { platform: 'map-protocol', nativeCoinId: 'marcopolo' },
+  'eip155:1329': { platform: 'sei-v2', nativeCoinId: 'sei-network' },
+  'eip155:57073': { platform: 'ink', nativeCoinId: 'ethereum' },
+  'eip155:5000': { platform: 'mantle', nativeCoinId: 'mantle' },
+  'eip155:25': { platform: 'cronos', nativeCoinId: 'crypto-com-chain' },
+  'eip155:146': { platform: 'sonic', nativeCoinId: 'sonic-3' },
+  'eip155:42220': { platform: 'celo', nativeCoinId: 'celo' },
+  'eip155:60808': { platform: 'bob-network', nativeCoinId: 'ethereum' },
 }
 
 // Midgard lists a streaming swap under its start time but only adds the affiliate payout once it completes, up to ~24h later

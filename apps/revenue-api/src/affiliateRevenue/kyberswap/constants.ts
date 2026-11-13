@@ -19,6 +19,7 @@ import {
   DAO_TREASURY_PLASMA,
   DAO_TREASURY_POLYGON,
   DAO_TREASURY_ROBINHOOD,
+  DAO_TREASURY_SONIC,
   DAO_TREASURY_UNICHAIN,
   ELYSIUM_CHAIN_ID,
   ETHEREUM_CHAIN_ID,
@@ -29,6 +30,7 @@ import {
   PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
   ROBINHOOD_CHAIN_ID,
+  SONIC_CHAIN_ID,
   UNICHAIN_CHAIN_ID,
 } from '../constants'
 
@@ -62,4 +64,5 @@ export const KYBER_CHAINS: KyberChain[] = [
   { chainId: ARBITRUM_CHAIN_ID, network: 'arbitrum', treasury: DAO_TREASURY_ARBITRUM },
   { chainId: AVALANCHE_CHAIN_ID, network: 'avalanche', treasury: DAO_TREASURY_AVALANCHE },
   { chainId: ELYSIUM_CHAIN_ID, network: 'elysium', treasury: DAO_TREASURY_ELYSIUM },
+  { chainId: SONIC_CHAIN_ID, network: 'sonic', treasury: DAO_TREASURY_SONIC },
 ]

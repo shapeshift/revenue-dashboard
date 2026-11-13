@@ -13,12 +13,16 @@ import {
   DAO_TREASURY_OPTIMISM,
   DAO_TREASURY_PLASMA,
   DAO_TREASURY_POLYGON,
+  DAO_TREASURY_ROBINHOOD,
+  DAO_TREASURY_SONIC,
   ETHEREUM_CHAIN_ID,
   GNOSIS_CHAIN_ID,
   HYPEREVM_CHAIN_ID,
   OPTIMISM_CHAIN_ID,
   PLASMA_CHAIN_ID,
   POLYGON_CHAIN_ID,
+  ROBINHOOD_CHAIN_ID,
+  SONIC_CHAIN_ID,
 } from '../constants'
 
 import type { ChainConfig } from './types'
@@ -55,6 +59,7 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     chainId: GNOSIS_CHAIN_ID,
     network: 'gnosis',
     treasury: DAO_TREASURY_GNOSIS,
+    until: 1769904000, // 2026-02-01, after web dropped Gnosis (shapeshift/web#11660)
   },
   {
     chainId: BSC_CHAIN_ID,
@@ -75,5 +80,15 @@ export const CHAIN_CONFIGS: ChainConfig[] = [
     chainId: PLASMA_CHAIN_ID,
     network: 'plasma',
     treasury: DAO_TREASURY_PLASMA,
+  },
+  {
+    chainId: SONIC_CHAIN_ID,
+    network: 'sonic',
+    treasury: DAO_TREASURY_SONIC,
+  },
+  {
+    chainId: ROBINHOOD_CHAIN_ID,
+    network: 'robinhood',
+    treasury: DAO_TREASURY_ROBINHOOD,
   },
 ]

@@ -14,6 +14,8 @@ import {
   POLYGON_CHAIN_ID,
   ROBINHOOD_CHAIN_ID,
   UNICHAIN_CHAIN_ID,
+  INK_CHAIN_ID,
+  SONIC_CHAIN_ID,
 } from '../constants'
 
 import { createEvmLogClient } from './evmLogClient'
@@ -34,16 +36,22 @@ const ALCHEMY_NETWORK_BY_CHAIN_ID: Record<string, string> = {
   [ARBITRUM_CHAIN_ID]: 'arb-mainnet',
   [AVALANCHE_CHAIN_ID]: 'avax-mainnet',
   [ELYSIUM_CHAIN_ID]: 'elysium-mainnet',
+  [INK_CHAIN_ID]: 'ink-mainnet',
+  [SONIC_CHAIN_ID]: 'sonic-mainnet',
 }
 
 // Networks where Alchemy refuses any eth_getLogs over this many blocks outright; the rest only cap the log count
-const ALCHEMY_BLOCK_RANGE_CAPS: Record<string, number> = {
-  'avax-mainnet': 10_000,
-  'elysium-mainnet': 10_000,
-  'gnosis-mainnet': 10_000,
-  'plasma-mainnet': 10_000,
-  'unichain-mainnet': 10_000,
-}
+const ALCHEMY_BLOCK_RANGE_CAP = 10_000
+const ALCHEMY_RANGE_CAPPED_NETWORKS = new Set([
+  'avax-mainnet',
+  'elysium-mainnet',
+  'gnosis-mainnet',
+  'ink-mainnet',
+  'megaeth-mainnet',
+  'plasma-mainnet',
+  'sonic-mainnet',
+  'unichain-mainnet',
+])
 
 export const createAlchemyClient = (chainId: string, context: string) => {
   const apiKey = process.env.ALCHEMY_API_KEY
@@ -53,5 +61,10 @@ export const createAlchemyClient = (chainId: string, context: string) => {
   if (!network) throw new Error(`No Alchemy network for ${chainId}`)
 
   const rpcUrl = `https://${network}.g.alchemy.com/v2/${apiKey}`
-  return createEvmLogClient(chainId, rpcUrl, context, ALCHEMY_BLOCK_RANGE_CAPS[network])
+  return createEvmLogClient(
+    chainId,
+    rpcUrl,
+    context,
+    ALCHEMY_RANGE_CAPPED_NETWORKS.has(network) ? ALCHEMY_BLOCK_RANGE_CAP : undefined
+  )
 }

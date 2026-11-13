@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { saveCachedFees } from '../cache'
 import type { Fees } from '../types'
 
-import { getCachedFees } from './cachedFees'
+import { fetchUntil, getCachedFees } from './cachedFees'
 
 const day = (date: string) => Math.floor(Date.parse(`${date}T12:00:00Z`) / 1000)
 const fee = (date: string): Fees =>
@@ -52,5 +52,30 @@ describe('getCachedFees', () => {
     await getCachedFees('across', 'test:retry', start, end, fetchRange)
 
     expect(calls).toBe(2)
+  })
+})
+
+describe('fetchUntil', () => {
+  const calls: [number, number][] = []
+  const fetchRange = (start: number, end: number) => {
+    calls.push([start, end])
+    return Promise.resolve([])
+  }
+
+  test('clamps windows that cross the cutoff and skips windows after it', async () => {
+    calls.length = 0
+    const fetch = fetchUntil(100, fetchRange)
+
+    await fetch(50, 150)
+    await fetch(101, 200)
+
+    expect(calls).toEqual([[50, 100]])
+  })
+
+  test('passes windows through when there is no cutoff', async () => {
+    calls.length = 0
+    await fetchUntil(undefined, fetchRange)(50, 150)
+
+    expect(calls).toEqual([[50, 150]])
   })
 })

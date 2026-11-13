@@ -1,12 +1,13 @@
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
-import { getCachedFees, getTreasuryFees, settleChains } from '../utils'
+import { fetchUntil, getCachedFees, getTreasuryFees, settleChains } from '../utils'
 
 import { DEBRIDGE_CHAINS, DEBRIDGE_FEE_SENDERS } from './constants'
 
 const getFeesForChain = async (
   chainId: string,
   treasury: string,
+  until: number | undefined,
   startTimestamp: number,
   endTimestamp: number
 ): Promise<Fees[]> => {
@@ -21,7 +22,7 @@ const getFeesForChain = async (
     })
   }
 
-  const { fees } = await getCachedFees('debridge', chainId, startTimestamp, endTimestamp, fetchRange)
+  const { fees } = await getCachedFees('debridge', chainId, startTimestamp, endTimestamp, fetchUntil(until, fetchRange))
 
   return fees
 }
@@ -33,7 +34,7 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     'debridge',
     DEBRIDGE_CHAINS,
     ({ chainId }) => chainId,
-    ({ chainId, treasury }) => getFeesForChain(chainId, treasury, startTimestamp, endTimestamp)
+    ({ chainId, treasury, until }) => getFeesForChain(chainId, treasury, until, startTimestamp, endTimestamp)
   )
 
   const allFees = perChain.flat().sort((a, b) => b.timestamp - a.timestamp)

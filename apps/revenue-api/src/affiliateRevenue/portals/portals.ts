@@ -4,7 +4,7 @@ import { padHex } from 'viem'
 import { enrichFeesWithUsdPrices } from '../enrichment'
 import type { Fees } from '../types'
 import type { EvmLogClient, LogTopics } from '../utils'
-import { buildAssetId, ERC20_TRANSFER_TOPIC, getCachedFees, settleChains } from '../utils'
+import { buildAssetId, ERC20_TRANSFER_TOPIC, fetchUntil, getCachedFees, settleChains } from '../utils'
 import { createAlchemyClient } from '../utils/alchemy'
 
 import { CHAIN_CONFIGS, PORTAL_EVENT_SIGNATURE } from './constants'
@@ -99,8 +99,12 @@ export const getFees = async (startTimestamp: number, endTimestamp: number): Pro
     CHAIN_CONFIGS,
     config => config.network,
     config =>
-      getCachedFees('portals', config.chainId, startTimestamp, endTimestamp, (start, end) =>
-        fetchFeesForChain(config, start, end)
+      getCachedFees(
+        'portals',
+        config.chainId,
+        startTimestamp,
+        endTimestamp,
+        fetchUntil(config.until, (start, end) => fetchFeesForChain(config, start, end))
       )
   )
   const allFees = perChain.flatMap(result => result.fees).sort((a, b) => b.timestamp - a.timestamp)

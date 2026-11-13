@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createSemaphore, mapConcurrently, withDeadline } from './concurrency'
+import { createInflight, createSemaphore, mapConcurrently, withDeadline } from './concurrency'
 
 describe('createSemaphore', () => {
   it('never runs more than the limit at once and lets every caller through', async () => {
@@ -60,5 +60,18 @@ describe('withDeadline', () => {
 
   it('passes through a result inside the deadline', async () => {
     expect(await withDeadline(Promise.resolve(1), 1000, 'quick')).toBe(1)
+  })
+})
+
+describe('createInflight', () => {
+  it('shares a key while it is in flight and runs it again once settled', async () => {
+    const inflight = createInflight<number>()
+    let runs = 0
+    const work = () => Promise.resolve(++runs)
+
+    const [a, b, other] = await Promise.all([inflight('a', work), inflight('a', work), inflight('b', work)])
+    const again = await inflight('a', work)
+
+    expect([a, b, other, again]).toEqual([1, 1, 2, 3])
   })
 })

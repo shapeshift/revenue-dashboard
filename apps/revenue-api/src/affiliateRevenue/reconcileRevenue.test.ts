@@ -100,9 +100,9 @@ describe('reconcilePartnerRevenue — excluded (audited, not deducted)', () => {
   )
 
   test.each([
-    ['Across', 'eip155:143/slip44:60'],
+    ['Across', 'eip155:747474/slip44:60'],
     ['BOB Gateway', 'bip122:000000000019d6689c085ae165831e93/slip44:0'],
-    ['deBridge', 'eip155:143/slip44:60'],
+    ['deBridge', 'eip155:747474/slip44:60'],
   ] as const)('%s swap paid on a chain its tracker does not scan (%s)', (swapperName, affiliateFeeAssetId) =>
     expectExcluded({ swapperName, affiliateFeeAssetId }, "tracker doesn't scan")
   )
