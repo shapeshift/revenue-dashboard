@@ -5,13 +5,12 @@ import { padHex } from 'viem'
 import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
 import type { AccountState, CallFrame, Log, EvmLogClient } from './evmLogClient'
 import {
+  collectInternalTxs,
   collectNativeTransfers,
   collectTokenTransfers,
-  dropNativeTokenEchoes,
   findStateChangeBlocks,
   getRpcTxHistory,
 } from './rpcTxHistory'
-import type { UnchainedTokenTransfer } from './unchained'
 
 const TREASURY = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
 const HANDLER = '0x0f7ae28de1c8532170ad4ee566b5801485c13a0e'
@@ -81,6 +80,20 @@ describe('collectNativeTransfers', () => {
   })
 })
 
+describe('collectInternalTxs', () => {
+  it("leaves out the top-level call's own value, as unchained does", () => {
+    const root: CallFrame = {
+      type: 'CALL',
+      from: USER,
+      to: TREASURY,
+      value: '0x64',
+      calls: [{ type: 'CALL', from: HANDLER, to: TREASURY, value: '0x7' }],
+    }
+
+    expect(collectInternalTxs(root, TREASURY)).toEqual([{ from: HANDLER, to: TREASURY, value: '7' }])
+  })
+})
+
 describe('collectTokenTransfers', () => {
   const TOKEN = '0x00000000000000000000000000000000000000cc'
   const log = (from: string, to: string, data: Hex, topicCount = 3): Log => ({
@@ -113,37 +126,6 @@ describe('collectTokenTransfers', () => {
   })
 })
 
-describe('dropNativeTokenEchoes', () => {
-  const CELO = '0x471ece3750da237f93b8e339c536989b8978a438'
-  const OTHER = '0x00000000000000000000000000000000000000cc'
-  const transfer = (contract: string, value: string): UnchainedTokenTransfer => ({
-    from: HANDLER,
-    to: TREASURY,
-    value,
-    contract,
-    decimals: 0,
-    name: '',
-    symbol: '',
-    type: 'ERC20',
-  })
-
-  it('drops native token logs that echo a traced native transfer, once per transfer', () => {
-    const native = [{ from: HANDLER, to: TREASURY, value: '7' }]
-    const kept = dropNativeTokenEchoes(
-      [transfer(CELO, '7'), transfer(CELO, '7'), transfer(CELO, '3'), transfer(OTHER, '7')],
-      native,
-      CELO
-    )
-
-    expect(kept).toEqual([transfer(CELO, '7'), transfer(CELO, '3'), transfer(OTHER, '7')])
-  })
-
-  it('keeps everything on chains without a native token contract', () => {
-    const transfers = [transfer(CELO, '7')]
-    expect(dropNativeTokenEchoes(transfers, [{ from: HANDLER, to: TREASURY, value: '7' }], undefined)).toBe(transfers)
-  })
-})
-
 describe('getRpcTxHistory', () => {
   // A treasury with code makes every scan stop after its two code reads, so the reads count the scans
   const codedTreasury = () => {
@@ -152,7 +134,9 @@ describe('getRpcTxHistory', () => {
       codeReads++
       return Promise.resolve('0xef0100aa')
     }
-    return { client: { chainId: 'eip155:1', getCode } as unknown as EvmLogClient, codeReads: () => codeReads }
+    const resolveBlockRange = (start: number, end: number) => Promise.resolve([start, end])
+    const client = { chainId: 'eip155:1', getCode, resolveBlockRange } as unknown as EvmLogClient
+    return { client, codeReads: () => codeReads }
   }
 
   it('refuses a treasury with code, whose native moves bisection could miss', async () => {
@@ -162,9 +146,9 @@ describe('getRpcTxHistory', () => {
     expect(String(error)).toContain('has code')
   })
 
-  it('shares one scan between concurrent callers of the same range', async () => {
+  it('shares one scan between concurrent callers of the same window', async () => {
     const { client, codeReads } = codedTreasury()
-    const scan = (fromBlock: number) => getRpcTxHistory(client, TREASURY, fromBlock, 20).catch(() => undefined)
+    const scan = (start: number) => getRpcTxHistory(client, TREASURY, start, 20).catch(() => undefined)
 
     await Promise.all([scan(10), scan(10), scan(11)])
 

@@ -19,8 +19,6 @@ export type TreasuryFeesParams = {
   senders: Iterable<string>
   startTimestamp: number
   endTimestamp: number
-  // Skip blocks before the service's first possible fee
-  firstBlock?: number
   // A cross-chain swap the treasury made pays out in a tx it never touches; checked only on txs that pay a fee
   isOwnSwap?: (txid: string, client: EvmLogClient) => Promise<boolean>
 }
@@ -33,17 +31,12 @@ export const getTreasuryFees = async ({
   senders,
   startTimestamp,
   endTimestamp,
-  firstBlock,
   isOwnSwap,
 }: TreasuryFeesParams): Promise<Fees[]> => {
   const senderSet = new Set([...senders].map(sender => sender.toLowerCase()))
   const treasuryAddress = treasury.toLowerCase()
 
   const client = createAlchemyClient(chainId, service)
-  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
-
-  const effectiveFromBlock = firstBlock === undefined ? fromBlock : Math.max(fromBlock, firstBlock)
-  if (effectiveFromBlock > toBlock) return []
 
   const toFees = async (txs: UnchainedTx[]): Promise<Fees[]> => {
     const feesByTx = txs
@@ -56,8 +49,11 @@ export const getTreasuryFees = async ({
   }
 
   if (!hasUnchainedHost(chainId)) {
-    return toFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
+    return toFees(await getRpcTxHistory(client, treasuryAddress, startTimestamp, endTimestamp))
   }
+
+  const [fromBlock, toBlock] = await client.resolveBlockRange(startTimestamp, endTimestamp)
+  if (fromBlock > toBlock) return []
 
   const fees: Fees[] = []
 
@@ -69,7 +65,7 @@ export const getTreasuryFees = async ({
       axios.get<UnchainedTxHistoryResponse>(`${baseUrl}/api/v1/account/${treasury}/txs`, {
         params: {
           pageSize: UNCHAINED_PAGE_SIZE,
-          from: effectiveFromBlock,
+          from: fromBlock,
           to: toBlock,
           ...(cursor ? { cursor } : {}),
         },
