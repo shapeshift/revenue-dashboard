@@ -154,4 +154,19 @@ describe('getRpcTxHistory', () => {
 
     expect(codeReads()).toBe(4)
   })
+
+  it('fails with the tx hash when a trace in a changed block failed', async () => {
+    const client = {
+      chainId: 'eip155:1',
+      resolveBlockRange: () => Promise.resolve([10, 20]),
+      getCode: () => Promise.resolve('0x'),
+      getLogs: () => Promise.resolve([]),
+      getAccountState: (_address: string, block: number) =>
+        Promise.resolve({ balance: block >= 15 ? 1n : 0n, nonce: 0 }),
+      traceBlock: () => Promise.resolve([{ txHash: '0xabc', error: 'tracer failed' }]),
+    } as unknown as EvmLogClient
+
+    const error = await getRpcTxHistory(client, TREASURY, 1000, 2000).catch((err: unknown) => err)
+    expect(String(error)).toContain('Trace of 0xabc in block 15 failed: tracer failed')
+  })
 })

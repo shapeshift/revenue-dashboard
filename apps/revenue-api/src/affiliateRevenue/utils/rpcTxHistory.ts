@@ -107,7 +107,10 @@ const scanTxHistory = async (
   }))
 
   for (const { blockNumber, trace } of traces) {
-    for (const { txHash, result } of trace) {
+    for (const { txHash, result, error } of trace) {
+      // An untraced tx could have paid the treasury, so fail rather than undercount
+      if (!result) throw new Error(`Trace of ${txHash} in block ${blockNumber} failed: ${error ?? 'no result'}`)
+
       const internalTxs = collectInternalTxs(result, treasury)
       if (internalTxs.length === 0) continue
 

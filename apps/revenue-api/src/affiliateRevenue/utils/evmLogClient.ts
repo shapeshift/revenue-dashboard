@@ -31,7 +31,7 @@ export type CallFrame = {
   calls?: CallFrame[]
 }
 
-export type BlockTrace = { txHash: Hex; result: CallFrame }[]
+export type BlockTrace = { txHash: Hex; result?: CallFrame; error?: string }[]
 
 export type Receipt = { from: Hex; status: Hex; logs: Log[] }
 
