@@ -39,7 +39,8 @@ export const collectNativeTransfers = (frame: CallFrame, treasury: string): Unch
 
   const transfers: UnchainedInternalTx[] = []
   const value = BigInt(frame.value ?? '0x0')
-  const movesValue = frame.type !== 'DELEGATECALL' && frame.type !== 'STATICCALL' && value > 0n
+  const type = frame.type.toUpperCase()
+  const movesValue = type !== 'DELEGATECALL' && type !== 'STATICCALL' && value > 0n
   const from = frame.from.toLowerCase()
   const to = frame.to?.toLowerCase()
 
@@ -66,6 +67,26 @@ export const collectTokenTransfers = (logs: Log[], treasury: string): UnchainedT
     }))
     .filter(transfer => transfer.from === treasury || transfer.to === treasury)
 
+// Celo's native coin is also an ERC20 whose Transfer log can echo a native value transfer the trace already counted
+export const dropNativeTokenEchoes = (
+  tokenTransfers: UnchainedTokenTransfer[],
+  internalTxs: UnchainedInternalTx[],
+  nativeTokenContract: string | undefined
+): UnchainedTokenTransfer[] => {
+  if (!nativeTokenContract) return tokenTransfers
+
+  const unmatched = [...internalTxs]
+  return tokenTransfers.filter(transfer => {
+    if (transfer.contract !== nativeTokenContract) return true
+    const i = unmatched.findIndex(
+      native => native.from === transfer.from && native.to === transfer.to && native.value === transfer.value
+    )
+    if (i === -1) return true
+    unmatched.splice(i, 1)
+    return false
+  })
+}
+
 // The txs in the range that paid the treasury, shaped like unchained's history, for chains with no unchained host.
 // Fees arrive as ERC20 transfers in (logs) or native value in (traces of the blocks where the balance moved); each such
 // tx's receipt then gives its sender and every token movement, so spends by the treasury in the same tx are still seen
@@ -73,8 +94,13 @@ export const getRpcTxHistory = async (
   client: EvmLogClient,
   treasury: string,
   fromBlock: number,
-  toBlock: number
+  toBlock: number,
+  nativeTokenContract?: string
 ): Promise<UnchainedTx[]> => {
+  // A contract or 7702-delegated treasury can move native value without bumping its nonce, which bisection would miss
+  const codes = await Promise.all([client.getCode(treasury, fromBlock - 1), client.getCode(treasury, toBlock)])
+  if (codes.some(code => code !== '0x')) throw new Error(`Treasury ${treasury} has code; native fees can't be scanned`)
+
   const found = new Map<string, { blockHeight: number; internalTxs: UnchainedInternalTx[] }>()
 
   const [inbound, changedBlocks] = await Promise.all([
@@ -118,7 +144,11 @@ export const getRpcTxHistory = async (
       from: receipt.from.toLowerCase(),
       to: null,
       value: '0',
-      tokenTransfers: collectTokenTransfers(receipt.logs, treasury),
+      tokenTransfers: dropNativeTokenEchoes(
+        collectTokenTransfers(receipt.logs, treasury),
+        internalTxs,
+        nativeTokenContract
+      ),
       internalTxs,
     }))
     .sort((a, b) => a.blockHeight - b.blockHeight)

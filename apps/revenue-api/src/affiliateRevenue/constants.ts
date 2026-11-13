@@ -87,6 +87,11 @@ export const SONIC_CHAIN_ID = 'eip155:146'
 export const CELO_CHAIN_ID = 'eip155:42220'
 export const BOB_CHAIN_ID = 'eip155:60808'
 
+// Native coins that are also ERC20s, so a native transfer can emit a Transfer log too
+export const NATIVE_TOKEN_CONTRACTS: Record<string, string> = {
+  [CELO_CHAIN_ID]: '0x471ece3750da237f93b8e339c536989b8978a438',
+}
+
 // Slip44 coin type values for native assets
 export const SLIP44 = {
   BITCOIN: 0,

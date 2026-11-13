@@ -212,17 +212,22 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return receipt
   }
 
-  // Native balance and nonce after the block, from archive state
+  const retryLaggingNode = (error: unknown) => isBehindHead(error) || isRetryableRpcError(error)
+
+  // Needs archive state for historical blocks
   const getAccountState = async (address: string, blockNumber: number): Promise<AccountState> => {
     const [balance, nonce] = await Promise.all([
-      call<Hex>('eth_getBalance', [address, toHex(blockNumber)]),
-      call<Hex>('eth_getTransactionCount', [address, toHex(blockNumber)]),
+      call<Hex>('eth_getBalance', [address, toHex(blockNumber)], retryLaggingNode),
+      call<Hex>('eth_getTransactionCount', [address, toHex(blockNumber)], retryLaggingNode),
     ])
     return { balance: BigInt(balance), nonce: Number(BigInt(nonce)) }
   }
 
+  const getCode = (address: string, blockNumber: number): Promise<Hex> =>
+    call<Hex>('eth_getCode', [address, toHex(blockNumber)], retryLaggingNode)
+
   const traceBlock = (blockNumber: number): Promise<BlockTrace> =>
-    call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }])
+    call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }], retryLaggingNode)
 
   return {
     resolveBlockRange,
@@ -230,6 +235,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     getBlockTimestamps,
     getReceipt,
     getAccountState,
+    getCode,
     traceBlock,
   }
 }

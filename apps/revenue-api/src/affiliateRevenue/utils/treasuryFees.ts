@@ -2,6 +2,7 @@ import axios from 'axios'
 
 import type { Service } from '../../types'
 import { withRetry } from '../../utils/retry'
+import { NATIVE_TOKEN_CONTRACTS } from '../constants'
 import type { Fees } from '../types'
 
 import { createAlchemyClient } from './alchemy'
@@ -57,7 +58,9 @@ export const getTreasuryFees = async ({
 
   // No unchained host: read the node instead (transfer logs, plus traces of the blocks where the balance moved)
   if (!hasUnchainedHost(chainId)) {
-    return toFees(await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock))
+    return toFees(
+      await getRpcTxHistory(client, treasuryAddress, effectiveFromBlock, toBlock, NATIVE_TOKEN_CONTRACTS[chainId])
+    )
   }
 
   const fees: Fees[] = []

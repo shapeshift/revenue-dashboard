@@ -2,9 +2,16 @@ import { describe, expect, it } from 'bun:test'
 import type { Hex } from 'viem'
 import { padHex } from 'viem'
 
-import type { AccountState, CallFrame, Log } from './evmLogClient'
 import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
-import { collectNativeTransfers, collectTokenTransfers, findStateChangeBlocks } from './rpcTxHistory'
+import type { AccountState, CallFrame, Log, EvmLogClient } from './evmLogClient'
+import {
+  collectNativeTransfers,
+  collectTokenTransfers,
+  dropNativeTokenEchoes,
+  findStateChangeBlocks,
+  getRpcTxHistory,
+} from './rpcTxHistory'
+import type { UnchainedTokenTransfer } from './unchained'
 
 const TREASURY = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
 const HANDLER = '0x0f7ae28de1c8532170ad4ee566b5801485c13a0e'
@@ -44,7 +51,7 @@ describe('findStateChangeBlocks', () => {
     )
 
     expect(blocks).toEqual([])
-    expect(queried.sort()).toEqual([200, 99])
+    expect(queried.sort((a, b) => a - b)).toEqual([99, 200])
   })
 })
 
@@ -102,5 +109,45 @@ describe('collectTokenTransfers', () => {
       { from: HANDLER, to: TREASURY, value: '7' },
       { from: TREASURY, to: USER, value: '5' },
     ])
+  })
+})
+
+describe('dropNativeTokenEchoes', () => {
+  const CELO = '0x471ece3750da237f93b8e339c536989b8978a438'
+  const OTHER = '0x00000000000000000000000000000000000000cc'
+  const transfer = (contract: string, value: string): UnchainedTokenTransfer => ({
+    from: HANDLER,
+    to: TREASURY,
+    value,
+    contract,
+    decimals: 0,
+    name: '',
+    symbol: '',
+    type: 'ERC20',
+  })
+
+  it('drops native token logs that echo a traced native transfer, once per transfer', () => {
+    const native = [{ from: HANDLER, to: TREASURY, value: '7' }]
+    const kept = dropNativeTokenEchoes(
+      [transfer(CELO, '7'), transfer(CELO, '7'), transfer(CELO, '3'), transfer(OTHER, '7')],
+      native,
+      CELO
+    )
+
+    expect(kept).toEqual([transfer(CELO, '7'), transfer(CELO, '3'), transfer(OTHER, '7')])
+  })
+
+  it('keeps everything on chains without a native token contract', () => {
+    const transfers = [transfer(CELO, '7')]
+    expect(dropNativeTokenEchoes(transfers, [{ from: HANDLER, to: TREASURY, value: '7' }], undefined)).toBe(transfers)
+  })
+})
+
+describe('getRpcTxHistory', () => {
+  it('refuses a treasury with code, whose native moves bisection could miss', async () => {
+    const client = { getCode: () => Promise.resolve('0xef0100aa') } as unknown as EvmLogClient
+
+    const error = await getRpcTxHistory(client, TREASURY, 10, 20).catch((err: unknown) => err)
+    expect(String(error)).toContain('has code')
   })
 })
