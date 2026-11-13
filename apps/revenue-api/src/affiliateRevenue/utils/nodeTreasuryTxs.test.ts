@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test'
+import type { Hex } from 'viem'
+import { padHex } from 'viem'
 
-import type { AccountState, CallFrame } from './evmLogClient'
-import { collectNativeTransfers, findStateChangeBlocks } from './nodeTreasuryTxs'
+import type { AccountState, CallFrame, Log } from './evmLogClient'
+import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
+import { collectNativeTransfers, collectTokenTransfers, findStateChangeBlocks } from './nodeTreasuryTxs'
 
 const TREASURY = '0xf5aa59151be6515c4ca68a0282cf68b3ea4846fc'
 const HANDLER = '0x0f7ae28de1c8532170ad4ee566b5801485c13a0e'
@@ -67,5 +70,37 @@ describe('collectNativeTransfers', () => {
     const trace = frame({ error: 'execution reverted', calls: [frame({ from: HANDLER, to: TREASURY, value: '0x7' })] })
 
     expect(collectNativeTransfers(trace, TREASURY)).toEqual([])
+  })
+})
+
+describe('collectTokenTransfers', () => {
+  const TOKEN = '0x00000000000000000000000000000000000000cc'
+  const log = (from: string, to: string, data: Hex, topicCount = 3): Log => ({
+    address: TOKEN,
+    topics: [ERC20_TRANSFER_TOPIC, padHex(from as Hex, { size: 32 }), padHex(to as Hex, { size: 32 })].slice(
+      0,
+      topicCount
+    ) as Log['topics'],
+    data,
+    blockNumber: '0x1',
+    transactionHash: '0x01',
+  })
+
+  it('keeps ERC20 transfers in and out of the treasury, skipping others and malformed transfers', () => {
+    const transfers = collectTokenTransfers(
+      [
+        log(HANDLER, TREASURY, '0x07'),
+        log(TREASURY, USER, '0x05'),
+        log(HANDLER, USER, '0x50'),
+        log(HANDLER, TREASURY, '0x'),
+        log(HANDLER, TREASURY, '0x09', 2),
+      ],
+      TREASURY
+    )
+
+    expect(transfers.map(({ from, to, value }) => ({ from, to, value }))).toEqual([
+      { from: HANDLER, to: TREASURY, value: '7' },
+      { from: TREASURY, to: USER, value: '5' },
+    ])
   })
 })

@@ -3,7 +3,7 @@ import { padHex } from 'viem'
 
 import { mapConcurrently } from '../../utils/concurrency'
 
-import type { AccountState, CallFrame, EvmLogClient } from './evmLogClient'
+import type { AccountState, CallFrame, EvmLogClient, Log } from './evmLogClient'
 import { ERC20_TRANSFER_TOPIC } from './evmLogClient'
 import type { UnchainedInternalTx, UnchainedTokenTransfer, UnchainedTx } from './unchained'
 
@@ -50,48 +50,40 @@ export const collectNativeTransfers = (frame: CallFrame, treasury: string): Unch
   return transfers
 }
 
-type PendingTx = {
-  blockNumber: number
-  from?: string
-  tokenTransfers: UnchainedTokenTransfer[]
-  internalTxs: UnchainedInternalTx[]
-}
-
-// The treasury's txs in the range, shaped like unchained's history, for chains with no unchained host
-export const getNodeTreasuryTxs = async (
-  client: EvmLogClient,
-  treasury: string,
-  fromBlock: number,
-  toBlock: number
-): Promise<UnchainedTx[]> => {
-  const treasuryTopic = padHex(treasury as Hex, { size: 32 })
-  const txs = new Map<string, PendingTx>()
-  const getTx = (txHash: string, blockNumber: number) => {
-    let tx = txs.get(txHash)
-    if (!tx) txs.set(txHash, (tx = { blockNumber, tokenTransfers: [], internalTxs: [] }))
-    return tx
-  }
-
-  const [inbound, outbound, changedBlocks] = await Promise.all([
-    client.getLogs(undefined, [ERC20_TRANSFER_TOPIC, null, treasuryTopic], fromBlock, toBlock),
-    client.getLogs(undefined, [ERC20_TRANSFER_TOPIC, treasuryTopic], fromBlock, toBlock),
-    findStateChangeBlocks(blockNumber => client.getAccountState(treasury, blockNumber), fromBlock, toBlock),
-  ])
-
-  // Logs only come from successful txs; a malformed Transfer (e.g. ERC721) has no amount in data
-  for (const log of [...inbound, ...outbound]) {
-    if (log.topics.length !== 3 || log.data === '0x') continue
-    getTx(log.transactionHash, Number(BigInt(log.blockNumber))).tokenTransfers.push({
-      from: `0x${log.topics[1].slice(26)}`,
-      to: `0x${log.topics[2].slice(26)}`,
+// ERC20 transfers to or from the treasury among a tx's logs; a malformed Transfer (e.g. ERC721) has no amount in data
+export const collectTokenTransfers = (logs: Log[], treasury: string): UnchainedTokenTransfer[] =>
+  logs
+    .filter(log => log.topics[0] === ERC20_TRANSFER_TOPIC && log.topics.length === 3 && log.data !== '0x')
+    .map(log => ({
+      from: `0x${log.topics[1].slice(26)}`.toLowerCase(),
+      to: `0x${log.topics[2].slice(26)}`.toLowerCase(),
       value: BigInt(log.data).toString(),
       contract: log.address.toLowerCase(),
       decimals: 0,
       name: '',
       symbol: '',
       type: 'ERC20',
-    })
-  }
+    }))
+    .filter(transfer => transfer.from === treasury || transfer.to === treasury)
+
+// The txs in the range that paid the treasury, shaped like unchained's history, for chains with no unchained host.
+// Fees arrive as ERC20 transfers in (logs) or native value in (traces of the blocks where the balance moved); each such
+// tx's receipt then gives its sender and every token movement, so spends by the treasury in the same tx are still seen
+export const getNodeTreasuryTxs = async (
+  client: EvmLogClient,
+  treasury: string,
+  fromBlock: number,
+  toBlock: number
+): Promise<UnchainedTx[]> => {
+  const blockByTx = new Map<string, number>()
+  const internalTxsByTx = new Map<string, UnchainedInternalTx[]>()
+
+  const [inbound, changedBlocks] = await Promise.all([
+    client.getLogs(undefined, [ERC20_TRANSFER_TOPIC, null, padHex(treasury as Hex, { size: 32 })], fromBlock, toBlock),
+    findStateChangeBlocks(blockNumber => client.getAccountState(treasury, blockNumber), fromBlock, toBlock),
+  ])
+
+  for (const log of inbound) blockByTx.set(log.transactionHash, Number(BigInt(log.blockNumber)))
 
   const traces = await mapConcurrently(changedBlocks, TRACE_CONCURRENCY, async blockNumber => ({
     blockNumber,
@@ -103,29 +95,28 @@ export const getNodeTreasuryTxs = async (
       const internalTxs = collectNativeTransfers(result, treasury)
       if (internalTxs.length === 0) continue
 
-      const tx = getTx(txHash, blockNumber)
-      tx.from = result.from.toLowerCase()
-      tx.internalTxs.push(...internalTxs)
+      blockByTx.set(txHash, blockNumber)
+      internalTxsByTx.set(txHash, internalTxs)
     }
   }
 
-  const entries = [...txs]
-  const [timestamps, senders] = await Promise.all([
-    client.getBlockTimestamps([...new Set(entries.map(([, tx]) => tx.blockNumber))]),
-    mapConcurrently(entries, TRACE_CONCURRENCY, async ([txHash, tx]) => tx.from ?? client.getTransactionSender(txHash)),
+  const entries = [...blockByTx]
+  const [timestamps, receipts] = await Promise.all([
+    client.getBlockTimestamps([...new Set(blockByTx.values())]),
+    mapConcurrently(entries, TRACE_CONCURRENCY, ([txHash]) => client.getReceipt(txHash)),
   ])
 
   return entries
-    .map(([txid, tx], i) => ({
+    .map(([txid, blockHeight], i) => ({
       txid,
-      blockHeight: tx.blockNumber,
-      timestamp: timestamps.get(tx.blockNumber)!,
-      status: 1,
-      from: senders[i].toLowerCase(),
+      blockHeight,
+      timestamp: timestamps.get(blockHeight)!,
+      status: Number(BigInt(receipts[i].status)),
+      from: receipts[i].from.toLowerCase(),
       to: null,
       value: '0',
-      tokenTransfers: tx.tokenTransfers,
-      internalTxs: tx.internalTxs,
+      tokenTransfers: collectTokenTransfers(receipts[i].logs, treasury),
+      internalTxs: internalTxsByTx.get(txid) ?? [],
     }))
     .sort((a, b) => a.blockHeight - b.blockHeight)
 }

@@ -33,6 +33,8 @@ export type CallFrame = {
 
 export type BlockTrace = { txHash: Hex; result: CallFrame }[]
 
+export type Receipt = { from: Hex; status: Hex; logs: Log[] }
+
 // Requests in flight per endpoint key: Alchemy meters one key across all its networks, so every client shares it
 const ENDPOINT_CONCURRENCY = 10
 const endpointLimiters = new Map<string, ReturnType<typeof createSemaphore>>()
@@ -199,8 +201,7 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
     return perWindow.flat()
   }
 
-  const getReceiptLogs = async (txHash: string): Promise<Log[]> =>
-    (await call<{ logs: Log[] }>('eth_getTransactionReceipt', [txHash])).logs
+  const getReceipt = (txHash: string): Promise<Receipt> => call<Receipt>('eth_getTransactionReceipt', [txHash])
 
   // Native balance and nonce after the block, from archive state
   const getAccountState = async (address: string, blockNumber: number): Promise<AccountState> => {
@@ -214,17 +215,13 @@ export const createEvmLogClient = (chainId: string, rpcUrl: string, context: str
   const traceBlock = (blockNumber: number): Promise<BlockTrace> =>
     call<BlockTrace>('debug_traceBlockByNumber', [toHex(blockNumber), { tracer: 'callTracer' }])
 
-  const getTransactionSender = async (txHash: string): Promise<string> =>
-    (await call<{ from: string }>('eth_getTransactionByHash', [txHash])).from
-
   return {
     resolveBlockRange,
     getLogs,
     getBlockTimestamps,
-    getReceiptLogs,
+    getReceipt,
     getAccountState,
     traceBlock,
-    getTransactionSender,
   }
 }
 

@@ -89,7 +89,7 @@ const transferLog: Log = {
   transactionHash: '0x1',
 }
 
-const clientWith = (logs: Log[]) => ({ getReceiptLogs: () => Promise.resolve(logs) }) as unknown as EvmLogClient
+const clientWith = (logs: Log[]) => ({ getReceipt: () => Promise.resolve({ logs }) }) as unknown as EvmLogClient
 
 describe('isTreasuryDeposit', () => {
   it("flags a fill a treasury deposited, whichever chain's treasury it was", async () => {

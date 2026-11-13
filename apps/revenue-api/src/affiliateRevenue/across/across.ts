@@ -30,7 +30,7 @@ const getFillDepositors = (logs: Log[]): string[] =>
 
 // The handler pays a treasury's own bridge output like a fee, so skip fills a treasury deposited
 export const isTreasuryDeposit = async (txid: string, client: EvmLogClient): Promise<boolean> => {
-  const depositors = getFillDepositors(await client.getReceiptLogs(txid))
+  const depositors = getFillDepositors((await client.getReceipt(txid)).logs)
 
   // Every handler payout happens inside a fill, so none recognised means Across changed its event: skip rather than risk counting output
   if (depositors.length === 0) {
